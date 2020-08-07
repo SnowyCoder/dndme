@@ -1,0 +1,66 @@
+@import url('https://fonts.googleapis.com/css2?family=Merienda+One&display=swap');
+@import '~bootstrap/dist/css/bootstrap.css';
+@import '~bootstrap-vue/dist/bootstrap-vue.css';
+
+:root {
+    --topbar-height: 40px;
+}
+
+* {
+    font-family: 'Merienda One', cursive;
+}
+
+body {
+    color: white;
+
+    background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAPklEQVQoU2NkYGAwZmBgOMsAASD2cwYGhmcwPiOUIcXAwCCJpBDOhynA0AkzCaQA2QoMk0AKQIJwO+nvBmMAk2YWvDhYBRoAAAAASUVORK5CYII=);
+    background-color: #6e472c !important;
+}
+
+.phase-container {
+}
+
+
+@media screen and (max-height: 890px) {
+    .footer {
+        position: static;
+    }
+}
+
+@media screen and (min-height: 890px) {
+    .footer {
+        position: fixed;
+        bottom: 0;
+    }
+}
+
+.under-navbar {
+    margin-top: var(--topbar-height) !important;
+}
+
+div.under-navbar {
+    margin-top: var(--topbar-height) !important;
+}
+
+.footer, .game-footer {
+    width: 100%;
+    background-color: rgba(0, 0, 0, 0.25);
+}
+
+.btn-xs {
+    padding: .25rem .4rem;
+    font-size: .875rem;
+    line-height: .5;
+    border-radius: .2rem;
+}
+
+.modal-fullscreen {
+    height: 92%;
+}
+.modal-fullscreen .modal-content {
+    height: 100%;
+}
+.modal-xxl {
+    width: 92% !important;
+    max-width: 92% !important;
+}
