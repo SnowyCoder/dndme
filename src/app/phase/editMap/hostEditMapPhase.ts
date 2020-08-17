@@ -32,8 +32,8 @@ export class HostEditMapPhase extends EditMapPhase {
         super.setupEcs();
         this.ecs.addStorage(new FlagEcsStorage("host_hidden"));
 
-        this.networkSystem = new HostNetworkSystem(this.ecs, this.networkManager.channel);
         this.roomBackgroundSystem = new HostDungeonBackgroundSystem(this.ecs, this.networkManager.channel);
+        this.networkSystem = new HostNetworkSystem(this.ecs, this.networkManager.channel);
     }
 
     async onDrop(event: DragEvent) {

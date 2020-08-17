@@ -6,7 +6,7 @@ import {Component, PositionComponent, RoomComponent} from "../component";
 import {BackgroundImageComponent} from "./backgroundSystem";
 import {FlagEcsStorage, SingleEcsStorage} from "../storage";
 import {Channel} from "../../network/channel";
-import {RoomMapDraw} from "../../protocol/game";
+import {RoomMapDraw, RoomMapForceForget} from "../../protocol/game";
 import * as PIXI from "pixi.js";
 import {app} from "../../index";
 import {DESTROY_ALL, loadTexture} from "../../util/pixi";
@@ -99,13 +99,25 @@ export class HostDungeonBackgroundSystem implements System {
 
     private async onComponentEdit(comp: Component, changes: any) {
         if (comp.type === 'room') {
-            if (changes['visible'] === true && this.roomKnownStorage.getComponent(comp.entity) === undefined) {
+            if (changes['visible'] === true && !this.ecs.hasAllComponents(comp.entity, 'host_hidden') && this.roomKnownStorage.getComponent(comp.entity) === undefined) {
                 this.ecs.addComponent(comp.entity, {
                     type: 'host_room_known'
                 } as Component);
             }
-        } else if (comp.type == 'position' && this.roomKnownStorage.getComponent(comp.entity) !== undefined) {
-            // move the room window?
+        } else if (comp.type == 'position') {
+            let known = this.roomKnownStorage.getComponent(comp.entity);
+            if (known !== undefined) {
+                let room = this.ecs.getComponent(comp.entity, 'room') as RoomComponent;
+                if (room.visible) {
+                    this.ecs.editComponent(room.entity, 'room', { visible: false });
+                }
+
+                this.channel.broadcast({
+                    type: "room_map_force_forget",
+                    rooms: [comp.entity],
+                } as RoomMapForceForget);
+                this.ecs.removeComponent(known);
+            }
         }
     }
 
@@ -218,6 +230,7 @@ export class ClientDungeonBackgroundSystem implements System {
 
         this.ecs.events.on('component_remove', this.onComponentRemove, this);
         channel.eventEmitter.on('room_map_draw', this.onRoomMapDraw, this);
+        channel.eventEmitter.on('room_map_force_forget', this.onRoomMapForceForget, this);
     }
 
     // TODO: forget
@@ -233,6 +246,12 @@ export class ClientDungeonBackgroundSystem implements System {
 
         let [tex] = await loadTexture(packet.map, packet.mapType);
         this.addPartialImage(packet.mapX, packet.mapY, tex);
+    }
+
+    private async onRoomMapForceForget(packet: RoomMapForceForget, container: PacketContainer) {
+        if (container.sender !== 0) return; // Only admin
+
+        this.forget(packet.rooms);
     }
 
     forget(rooms: number[]) {

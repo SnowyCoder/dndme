@@ -294,5 +294,6 @@ function assignSwap(obj: any, changes: any): void {
         changes[name] = obj[name];
         obj[name] = tmp;
     }
+    return changes;
 }
 

@@ -18,8 +18,8 @@ export class ClientEditMapPhase extends EditMapPhase {
         super.setupEcs();
         this.ecs.addStorage(new FlagEcsStorage("host_hidden"));
 
-        this.networkSystem = new ClientNetworkSystem(this.ecs, this.networkManager.channel);
         this.roomBackgroundSystem = new ClientDungeonBackgroundSystem(this, this.networkManager.channel);
+        this.networkSystem = new ClientNetworkSystem(this.ecs, this.networkManager.channel);
     }
 
     enable() {

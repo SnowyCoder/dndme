@@ -24,14 +24,6 @@ export interface HelloState extends Packet {
     levelId: number;
 }
 
-
-export interface RoomMapDraw extends Packet {
-    type: 'room_map_draw';
-    map: ArrayBuffer;
-    mapType: string;
-    mapX: number;
-    mapY: number;
-}
 /*
 /**
  * Host -> Device
@@ -112,21 +104,15 @@ export interface ResourceEdit {
     changes: { [key: string]: any; }
 }
 
-export interface ShowRoom extends Packet {
-    type: "show_room";
-    roomId: number;
-    displayData?: {
-        polygon: Array<number>;
-        image: ArrayBuffer;
-    }
+export interface RoomMapDraw extends Packet {
+    type: 'room_map_draw';
+    map: ArrayBuffer;
+    mapType: string;
+    mapX: number;
+    mapY: number;
 }
 
-export interface HideRoom extends Packet {
-    type: "hide_room";
-    roomId: number;
-}
-
-export interface ForgetRoom extends Packet{
-    type: "forget_room";
-    roomId: number;
+export interface RoomMapForceForget extends Packet {
+    type: 'room_map_force_forget';
+    rooms: number[],
 }
