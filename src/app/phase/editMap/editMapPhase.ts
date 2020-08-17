@@ -68,8 +68,6 @@ export class EditMapPhase extends BirdEyePhase {
         chEvents.on('_device_left', connUpdate)
         chEvents.on('_buffering_update', () => {
             this.vue.connectionBuffering = this.networkManager.channel.bufferingChannels > 0;
-            console.log(this.vue);
-            console.log(this.vue.connectionBuffering);
         });
     }
 
