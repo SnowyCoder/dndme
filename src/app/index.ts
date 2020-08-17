@@ -1,5 +1,4 @@
 import {Stage} from "./phase/stage";
-import {Channel} from "./network/channel";
 import * as PIXI from "pixi.js";
 
 import {HomePhase} from "./phase/homePhase";
@@ -7,7 +6,7 @@ import {HomePhase} from "./phase/homePhase";
 import {EventEmitterWrapper} from "./util/eventEmitterWrapper";
 
 import Vue from 'vue'
-import { BootstrapVue, IconsPlugin } from 'bootstrap-vue'
+import { BootstrapVue } from 'bootstrap-vue'
 
 import '@fortawesome/fontawesome-free/css/all.css'
 import '@fortawesome/fontawesome-free/js/all.js'
@@ -49,7 +48,6 @@ function onHashCahnge() {
 
 (async function () {
     app = new PIXI.Application({
-        resizeTo: window,
         transparent: true
     });
     // The app.view (canvas) is only appended when the game-phase starts.

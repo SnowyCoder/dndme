@@ -1,4 +1,3 @@
-
 import * as EventEmitter from "eventemitter3"
 import {P2pConnection} from "./p2pConnection";
 import {ErrorPacket, Packet, PacketContainer} from "../protocol/packet";
@@ -13,6 +12,7 @@ export class Channel {
     nextBroadcastPacketId: number = 0;
 
     eventEmitter: EventEmitter = new EventEmitter();
+    bufferingChannels: number = 0;
 
     constructor(isHost: boolean) {
         this.isHost = isHost;
@@ -116,12 +116,19 @@ export class Channel {
         }
     }
 
+    private onConnectionStatusUpdate(isBuffering: boolean) {
+        if (isBuffering) this.bufferingChannels += 1;
+        else this.bufferingChannels -= 1;
+        this.eventEmitter.emit("_buffering_update", this.bufferingChannels);
+    }
+
     registerNewConnection(conn: P2pConnection) {
         this.connectionsById.set(conn.channelId, conn);
         this.connections.push(conn);
 
         conn.ondata = this.onMessage.bind(this);
         conn.nextPacketId = 0;
+        conn.onBufferChange = this.onConnectionStatusUpdate.bind(this);
 
         this.eventEmitter.emit("_device_join", conn.channelId);
     }

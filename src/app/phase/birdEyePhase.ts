@@ -1,8 +1,7 @@
 import {Phase} from "./phase";
 import {Board} from "../game/board";
 import * as PIXI from "pixi.js";
-import {app, windowEventEmitter} from "../index";
-import {GridOptions, GridType, STANDARD_GRID_OPTIONS} from "../game/grid";
+import {app} from "../index";
 import {EcsTracker} from "../ecs/ecs";
 import {registerCommonStorage} from "../ecs/component";
 import {GridSystem} from "../ecs/systems/gridSystem";
@@ -159,7 +158,6 @@ export class BirdEyePhase extends Phase {
 
     applyCanvasStyle(canvas: HTMLCanvasElement) {
         const s = canvas.style;
-        s.position = "fixed";
         s.width = "100%";
         s.height = "100%";
     }
@@ -169,7 +167,9 @@ export class BirdEyePhase extends Phase {
 
         const canvas = app.view;
         this.applyCanvasStyle(canvas);
-        document.body.appendChild(canvas);
+        let cnt = document.getElementById('canvas-container');
+        app.resizeTo = cnt;
+        cnt.appendChild(canvas);
 
         //app.renderer.backgroundColor = 0x3e2723; // dark brown
 
@@ -201,7 +201,9 @@ export class BirdEyePhase extends Phase {
 
         app.view.removeEventListener('wheel', this.wheelListener);
 
-        document.body.removeChild(app.view);
+        let cnt = document.getElementById('canvas-container');
+        cnt.removeChild(app.view);
+        app.resizeTo = undefined;
 
         super.disable();
     }

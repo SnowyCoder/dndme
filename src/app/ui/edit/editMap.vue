@@ -36,6 +36,10 @@
         </b-button-toolbar>
 
 
+        <div id="canvas-container" style="width: 100%; height: calc(100vh - var(--topbar-height));">
+
+        </div>
+
         <!----------------------------------------------------------------------------------------      SIDEBAR      -->
 
         <b-sidebar id="sidebar-right" title="Sidebar"
@@ -97,6 +101,14 @@
                         @ecs-property-change="onEcsPropertyChange"/>
             </div>
 
+            <template v-slot:footer>
+                <div class="sidebar-footer">
+                    {{ connectionCount }}
+                    <div v-bind:class="{ rotate: connectionBuffering }" style="margin-left: 0.2rem">
+                        <i class="fas fa-sync-alt"></i>
+                    </div>
+                </div>
+            </template>
         </b-sidebar>
 
         <a id="hidden-download-link" style="display: none;"/>
@@ -118,6 +130,8 @@
             return {
                 tool: 'inspect',
                 isAdmin: false,
+                connectionCount: 0,
+                connectionBuffering: false,
                 grid: {
                     type: "none",
                     size: 1,
@@ -202,10 +216,15 @@
         user-select: none;
     }
 
-
     .toolbar-btn {
         color: #fff;
         background-color: #2C3E50;
         border-color: #2C3E50;
+    }
+
+    .sidebar-footer {
+        display: flex;
+        align-items: center;
+        justify-content: right;
     }
 </style>

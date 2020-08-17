@@ -3,4 +3,8 @@ export interface P2pConnection {
     ondata?: (data: any, conn: P2pConnection) => void;
     channelId: number;
     nextPacketId: number;
+
+    buffered: boolean,
+    bufferedBytes(): number;
+    onBufferChange?: (buffered: boolean) => void;
 }

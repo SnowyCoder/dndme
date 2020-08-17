@@ -59,6 +59,18 @@ export class EditMapPhase extends BirdEyePhase {
         this.networkManager = new NetworkManager(this.isHost);
         this.networkManager.on("ready", this.onNetworkReady, this);
         this.networkManager.on("error", this.onNetworkError, this);
+
+        let connUpdate = () => {
+            this.vue.connectionCount = this.networkManager.channel.connections.length;
+        };
+        let chEvents = this.networkManager.channel.eventEmitter;
+        chEvents.on('_device_join', connUpdate)
+        chEvents.on('_device_left', connUpdate)
+        chEvents.on('_buffering_update', () => {
+            this.vue.connectionBuffering = this.networkManager.channel.bufferingChannels > 0;
+            console.log(this.vue);
+            console.log(this.vue.connectionBuffering);
+        });
     }
 
     changeTool(tool: Tool) {

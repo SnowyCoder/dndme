@@ -57,7 +57,6 @@
 
 <style scoped>
     .component-header {
-        width: 100%;
         display: flex;
         align-items: center;
         margin-left: 5px;

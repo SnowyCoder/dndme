@@ -100,6 +100,8 @@ export class NetworkConnection implements P2pConnection {
     nextPacketId: number;
 
     bootstrap: boolean = false;
+    buffered: boolean = false;
+    onBufferChange?: (buffered: boolean) => void;
 
     constructor(parent: NetworkManager, chId: number | undefined, connection: Peer.DataConnection) {
         this.parent = parent;
@@ -115,6 +117,7 @@ export class NetworkConnection implements P2pConnection {
     }
 
     onOpen() {
+        this.connection.dataChannel.onbufferedamountlow = this.updateBuffered.bind(this);
         if (this.parent.isHost) {
             this.connection.send(this.channelId);
             this.parent.channel.registerNewConnection(this);
@@ -122,8 +125,6 @@ export class NetworkConnection implements P2pConnection {
     }
 
     onData(data: any) {
-
-        //console.log("onData(", data);
         if (!this.bootstrap) {
             this.parent.myId = data as number;
             this.parent.channel.myId = data as number;
@@ -136,11 +137,24 @@ export class NetworkConnection implements P2pConnection {
     }
 
     onClose() {
-        // TODO
+        this.parent.channel.removeConnection(this);
     }
 
     send(data: any): void {
         this.connection.send(data);
+        this.updateBuffered();
+    }
+
+    bufferedBytes() {
+        return this.connection.dataChannel.bufferedAmount;
+    }
+
+    private updateBuffered() {
+        let oldBuffered = this.buffered;
+        this.buffered = (this.connection.bufferSize + this.connection.dataChannel.bufferedAmount) !== 0;
+        if (oldBuffered !== this.buffered && this.onBufferChange !== undefined) {
+            this.onBufferChange(this.buffered);
+        }
     }
 }
 

@@ -42,6 +42,10 @@ div.under-navbar {
     margin-top: var(--topbar-height) !important;
 }
 
+.b-sidebar.under-navbar {
+    height: calc(100vh - var(--topbar-height));
+}
+
 .footer, .game-footer {
     width: 100%;
     background-color: rgba(0, 0, 0, 0.25);
@@ -64,3 +68,24 @@ div.under-navbar {
     width: 92% !important;
     max-width: 92% !important;
 }
+
+#canvas-container canvas {
+    vertical-align: top;
+}
+
+.rotate {
+    animation: rotation 1s infinite linear;
+}
+
+/** ANIMATIONS **/
+
+@keyframes rotation {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(359deg);
+    }
+}
+
+
