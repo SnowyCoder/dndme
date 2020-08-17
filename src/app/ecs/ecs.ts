@@ -168,7 +168,7 @@ export class EcsTracker {
 
     editResource(type: string, changes: any): void {
         let res = this.getResource(type);
-        this.events.emit('resource_edit', changes, res);
+        this.events.emit('resource_edit', res, changes);
         assignSwap(res, changes);// changes now has old values
         this.events.emit('resource_edited', res, changes);
     }

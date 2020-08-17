@@ -129,7 +129,7 @@ export class HostNetworkSystem implements System {
             entityId: component.entity,
             compType: component.type,
             multiId: (component as MultiComponent).multiId,
-            changes: changes,
+            changes: Object.assign({}, changes),
         } as P.ComponentEdit);
     }
 
@@ -161,23 +161,23 @@ export class HostNetworkSystem implements System {
         } as P.ResourceAdd);
     }
 
-    private onResourceEdit(resource: Resource): void {
+    private onResourceEdit(resource: Resource, changes: any): void {
+        if (!this.isEnabled || (resource as HiddenResource)._clientHide === true) return;
+
+        this.channel.broadcast({
+            type: "resource_edit",
+            resType: resource.type,
+            changes: Object.assign({}, changes),// copy object
+        } as P.ResourceEdit);
+    }
+
+    private onResourceRemove(resource: Resource): void {
         if (!this.isEnabled || (resource as HiddenResource)._clientHide === true) return;
 
         this.channel.broadcast({
             type: "resource_remove",
             resType: resource.type,
         } as P.ResourceRemove);
-    }
-
-    private onResourceRemove(resource: Resource, changes: any): void {
-        if (!this.isEnabled || (resource as HiddenResource)._clientHide === true) return;
-
-        this.channel.broadcast({
-            type: "resource_edit",
-            resType: resource.type,
-            changes: changes
-        } as P.ResourceEdit);
     }
 
     // ---------------------------------- UTILS ----------------------------------

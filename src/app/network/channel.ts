@@ -65,7 +65,7 @@ export class Channel {
             let packetType = packet.payload.type;
 
             if (process.env.VERBOSE_CHANNEL === "1") {
-                console.log("Read", packet);
+                console.log("Read", Object.assign({}, packet));
             }
             this.eventEmitter.emit("any", packet.payload, packet);
             this.eventEmitter.emit(packetType, packet.payload, packet);
@@ -80,7 +80,7 @@ export class Channel {
         } as PacketContainer;
 
         if (process.env.VERBOSE_CHANNEL === "1") {
-            console.log("Sent", wrapped);
+            console.log("Sent", Object.assign({}, wrapped));
         }
 
         for (let conn of this.connectionsById.values()) {
