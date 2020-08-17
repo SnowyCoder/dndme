@@ -143,7 +143,7 @@
         },
         watch: {
             grid: {
-                handler: function(newGrid, oldGrid) {
+                handler: function(newGrid) {
                     newGrid.offX = Math.min(newGrid.offX, newGrid.size);
                     newGrid.offY = Math.min(newGrid.offY, newGrid.size);
 
@@ -161,7 +161,7 @@
                             offX: newGrid.offX,
                             offY: newGrid.offY,
                             color: parseInt(newGrid.color.substring(1), 16),
-                            opacity: newGrid.opacity,
+                            opacity: parseFloat(newGrid.opacity),
                             width: newGrid.width,
                         } as GridResource, 'update');
                     } else {
