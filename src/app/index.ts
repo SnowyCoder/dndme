@@ -31,17 +31,7 @@ export let app: PIXI.Application;
 // Main
 export const stage = new Stage("main");
 
-(async function () {
-    app = new PIXI.Application({
-        resizeTo: window,
-        transparent: true
-    });
-    // The app.view (canvas) is only appended when the game-phase starts.
-
-    app.view.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-    });
-
+function onHashCahnge() {
     if (window.location.hash) {
         const roomId = window.location.hash.substr(1);// Remove #
         if (roomId.startsWith('p')) {
@@ -54,5 +44,24 @@ export const stage = new Stage("main");
 
     } else {
         stage.setPhase(new HomePhase());
+    }
+}
+
+(async function () {
+    app = new PIXI.Application({
+        resizeTo: window,
+        transparent: true
+    });
+    // The app.view (canvas) is only appended when the game-phase starts.
+
+    app.view.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+    });
+
+    onHashCahnge();
+
+    window.onhashchange = function (e: HashChangeEvent) {
+        console.log("Hash change" + e.newURL);
+        onHashCahnge();
     }
 })();

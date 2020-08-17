@@ -175,7 +175,7 @@ export class EditMapPhase extends BirdEyePhase {
     private onNetworkReady() {
         console.log("Network is ready! " + this.networkManager.isHost)
         if (this.networkManager.isHost) {
-            window.location.hash = '#p' + this.networkManager.peer.id;
+            history.replaceState(null, null, '#p' + this.networkManager.peer.id)
         }
     }
 
@@ -193,7 +193,7 @@ export class EditMapPhase extends BirdEyePhase {
 
             alert("Invalid invite link");
 
-            location.hash = '';
+            history.replaceState(null, null, ' ');
             if (!this.isHost) {
                 stage.setPhase(new HostEditMapPhase(new GameMap()));
             }
