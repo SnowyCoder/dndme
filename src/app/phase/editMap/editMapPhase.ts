@@ -105,10 +105,10 @@ export class EditMapPhase extends BirdEyePhase {
 
 
 
-    onCursorDown(event: PIXI.InteractionEvent) {
-        super.onCursorDown(event);
+    onPointerDown(event: PIXI.InteractionEvent) {
+        super.onPointerDown(event);
 
-        if (event.data.button !== 1 && this.tool === Tool.MOVE) {
+        if (this.tool === Tool.MOVE && !(event.data.button === 1 && event.data.pointerType === 'mouse')) {
             this.isDraggingBoard = false;
             this.isMovingSelection = true;
 
@@ -119,8 +119,8 @@ export class EditMapPhase extends BirdEyePhase {
         }
     }
 
-    onCursorMove(event: PIXI.InteractionEvent) {
-        super.onCursorMove(event);
+    onPointerMove(event: PIXI.InteractionEvent) {
+        super.onPointerMove(event);
         if (this.tool === Tool.CREATE_ROOM) {
             let point = this.getMapPointFromMouseInteraction(event);
 
@@ -138,8 +138,8 @@ export class EditMapPhase extends BirdEyePhase {
         }
     }
 
-    onCursorUp(event: PIXI.InteractionEvent) {
-        super.onCursorUp(event);
+    onPointerUp(event: PIXI.InteractionEvent) {
+        super.onPointerUp(event);
         if (this.isMovingSelection) {
             this.isMovingSelection = false;
 
@@ -147,9 +147,8 @@ export class EditMapPhase extends BirdEyePhase {
         }
     }
 
-    onCursorUpOutside(event: PIXI.InteractionEvent) {
-        super.onCursorUpOutside(event);
-        this.isMovingSelection = true;
+    onPointerUpOutside(event: PIXI.InteractionEvent) {
+        super.onPointerUpOutside(event);
     }
 
     findEntityAt(point: PIXI.Point): number | undefined {
@@ -158,8 +157,8 @@ export class EditMapPhase extends BirdEyePhase {
         return this.backgroundSystem.findBackgroundAt(point);
     }
 
-    onCursorClick(event: PIXI.InteractionEvent) {
-        super.onCursorClick(event);
+    onPointerClick(event: PIXI.InteractionEvent) {
+        super.onPointerClick(event);
         let point = this.getMapPointFromMouseInteraction(event);
         if (this.tool === Tool.CREATE_ROOM) {
            this.roomSystem.addVertex(point);
@@ -214,8 +213,8 @@ export class EditMapPhase extends BirdEyePhase {
         }
     }
 
-    onCursorRightDown(event: PIXI.InteractionEvent) {
-        super.onCursorRightDown(event);
+    onPointerRightDown(event: PIXI.InteractionEvent) {
+        super.onPointerRightDown(event);
         if (this.tool === Tool.CREATE_ROOM) {
             let point = this.getMapPointFromMouseInteraction(event);
             this.roomSystem.undoVertex(point);

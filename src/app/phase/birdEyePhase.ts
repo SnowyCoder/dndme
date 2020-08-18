@@ -1,31 +1,39 @@
 import {Phase} from "./phase";
-import {Board} from "../game/board";
 import * as PIXI from "pixi.js";
 import {app} from "../index";
 import {EcsTracker} from "../ecs/ecs";
 import {registerCommonStorage} from "../ecs/component";
 import {GridSystem} from "../ecs/systems/gridSystem";
 
+interface PointerData {
+    firstX: number,
+    firstY: number,
+    lastX: number,
+    lastY: number,
+}
 
 export class BirdEyePhase extends Phase {
     ecs: EcsTracker;
-    board: Board;
+    board: PIXI.Container;
 
     lastMouseDownTime?: number;
-    lastMouseDownPos?: PIXI.IPoint;
-
     isDraggingBoard: boolean = false;
 
     gridSystem: GridSystem;
 
     private wheelListener: any;
 
+    pointers = new Map<number, PointerData>();
+
+    //originalCenter?: PIXI.Point;
+
     constructor(name: string) {
         super(name);
 
         this.ecs = new EcsTracker();
 
-        this.board = new Board();
+        this.board = new PIXI.Container();
+        this.board.sortableChildren = true;
         this.board.position.set(0, 0);
         this.board.zIndex = 100;
     }
@@ -35,17 +43,9 @@ export class BirdEyePhase extends Phase {
         this.gridSystem = new GridSystem(this.ecs);
     }
 
-    /**
-     * Function called when the mouse scrolls.
-     * The map is zoomed in and out based on the scroll direction.
-     */
-    onMouseWheel(event: WheelEvent) {
-        const scalingSpeed = 0.1;
-
+    zoom(dScale: number, centerX: number, centerY: number) {
         const minScale = 0.05;
         const maxScale = 3;
-
-        const dScale = 1 - Math.sign(event.deltaY) * scalingSpeed;
 
         //console.log("Scale", this.board.scale.x, this.board.scale.y, "dScale", dScale);
         if (this.board.scale.x < minScale && dScale < 1 || this.board.scale.x > maxScale && dScale > 1)
@@ -56,13 +56,13 @@ export class BirdEyePhase extends Phase {
         // Apply the dScale factor to that vector and find the new board position.
         // Finally, the cursor position plus the vector obtained is the new board position.
 
-        let padX = this.board.position.x - event.clientX;
-        let padY = this.board.position.y - event.clientY;
+        let padX = this.board.position.x - centerX;
+        let padY = this.board.position.y - centerY;
 
         padX *= dScale;
         padY *= dScale;
 
-        const position = new PIXI.Point(padX + event.clientX, padY + event.clientY);
+        const position = new PIXI.Point(padX + centerX, padY + centerY);
         const scale = new PIXI.Point(this.board.scale.x * dScale, this.board.scale.y * dScale);
 
         // TODO
@@ -81,39 +81,71 @@ export class BirdEyePhase extends Phase {
         this.gridSystem.updatePos();
     }
 
-    onCursorDown(event: PIXI.InteractionEvent) {
-        this.isDraggingBoard = true;
-        this.lastMouseDownTime = Date.now();
-        this.lastMouseDownPos = event.data.global.clone();
+    /**
+     * Function called when the mouse scrolls.
+     * The map is zoomed in and out based on the scroll direction.
+     */
+    onMouseWheel(event: WheelEvent) {
+        const scalingSpeed = 0.1;
+        const dScale = 1 - Math.sign(event.deltaY) * scalingSpeed;
+        this.zoom(dScale, event.clientX, event.clientY);
     }
 
-    onCursorUp(event: PIXI.InteractionEvent) {
-        this.isDraggingBoard = false;
+    onPointerDown(event: PIXI.InteractionEvent) {
+        let pos = event.data.global;
+        this.pointers.set(event.data.pointerId, {
+            firstX: pos.x,
+            firstY: pos.y,
+            lastX: pos.x,
+            lastY: pos.y,
+        } as PointerData);
+
+        if (this.pointers.size === 1) {
+            this.isDraggingBoard = true;
+        }
+
+        this.lastMouseDownTime = Date.now();
+    }
+
+    onPointerUp(event: PIXI.InteractionEvent): void {
+        let pdata = this.pointers.get(event.data.pointerId);
+        if (pdata === undefined) return;
+
+
+        this.pointers.delete(event.data.pointerId);
+
         if (this.lastMouseDownTime === undefined) return;
 
-        let now = Date.now();
 
-        let timeDiff = now - this.lastMouseDownTime;
+        if (this.pointers.size === 0) {
+            this.isDraggingBoard = false;
+            let now = Date.now();
 
-        let diffX = Math.abs(event.data.global.x - this.lastMouseDownPos.x);
-        let diffY = Math.abs(event.data.global.y - this.lastMouseDownPos.y);
-        let diffPos = Math.sqrt(diffX * diffX + diffY * diffY);
+            let timeDiff = now - this.lastMouseDownTime;
 
-        let isClick = diffPos < 5 && timeDiff < 500;
-        if (isClick) this.onCursorClick(event);
+            let diffX = Math.abs(event.data.global.x - pdata.lastX);
+            let diffY = Math.abs(event.data.global.y - pdata.lastY);
+            let diffPos = Math.sqrt(diffX * diffX + diffY * diffY);
+
+            let isClick = diffPos < 5 && timeDiff < 500;
+            if (isClick) this.onPointerClick(event);
+        }
     }
 
-    onCursorUpOutside(event: PIXI.InteractionEvent) {
-        this.isDraggingBoard = false;
+    onPointerUpOutside(event: PIXI.InteractionEvent) {
+        this.onPointerUp(event);
     }
 
     /** Function called when the cursor moves around the map. */
-    onCursorMove(e: PIXI.InteractionEvent) {
-        if (this.isDraggingBoard) {
-            let event = e.data.originalEvent as MouseEvent;
+    onPointerMove(e: PIXI.InteractionEvent) {
+        let pdata = this.pointers.get(e.data.pointerId);
+        if (pdata === undefined) return;
 
-            const newPosX = this.board.position.x + event.movementX;
-            const newPosY = this.board.position.y + event.movementY;
+        let pos = e.data.global;
+
+        if (this.pointers.size === 1 && this.isDraggingBoard) {// Move
+            const newPosX = this.board.position.x + (pos.x - pdata.lastX);
+            const newPosY = this.board.position.y + (pos.y - pdata.lastY);
 
             /*if (this.board.isBoardLost(new PIXI.Point(newPosX, newPosY), this.scale)) {
                 //console.log("You can't go further than this, you'll loose the board!");
@@ -127,14 +159,41 @@ export class BirdEyePhase extends Phase {
             this.gridSystem.posY = newPosY;
             this.gridSystem.updatePos();
         }
+
+        let firstDist = 0;
+
+        if (this.pointers.size === 2) {
+            let [pa, pb] = this.pointers.values();
+
+            let dx = pa.lastX - pb.lastX;
+            let dy = pa.lastY - pb.lastY;
+            firstDist = Math.sqrt(dx * dx + dy * dy);
+        }
+
+        pdata.lastX = pos.x;
+        pdata.lastY = pos.y;
+
+        if (this.pointers.size === 2) {
+            let [pa, pb] = this.pointers.values();
+
+            let dx = pa.lastX - pb.lastX;
+            let dy = pa.lastY - pb.lastY;
+            let secondDist = Math.sqrt(dx * dx + dy * dy);
+
+            let center = new PIXI.Point(
+                (pa.lastX + pb.lastX) / 2,
+                (pa.lastY + pb.lastY) / 2,
+            );
+            this.zoom((secondDist / firstDist), center.x, center.y);
+        }
     }
 
     /** Function called when the cursor clicks. */
-    onCursorClick(event: PIXI.InteractionEvent) {
+    onPointerClick(event: PIXI.InteractionEvent) {
     }
 
     /** Function called when the cursor clicks. */
-    onCursorRightDown(event: PIXI.InteractionEvent) {
+    onPointerRightDown(event: PIXI.InteractionEvent) {
     }
 
     /**
@@ -180,11 +239,11 @@ export class BirdEyePhase extends Phase {
 
         app.stage.interactive = true;
 
-        app.stage.on("mousemove", this.onCursorMove, this);
-        app.stage.on("mousedown", this.onCursorDown, this);
-        app.stage.on("mouseup", this.onCursorUp, this);
-        app.stage.on("mouseupoutside", this.onCursorUpOutside, this);
-        app.stage.on("rightdown", this.onCursorRightDown, this);
+        app.stage.on("pointermove", this.onPointerMove, this);
+        app.stage.on("pointerdown", this.onPointerDown, this);
+        app.stage.on("pointerup", this.onPointerUp, this);
+        app.stage.on("pointerupoutside", this.onPointerUpOutside, this);
+        app.stage.on("rightdown", this.onPointerRightDown, this);
 
         this.wheelListener = this.onMouseWheel.bind(this);
         canvas.addEventListener("wheel", this.wheelListener);
@@ -193,11 +252,11 @@ export class BirdEyePhase extends Phase {
     disable() {
         this.gridSystem.destroy();
 
-        app.stage.off("mousemove", this.onCursorMove, this);
-        app.stage.off("mousedown", this.onCursorDown, this);
-        app.stage.off("mouseup", this.onCursorUp, this);
-        app.stage.off("mouseupoutside", this.onCursorUpOutside, this);
-        app.stage.off("rightdown", this.onCursorRightDown, this);
+        app.stage.off("pointermove", this.onPointerMove, this);
+        app.stage.off("pointerdown", this.onPointerDown, this);
+        app.stage.off("pointerup", this.onPointerUp, this);
+        app.stage.off("pointerupoutside", this.onPointerUpOutside, this);
+        app.stage.off("rightdown", this.onPointerRightDown, this);
 
         app.view.removeEventListener('wheel', this.wheelListener);
 
