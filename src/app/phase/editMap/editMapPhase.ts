@@ -9,6 +9,7 @@ import {SelectionGroup} from "../../game/selectionGroup";
 import {NetworkManager} from "../../network/networkManager";
 import {HostEditMapPhase} from "./hostEditMapPhase";
 import {GameMap} from "../../map/gameMap";
+import {PinSystem} from "../../ecs/systems/pinSystem";
 
 
 export class EditMapPhase extends BirdEyePhase {
@@ -19,6 +20,7 @@ export class EditMapPhase extends BirdEyePhase {
 
     backgroundSystem: BackgroundSystem;
     roomSystem: RoomSystem;
+    pinSystem: PinSystem;
 
     pointDb: PointDB;
     selection: SelectionGroup;
@@ -42,6 +44,7 @@ export class EditMapPhase extends BirdEyePhase {
 
         this.backgroundSystem = new BackgroundSystem(this.ecs, this);
         this.roomSystem = new RoomSystem(this.ecs, this);
+        this.pinSystem = new PinSystem(this.ecs, this);
 
         this.ecs.events.on('selection_update', (group: SelectionGroup) => {
             this.vue.selectedEntityOpts = group.getCommonEntityOpts();
@@ -76,12 +79,17 @@ export class EditMapPhase extends BirdEyePhase {
 
         if (oldTool === Tool.CREATE_ROOM) {
             this.roomSystem.endRoomCreation(false);
+        } else if (oldTool === Tool.CREATE_PIN) {
+            this.pinSystem.cancelCreation();
         }
+
         if (tool !== Tool.MOVE && tool !== Tool.INSPECT) {
             this.selection.clear();
         }
         if (tool === Tool.CREATE_ROOM) {
             this.roomSystem.initRoomCreation();
+        } else if (tool === Tool.CREATE_PIN) {
+            this.pinSystem.initCreation();
         }
 
         this.tool = tool;
@@ -135,6 +143,10 @@ export class EditMapPhase extends BirdEyePhase {
             let moveY = diffY - this.lastMove.y;
             this.lastMove.set(diffX, diffY);
             this.selection.moveAll(moveX, moveY);
+        } else if (this.tool === Tool.CREATE_PIN) {
+            let point = this.getMapPointFromMouseInteraction(event);
+
+            this.pinSystem.redrawCreation(point);
         }
     }
 
@@ -152,7 +164,9 @@ export class EditMapPhase extends BirdEyePhase {
     }
 
     findEntityAt(point: PIXI.Point): number | undefined {
-        let entity = this.roomSystem.findRoomAt(point);
+        let entity = this.pinSystem.findPinAt(point);
+        if (entity !== undefined) return entity;
+        entity = this.roomSystem.findRoomAt(point);
         if (entity !== undefined) return entity;
         return this.backgroundSystem.findBackgroundAt(point);
     }
@@ -163,6 +177,10 @@ export class EditMapPhase extends BirdEyePhase {
         if (this.tool === Tool.CREATE_ROOM) {
            this.roomSystem.addVertex(point);
            return;
+        }
+        if (this.tool === Tool.CREATE_PIN) {
+            this.pinSystem.confirmCreation(point);
+            return;
         }
 
         let entity = this.findEntityAt(point);
@@ -237,9 +255,11 @@ export class EditMapPhase extends BirdEyePhase {
 
         this.backgroundSystem.enable();
         this.roomSystem.enable();
+        this.pinSystem.enable();
     }
 
     disable() {
+        this.pinSystem.destroy();
         this.roomSystem.destroy();
         this.backgroundSystem.destroy();
 
@@ -251,6 +271,7 @@ export enum Tool {
     INSPECT= 'inspect',
     MOVE = 'move',
     CREATE_ROOM = 'create_room',
+    CREATE_PIN = 'create_pin',
     GRID = 'grid',
 }
 

@@ -21,6 +21,9 @@
                 <b-button title="Add room" squared class="toolbar-btn" v-on:click="changeTool('create_room')" v-if="isAdmin">
                     <i class="fas fa-plus"/>
                 </b-button>
+                <b-button title="Add pin" squared class="toolbar-btn" v-on:click="changeTool('create_pin')" v-if="isAdmin">
+                    <i class="fas fa-thumbtack"></i>
+                </b-button>
                 <b-button title="Edit grid" squared class="toolbar-btn" v-on:click="changeTool('grid')" v-if="isAdmin">
                     <i class="fas fa-border-all"/>
                 </b-button>
