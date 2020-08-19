@@ -3,7 +3,8 @@
         <b-textarea placeholder="Write something here..." v-model="note" :readonly="!isAdmin"
                   @change="onChange"/>
         <b-modal title="Note" v-model="component._isFullscreen" dialog-class="modal-fullscreen modal-xxl" hide-footer hide-header>
-            <b-textarea v-model="note" :readonly="isAdmin" @change="onChange" style="height: 100%; resize: none;"/>
+            <b-textarea placeholder="Write something here..."  v-model="note"  :readonly="!isAdmin"
+                        @change="onChange" style="height: 100%; resize: none;"/>
             <template v-slot:modal-footer>
             </template>
         </b-modal>
