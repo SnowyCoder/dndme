@@ -32,6 +32,7 @@ export class GridSystem implements System {
         ecs.events.on('resource_add', this.onResourceAdd, this);
         ecs.events.on('resource_edited', this.onResourceEdited, this);
         ecs.events.on('resource_remove', this.onResourceRemove, this);
+        app.renderer.on('resize', this.onResize, this);
     }
 
     onResourceAdd(res: Resource) {
@@ -51,6 +52,11 @@ export class GridSystem implements System {
         if (res.type !== 'grid') return;
         this.gridRes = undefined;
         this.disable();
+    }
+
+    onResize(width: number, height: number) {
+        this.sprite.width = width;
+        this.sprite.height = height;
     }
 
     private disable() {
@@ -164,6 +170,7 @@ export class GridSystem implements System {
 
     destroy() {
         this.sprite.destroy(DESTROY_ALL);
+        app.renderer.off('resize', this.onResize, this);
     }
 }
 
