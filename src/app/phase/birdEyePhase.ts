@@ -4,6 +4,7 @@ import {app} from "../index";
 import {EcsTracker} from "../ecs/ecs";
 import {registerCommonStorage} from "../ecs/component";
 import {GridSystem} from "../ecs/systems/gridSystem";
+import {IHitArea} from "pixi.js";
 
 interface PointerData {
     firstX: number,
@@ -243,6 +244,11 @@ export class BirdEyePhase extends Phase {
         app.stage.addChild(this.gridSystem.sprite);
 
         app.stage.interactive = true;
+        app.stage.hitArea = {
+            contains(x: number, y: number): boolean {
+                return true;
+            }
+        } as IHitArea;
 
         app.stage.on("pointermove", this.onPointerMove, this);
         app.stage.on("pointerdown", this.onPointerDown, this);
