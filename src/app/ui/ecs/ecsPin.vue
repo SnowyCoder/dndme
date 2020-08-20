@@ -1,11 +1,11 @@
 <template>
-    <b-input type="color" v-model="color" @change="onChange"></b-input>
+    <b-input type="color" v-model="color" @change="onChange" :readonly="!isAdmin"></b-input>
 </template>
 
 <script>
     export default {
         name: "ecs-pin",
-        props: ["component"],
+        props: ["component", "isAdmin"],
         data: function () {
             return {
                 color: '#' + this.component.color.toString(16).padEnd(6, '0'),

@@ -17,8 +17,15 @@ export interface HideableComponent extends Component {
 export interface PositionComponent extends Component {
     type: "position";
 
-    x: number,
-    y: number,
+    x: number;
+    y: number;
+}
+
+export interface TransformComponent extends Component {
+    type: "transform";
+
+    //scale: number;
+    rotation: number;
 }
 
 export interface NameComponent extends HideableComponent, MultiComponent {
@@ -36,6 +43,7 @@ export interface NoteComponent extends HideableComponent, MultiComponent {
 
 export function registerCommonStorage(ecs: EcsTracker) {
     ecs.addStorage(new SingleEcsStorage("position"));
+    ecs.addStorage(new SingleEcsStorage("transform"));
     ecs.addStorage(new MultiEcsStorage("name"));
     ecs.addStorage(new MultiEcsStorage("note"));
 }

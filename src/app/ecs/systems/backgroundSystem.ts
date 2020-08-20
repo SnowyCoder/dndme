@@ -1,12 +1,13 @@
 import {System} from "../system";
-import {EcsTracker} from "../ecs";
+import {EcsEntityLinked, EcsTracker} from "../ecs";
 import * as PIXI from "pixi.js";
 import {DESTROY_ALL, loadTexture} from "../../util/pixi";
 import {EditMapPhase} from "../../phase/editMap/editMapPhase";
-import {Component, PositionComponent} from "../component";
+import {Component, PositionComponent, TransformComponent} from "../component";
 import {SingleEcsStorage} from "../storage";
 import {Rectangle} from "pixi.js";
 import {EditMapDisplayPrecedence} from "../../phase/editMap/displayPrecedence";
+import trimCanvas = PIXI.utils.trimCanvas;
 
 type BACKGROUND_TYPE = 'background_image';
 const BACKGROUND_TYPE = 'background_image';
@@ -27,7 +28,7 @@ export class BackgroundSystem implements System {
     readonly phase: EditMapPhase;
     readonly storage: SingleEcsStorage<BackgroundImageComponent>;
 
-    private displayMaps: PIXI.Container;
+    displayMaps: PIXI.Container;
 
     constructor(tracker: EcsTracker, phase: EditMapPhase) {
         this.ecs = tracker;
@@ -43,40 +44,41 @@ export class BackgroundSystem implements System {
     }
 
     onSelectionBegin(entity: number): void {
-        let img = this.ecs.getComponent(entity, BACKGROUND_TYPE) as BackgroundImageComponent;
+        let img = this.storage.getComponent(entity);
         if (img === undefined) return;
         img._display.tint = 0x7986CB;
     }
 
     onSelectionEnd(entity: number): void {
-        let img = this.ecs.getComponent(entity, BACKGROUND_TYPE) as BackgroundImageComponent;
+        let img = this.storage.getComponent(entity);
         if (img === undefined) return;
         img._display.tint = 0xFFFFFF;
-    }
-
-    findBackgroundAt(point: PIXI.Point): number | undefined {
-        let rect = new Rectangle();
-        for (let room of this.storage.allComponents()) {
-            room._display.getLocalBounds(rect);
-            rect.x += room._display.position.x;
-            rect.y += room._display.position.y;
-            if (rect.contains(point.x, point.y)) return room.entity;
-        }
-        return undefined;
     }
 
     enable() {
         this.displayMaps = new PIXI.Container();
         this.displayMaps.zIndex = EditMapDisplayPrecedence.BACKGROUND;
+        this.displayMaps.interactive = true;
+        this.displayMaps.interactiveChildren = true;
 
         this.phase.board.addChild(this.displayMaps);
     }
 
     async onEntitySpawned(entity: number): Promise<void> {
-        let bkgImg = this.ecs.getComponent(entity, BACKGROUND_TYPE) as BackgroundImageComponent;
+        let bkgImg = this.storage.getComponent(entity);
         if (bkgImg === undefined) return;
         let pos = this.ecs.getComponent(entity, 'position') as PositionComponent;
         if (pos === undefined) return;
+
+        let transform = this.ecs.getComponent(entity, 'transform') as TransformComponent;
+        if (transform === undefined) {
+            transform = {
+                type: "transform",
+                entity: -1,
+                rotation: 0,
+            } as TransformComponent;
+            this.ecs.addComponent(entity, transform);
+        }
 
 
         if (bkgImg.image.byteOffset !== 0) {
@@ -88,8 +90,11 @@ export class BackgroundSystem implements System {
         let [tex, img] = await loadTexture(bkgImg.image, bkgImg.imageType);
 
         let sprite = new PIXI.Sprite(tex);
+        sprite.anchor.set(0.5);
         sprite.position.set(pos.x, pos.y);
-        (sprite as any).dndBkgImage = entity;// Save as a tag
+        sprite.angle = transform.rotation;
+        sprite.interactive = true;
+        (sprite as EcsEntityLinked)._ecs_entity = entity;
         bkgImg._display = sprite;
         bkgImg._html = img;
         this.displayMaps.addChild(sprite);
@@ -97,11 +102,17 @@ export class BackgroundSystem implements System {
     }
 
     onComponentEdit(newCmp: Component) {
-        if (newCmp.type !== 'position') return;
-        let pos = newCmp as PositionComponent;
-        let mapCmp = this.ecs.getComponent(newCmp.entity, BACKGROUND_TYPE) as BackgroundImageComponent;
-        if (mapCmp === undefined) return;
-        mapCmp._display.position.set(pos.x, pos.y);
+        if (newCmp.type === 'position') {
+            let pos = newCmp as PositionComponent;
+            let mapCmp = this.storage.getComponent(newCmp.entity);
+            if (mapCmp === undefined) return;
+            mapCmp._display.position.set(pos.x, pos.y);
+        } else if (newCmp.type === 'transform') {
+            let pos = newCmp as TransformComponent;
+            let mapCmp = this.storage.getComponent(newCmp.entity);
+            if (mapCmp === undefined) return;
+            mapCmp._display.angle = pos.rotation;
+        }
     }
 
     onComponentRemove(cmp: Component) {

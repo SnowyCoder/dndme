@@ -18,6 +18,10 @@ export type SerializedEcs = {
     resources: {[type: string]: any};
 };
 
+export interface EcsEntityLinked {
+    _ecs_entity?: number;
+}
+
 export class EcsTracker {
     storages = new Map<string, EcsStorage<any>>();
     entities = new Set<number>();

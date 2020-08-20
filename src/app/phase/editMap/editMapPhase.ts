@@ -10,6 +10,7 @@ import {NetworkManager} from "../../network/networkManager";
 import {HostEditMapPhase} from "./hostEditMapPhase";
 import {GameMap} from "../../map/gameMap";
 import {PinSystem} from "../../ecs/systems/pinSystem";
+import {EcsEntityLinked} from "../../ecs/ecs";
 
 
 export class EditMapPhase extends BirdEyePhase {
@@ -168,7 +169,7 @@ export class EditMapPhase extends BirdEyePhase {
         if (entity !== undefined) return entity;
         entity = this.roomSystem.findRoomAt(point);
         if (entity !== undefined) return entity;
-        return this.backgroundSystem.findBackgroundAt(point);
+        return undefined;
     }
 
     onPointerClick(event: PIXI.InteractionEvent) {
@@ -184,6 +185,11 @@ export class EditMapPhase extends BirdEyePhase {
         }
 
         let entity = this.findEntityAt(point);
+
+        if (entity === undefined) {
+            entity = (event.target as EcsEntityLinked)._ecs_entity;
+        }
+
         let ctrlPressed = !!event.data.originalEvent.ctrlKey;
 
         if (this.tool === Tool.INSPECT) {

@@ -1,6 +1,6 @@
 import {EditMapPhase} from "./editMapPhase";
 import {FlagEcsStorage} from "../../ecs/storage";
-import {Component, NameComponent, PositionComponent} from "../../ecs/component";
+import {Component, NameComponent, PositionComponent, TransformComponent} from "../../ecs/component";
 import {BackgroundImageComponent} from "../../ecs/systems/backgroundSystem";
 import {app} from "../../index";
 import {GameMap} from "../../map/gameMap";
@@ -82,6 +82,10 @@ export class HostEditMapPhase extends EditMapPhase {
                     x: 0,
                     y: 0,
                 } as PositionComponent,
+                {
+                    type: "transform",
+                    rotation: 0,
+                } as TransformComponent,
                 {
                     type: "background_image",
                     imageType: firstFile.type,

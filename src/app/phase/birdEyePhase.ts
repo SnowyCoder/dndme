@@ -25,14 +25,14 @@ export class BirdEyePhase extends Phase {
 
     pointers = new Map<number, PointerData>();
 
-    //originalCenter?: PIXI.Point;
-
     constructor(name: string) {
         super(name);
 
         this.ecs = new EcsTracker();
 
         this.board = new PIXI.Container();
+        this.board.interactive = true;
+        this.board.interactiveChildren = true;
         this.board.sortableChildren = true;
         this.board.position.set(0, 0);
         this.board.zIndex = 100;
@@ -92,6 +92,11 @@ export class BirdEyePhase extends Phase {
     }
 
     onPointerDown(event: PIXI.InteractionEvent) {
+        if (event.data.pointerType === 'mouse' && event.data.button === 2) {
+            // Right button
+            this.onPointerRightDown(event);
+            return;
+        }
         let pos = event.data.global;
         this.pointers.set(event.data.pointerId, {
             firstX: pos.x,
@@ -123,8 +128,8 @@ export class BirdEyePhase extends Phase {
 
             let timeDiff = now - this.lastMouseDownTime;
 
-            let diffX = Math.abs(event.data.global.x - pdata.lastX);
-            let diffY = Math.abs(event.data.global.y - pdata.lastY);
+            let diffX = Math.abs(event.data.global.x - pdata.firstX);
+            let diffY = Math.abs(event.data.global.y - pdata.firstY);
             let diffPos = Math.sqrt(diffX * diffX + diffY * diffY);
 
             let isClick = diffPos < 5 && timeDiff < 500;
@@ -243,7 +248,6 @@ export class BirdEyePhase extends Phase {
         app.stage.on("pointerdown", this.onPointerDown, this);
         app.stage.on("pointerup", this.onPointerUp, this);
         app.stage.on("pointerupoutside", this.onPointerUpOutside, this);
-        app.stage.on("rightdown", this.onPointerRightDown, this);
 
         this.wheelListener = this.onMouseWheel.bind(this);
         canvas.addEventListener("wheel", this.wheelListener);
@@ -256,7 +260,6 @@ export class BirdEyePhase extends Phase {
         app.stage.off("pointerdown", this.onPointerDown, this);
         app.stage.off("pointerup", this.onPointerUp, this);
         app.stage.off("pointerupoutside", this.onPointerUpOutside, this);
-        app.stage.off("rightdown", this.onPointerRightDown, this);
 
         app.view.removeEventListener('wheel', this.wheelListener);
 

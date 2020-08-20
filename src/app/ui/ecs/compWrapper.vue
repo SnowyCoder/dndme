@@ -36,6 +36,7 @@
     import ecsRoom from "./ecsRoom";
     import ecsBackgroundImage from "./ecsBackgroundImage";
     import ecsPin from "./ecsPin";
+    import ecsTransform from "./ecsTransform";
 
     export default {
         name: "ecs-component-wrapper",
@@ -51,7 +52,7 @@
             }
         },
         components: {
-            ecsName, ecsNote, ecsPosition, ecsRoom, ecsBackgroundImage, ecsPin,
+            ecsName, ecsNote, ecsPosition, ecsRoom, ecsBackgroundImage, ecsPin, ecsTransform,
         }
     }
 </script>

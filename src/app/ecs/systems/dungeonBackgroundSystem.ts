@@ -1,9 +1,8 @@
 import {System} from "../system";
 import {EcsTracker} from "../ecs";
-import {aabbAabbIntersect} from "../../util/geometry";
 import {CustomRoomComponent} from "./roomSystem";
 import {Component, PositionComponent, RoomComponent} from "../component";
-import {BackgroundImageComponent} from "./backgroundSystem";
+import {BackgroundImageComponent, BackgroundSystem} from "./backgroundSystem";
 import {FlagEcsStorage, SingleEcsStorage} from "../storage";
 import {Channel} from "../../network/channel";
 import {RoomMapDraw, RoomMapForceForget} from "../../protocol/game";
@@ -140,6 +139,8 @@ export class HostDungeonBackgroundSystem implements System {
 
         // Find rooms AABB
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        let mask = new PIXI.Graphics();
+
         for (let roomid of rooms) {
             let room = roomStorage.getComponent(roomid);
             let p = posStorage.getComponent(roomid);
@@ -149,58 +150,69 @@ export class HostDungeonBackgroundSystem implements System {
 
             let polLen = room.polygon.length;
             for (let i = 0; i < polLen; i += 2) {
-                maxX = Math.max(maxX, room._worldPolygon[i] + p.x);
-                maxY = Math.max(maxY, room._worldPolygon[i + 1] + p.y);
+                maxX = Math.max(maxX, room._worldPolygon[i]);
+                maxY = Math.max(maxY, room._worldPolygon[i + 1]);
             }
+
+            mask.beginFill();
+            mask.drawPolygon(room._worldPolygon);
+            mask.endFill();
         }
 
-        let usedImages = [];
-
-        for (let image of imgStorage.getComponents()) {
-            let elem = image._html;
-            let pos = posStorage.getComponent(image.entity);
-
-            if (aabbAabbIntersect(minX, minY, maxX, maxY, pos.x, pos.y, pos.x + elem.width, pos.y + elem.height)) {
-                usedImages.push(image);
-            }
+        let cnt = new PIXI.Container();
+        for (let img of imgStorage.allComponents()) {
+            let sprite = new PIXI.Sprite(img._display.texture);
+            sprite.position.copyFrom(img._display.position);
+            sprite.rotation = img._display.rotation;
+            cnt.addChild(sprite);
         }
+        cnt.position.set(-minX, -minY);
+        // TODO: https://github.com/pixijs/pixi.js/issues/6822
+        // ---------------- WORKAROUND for pixi #6822 ----------------
+        let black = new PIXI.Graphics();
+        black.beginFill();
+        black.drawRect(0, 0, maxX - minX + 1, maxY - minY + 1);
 
-        if (usedImages.length === 0) return Promise.resolve(null);
+        black.position.set(minX, minY);
 
-        let canvas = document.createElement('canvas');
-        canvas.width = maxX - minX;
-        canvas.height = maxY - minY;
-        let ctx = canvas.getContext('2d');
+        let invertCont = new PIXI.Container();
+        mask.blendMode = PIXI.BLEND_MODES.ERASE;
+        invertCont.addChild(black, mask);
+        invertCont.position.set(-minX, -minY)
 
-        ctx.beginPath();
-        for (let roomid of rooms) {
-            let room = roomStorage.getFirstComponent(roomid) as RoomComponent;
-            ctx.moveTo(room._worldPolygon[0] - minX, room._worldPolygon[1] - minY);
-            let polLen = room.polygon.length;
-            for (let i = 2; i < polLen; i += 2) {
-                ctx.lineTo(room._worldPolygon[i] - minX, room._worldPolygon[i + 1] - minY);
-            }
-            ctx.closePath();
-        }
-        ctx.clip();
+        let maskInvTex = PIXI.RenderTexture.create({
+            width: maxX - minX,
+            height: maxY - minY,
+        });
 
+        app.renderer.render(invertCont, maskInvTex);
 
-        for (let img of usedImages) {
-            let pos = posStorage.getComponent(img.entity);
-            let elem = img._html;
+        let maskSprite = new PIXI.Sprite(maskInvTex);
+        maskSprite.blendMode = PIXI.BLEND_MODES.ERASE;
+        maskSprite.position.set(minX, minY);
+        cnt.addChild(maskSprite);
 
-            let clipX = pos.x + minX;
-            let clipY = pos.y + minY;
-            let width = Math.min(maxX, pos.x + elem.width) - minX;
-            let height = Math.min(maxY, pos.y + elem.height) - minY;
+        let res = PIXI.RenderTexture.create({
+            width: maxX - minX,
+            height: maxY - minY,
+        });
 
-            ctx.drawImage(elem,
-                clipX, clipY,
-                width, height,
-                0, 0,
-                width, height
-            );
-        }
+        app.renderer.render(cnt, res);
+        let canvas = app.renderer.extract.canvas(res);
+
+        // Cleanup
+        res.destroy(true);
+        invertCont.destroy(DESTROY_ALL);
+        maskSprite.destroy(DESTROY_ALL);
+        cnt.destroy({
+            children: true,
+            texture: false,
+            baseTexture: false,
+        });
+
+        // Use this to debug
+        //canvas.style.border = "2px solid black";
+        //document.body.appendChild(canvas);
 
         return new Promise<Blob>(resolve => {
             canvas.toBlob(resolve);
@@ -232,8 +244,6 @@ export class ClientDungeonBackgroundSystem implements System {
         channel.eventEmitter.on('room_map_draw', this.onRoomMapDraw, this);
         channel.eventEmitter.on('room_map_force_forget', this.onRoomMapForceForget, this);
     }
-
-    // TODO: forget
 
     private onComponentRemove(comp: Component) {
         if (comp.type !== 'room') return;
