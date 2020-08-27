@@ -47,11 +47,3 @@ export function registerCommonStorage(ecs: EcsTracker) {
     ecs.addStorage(new MultiEcsStorage("name"));
     ecs.addStorage(new MultiEcsStorage("note"));
 }
-
-export interface RoomComponent extends Component {
-    type: "room";
-
-    polygon: Array<number>;
-    _worldPolygon?: Array<number>;// polygon + position
-    visible: boolean;
-}

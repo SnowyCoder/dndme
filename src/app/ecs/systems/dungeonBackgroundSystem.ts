@@ -1,7 +1,7 @@
 import {System} from "../system";
 import {EcsTracker} from "../ecs";
-import {CustomRoomComponent} from "./roomSystem";
-import {Component, PositionComponent, RoomComponent} from "../component";
+import {RoomComponent} from "./roomSystem";
+import {Component, PositionComponent} from "../component";
 import {BackgroundImageComponent, BackgroundSystem} from "./backgroundSystem";
 import {FlagEcsStorage, SingleEcsStorage} from "../storage";
 import {Channel} from "../../network/channel";
@@ -133,7 +133,7 @@ export class HostDungeonBackgroundSystem implements System {
 
 
     private cutRoomImage(rooms: number[]): Promise<Blob | null> {
-        let roomStorage = this.ecs.storages.get('room') as SingleEcsStorage<CustomRoomComponent>;
+        let roomStorage = this.ecs.storages.get('room') as SingleEcsStorage<RoomComponent>;
         let imgStorage = this.ecs.storages.get('background_image') as SingleEcsStorage<BackgroundImageComponent>;
         let posStorage = this.ecs.storages.get('position') as SingleEcsStorage<PositionComponent>;
 

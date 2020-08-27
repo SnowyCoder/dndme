@@ -5,11 +5,15 @@ import {EditMapPhase, Tool} from "../../phase/editMap/editMapPhase";
 import {DESTROY_ALL} from "../../util/pixi";
 import {EditMapDisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {SingleEcsStorage} from "../storage";
-import {RoomComponent} from "../component";
 import {Component, PositionComponent} from "../component";
 import {polygonPointIntersect} from "../../util/geometry";
 
-export interface CustomRoomComponent extends RoomComponent {
+export interface RoomComponent extends Component {
+    type: "room";
+
+    polygon: Array<number>;
+    _worldPolygon?: Array<number>;// polygon + position
+    visible: boolean;
     _graphics?: PIXI.Graphics;
     _selected?: boolean;
 }
@@ -84,10 +88,10 @@ export class RoomSystem implements System {
 
         let room, position;
         if (comp.type === 'room') {
-            room = comp as CustomRoomComponent;
+            room = comp as RoomComponent;
             position = this.ecs.getComponent(comp.entity, 'position') as PositionComponent;
         } else {
-            room = this.ecs.getComponent(comp.entity, 'room') as CustomRoomComponent;
+            room = this.ecs.getComponent(comp.entity, 'room') as RoomComponent;
             position = comp as PositionComponent;
         }
 
@@ -120,18 +124,18 @@ export class RoomSystem implements System {
 
     onComponentRemove(component: Component): void {
         if (component.type !== 'room') return;
-        (component as CustomRoomComponent)._graphics.destroy(DESTROY_ALL);
+        (component as RoomComponent)._graphics.destroy(DESTROY_ALL);
     }
 
     onSelectionBegin(entity: number): void {
-        let room = this.ecs.getComponent(entity, 'room') as CustomRoomComponent;
+        let room = this.ecs.getComponent(entity, 'room') as RoomComponent;
         if (room === undefined) return;
         room._selected = true;
         this.redrawComponent(room);
     }
 
     onSelectionEnd(entity: number): void {
-        let room = this.ecs.getComponent(entity, 'room') as CustomRoomComponent;
+        let room = this.ecs.getComponent(entity, 'room') as RoomComponent;
         if (room === undefined) return;
         room._selected = undefined;
         this.redrawComponent(room);
@@ -140,7 +144,7 @@ export class RoomSystem implements System {
     onToolMoveBegin(): void {
         this.isTranslating = true;
         for (let component of this.phase.selection.getSelectedByType("room")) {
-            let room = component as CustomRoomComponent;
+            let room = component as RoomComponent;
             for (let i = 0; i < room._worldPolygon.length; i += 2) {
                 if (!this.phase.pointDb.remove([room._worldPolygon[i], room._worldPolygon[i + 1]])) {
                     console.error("Error removing point");
@@ -152,7 +156,7 @@ export class RoomSystem implements System {
     onToolMoveEnd(): void {
         this.isTranslating = false;
         for (let component of this.phase.selection.getSelectedByType("room")) {
-            let room = component as CustomRoomComponent;
+            let room = component as RoomComponent;
             let pos = this.ecs.getComponent(room.entity, 'position') as PositionComponent;
             RoomSystem.recomputeWorld(room, pos);
             for (let i = 0; i < room._worldPolygon.length; i += 2) {
@@ -186,7 +190,7 @@ export class RoomSystem implements System {
         this.currentRoom = [];
     }
 
-    addRoom(r: CustomRoomComponent) {
+    addRoom(r: RoomComponent) {
         let g = new PIXI.Graphics();
 
         this.displayRooms.addChild(g);
@@ -235,7 +239,7 @@ export class RoomSystem implements System {
         }
     }
 
-    redrawComponent(room: CustomRoomComponent) {
+    redrawComponent(room: RoomComponent) {
         room._graphics.position.set(0, 0);
         room._graphics.cacheAsBitmap = false;
 
