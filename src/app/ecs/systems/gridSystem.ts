@@ -85,9 +85,8 @@ export class GridSystem implements System {
         let pnt = new PIXI.Point(point[0], point[1]);
         this.sprite.worldTransform.apply(pnt, pnt);
 
-        // TODO double /512?
-        let pointX = pnt.x / this.internalScale / 512 - this.gridRes.offX;
-        let pointY = pnt.y / this.internalScale / 512 - this.gridRes.offY;
+        let pointX = pnt.x / this.gridRes.size - this.gridRes.offX;
+        let pointY = pnt.y / this.gridRes.size - this.gridRes.offY;
 
         let resX: number;
         let resY: number;
@@ -159,8 +158,8 @@ export class GridSystem implements System {
             } break;
         }
         pnt.set(
-            (resX + this.gridRes.offX) * this.internalScale * 512,
-            (resY + this.gridRes.offY) * this.internalScale * 512
+            (resX + this.gridRes.offX) * this.gridRes.size,
+            (resY + this.gridRes.offY) * this.gridRes.size
         );
         this.sprite.worldTransform.applyInverse(pnt, pnt);
 

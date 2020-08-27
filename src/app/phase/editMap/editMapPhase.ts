@@ -34,7 +34,6 @@ export class EditMapPhase extends BirdEyePhase {
         super(name);
         this.isHost = isHost;
 
-        this.pointDb = new PointDB(this.gridSystem);
         this.selection = new SelectionGroup(this.ecs);
     }
 
@@ -42,6 +41,8 @@ export class EditMapPhase extends BirdEyePhase {
         this.setupNetworkManager();
 
         super.setupEcs();
+
+        this.pointDb = new PointDB(this.gridSystem);
 
         this.backgroundSystem = new BackgroundSystem(this.ecs, this);
         this.roomSystem = new RoomSystem(this.ecs, this);
