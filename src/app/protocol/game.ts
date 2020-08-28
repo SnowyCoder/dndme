@@ -14,16 +14,6 @@ export interface Hello extends Packet {
     you: number; // index in devices array
 }
 
-export interface HelloState extends Packet {
-    type: "hello_state";
-    rooms: Array<{
-        id: number;
-        polygon: Array<number>;
-        visible: boolean;
-    }>;
-    levelId: number;
-}
-
 /*
 /**
  * Host -> Device
@@ -110,9 +100,4 @@ export interface RoomMapDraw extends Packet {
     mapType: string;
     mapX: number;
     mapY: number;
-}
-
-export interface RoomMapForceForget extends Packet {
-    type: 'room_map_force_forget';
-    rooms: number[],
 }

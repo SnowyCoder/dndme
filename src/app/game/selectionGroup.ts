@@ -192,11 +192,9 @@ export class SelectionGroup {
 
     getCommonEntityOpts(): any {
         let hostHidden = this.dataByType.get('host_hidden');
-        let rooms = this.dataByType.get('room');
 
         return {
             hidden: hostHidden !== undefined && hostHidden.entities.size === this.selectedEntities.size,
-            forgettable: rooms !== undefined && rooms.entities.size === this.selectedEntities.size,
         };
     }
 
@@ -217,9 +215,6 @@ export class SelectionGroup {
                             });
                         }
                     }
-                    break;
-                case 'forget':
-                    alert("TODO: forget room")// TODO
                     break;
                 case 'delete':
                     for (let entity of [...this.selectedEntities]) {

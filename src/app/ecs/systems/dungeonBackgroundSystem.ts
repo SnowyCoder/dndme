@@ -1,11 +1,10 @@
 import {System} from "../system";
 import {EcsTracker} from "../ecs";
-import {RoomComponent} from "./roomSystem";
 import {Component, PositionComponent} from "../component";
 import {BackgroundImageComponent, BackgroundSystem} from "./backgroundSystem";
 import {FlagEcsStorage, SingleEcsStorage} from "../storage";
 import {Channel} from "../../network/channel";
-import {RoomMapDraw, RoomMapForceForget} from "../../protocol/game";
+import {RoomMapDraw} from "../../protocol/game";
 import * as PIXI from "pixi.js";
 import {app} from "../../index";
 import {DESTROY_ALL, loadTexture} from "../../util/pixi";
@@ -65,12 +64,12 @@ export class HostDungeonBackgroundSystem implements System {
     }
 
     private onEntitySpawned(entity: number): void {
-        let room = this.ecs.getComponent(entity, 'room') as RoomComponent;
+        /*let room = this.ecs.getComponent(entity, 'room') as RoomComponent;
         if (room === undefined || !room.visible) return;
         if (this.ecs.hasAllComponents(entity, 'host_hidden') || this.ecs.hasAllComponents(entity, 'host_room_known')) return;
         this.ecs.addComponent(entity, {
             type: 'host_room_known'
-        } as Component);
+        } as Component);*/
     }
 
     private async onComponentAdd(comp: Component) {
@@ -97,7 +96,7 @@ export class HostDungeonBackgroundSystem implements System {
     }
 
     private async onComponentEdit(comp: Component, changes: any) {
-        if (comp.type === 'room') {
+        /*if (comp.type === 'room') {
             if (changes['visible'] === true && !this.ecs.hasAllComponents(comp.entity, 'host_hidden') && this.roomKnownStorage.getComponent(comp.entity) === undefined) {
                 this.ecs.addComponent(comp.entity, {
                     type: 'host_room_known'
@@ -117,23 +116,23 @@ export class HostDungeonBackgroundSystem implements System {
                 } as RoomMapForceForget);
                 this.ecs.removeComponent(known);
             }
-        }
+        }*/
     }
 
     private async onComponentRemove(comp: Component) {
-        if (comp.type === 'host_hidden') {
+        /*if (comp.type === 'host_hidden') {
             let room = this.ecs.getComponent(comp.entity, 'room') as RoomComponent;
             if (room !== undefined && room.visible) {
                 this.ecs.addComponent(comp.entity, {
                     type: 'host_room_known'
                 } as Component);
             }
-        }
+        }*/
     }
 
 
     private cutRoomImage(rooms: number[]): Promise<Blob | null> {
-        let roomStorage = this.ecs.storages.get('room') as SingleEcsStorage<RoomComponent>;
+        /*let roomStorage = this.ecs.storages.get('room') as SingleEcsStorage<RoomComponent>;
         let imgStorage = this.ecs.storages.get('background_image') as SingleEcsStorage<BackgroundImageComponent>;
         let posStorage = this.ecs.storages.get('position') as SingleEcsStorage<PositionComponent>;
 
@@ -216,7 +215,8 @@ export class HostDungeonBackgroundSystem implements System {
 
         return new Promise<Blob>(resolve => {
             canvas.toBlob(resolve);
-        });
+        });*/
+        return null;
     }
 
     destroy(): void {
@@ -242,7 +242,6 @@ export class ClientDungeonBackgroundSystem implements System {
 
         this.ecs.events.on('component_remove', this.onComponentRemove, this);
         channel.eventEmitter.on('room_map_draw', this.onRoomMapDraw, this);
-        channel.eventEmitter.on('room_map_force_forget', this.onRoomMapForceForget, this);
     }
 
     private onComponentRemove(comp: Component) {
@@ -258,14 +257,8 @@ export class ClientDungeonBackgroundSystem implements System {
         this.addPartialImage(packet.mapX, packet.mapY, tex);
     }
 
-    private async onRoomMapForceForget(packet: RoomMapForceForget, container: PacketContainer) {
-        if (container.sender !== 0) return; // Only admin
-
-        this.forget(packet.rooms);
-    }
-
     forget(rooms: number[]) {
-        if (this.displayMapTex === undefined) return;
+        /*if (this.displayMapTex === undefined) return;
 
         let roomStorage = this.ecs.storages.get('room') as SingleEcsStorage<RoomComponent>;
 
@@ -310,7 +303,7 @@ export class ClientDungeonBackgroundSystem implements System {
         if (this.displayMapTex !== undefined) {
             this.displayMapTex.destroy(true);
         }
-        this.displayMapTex = targetTex;
+        this.displayMapTex = targetTex;*/
     }
 
     addPartialImage(x: number, y: number, image: PIXI.Texture) {

@@ -33,7 +33,7 @@
     import ecsName from "./ecsName";
     import ecsNote from "./ecsNote";
     import ecsPosition from "./ecsPosition";
-    import ecsRoom from "./ecsRoom";
+    import ecsWall from "./ecsWall";
     import ecsBackgroundImage from "./ecsBackgroundImage";
     import ecsPin from "./ecsPin";
     import ecsTransform from "./ecsTransform";
@@ -52,7 +52,7 @@
             }
         },
         components: {
-            ecsName, ecsNote, ecsPosition, ecsRoom, ecsBackgroundImage, ecsPin, ecsTransform,
+            ecsName, ecsNote, ecsPosition, ecsWall, ecsBackgroundImage, ecsPin, ecsTransform,
         }
     }
 </script>

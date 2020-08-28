@@ -33,4 +33,28 @@ export function distSquared2d(x1: number, y1: number, x2: number, y2: number): n
     return x * x + y * y
 }
 
+export function projectPointOnLine(ax: number, ay: number, bx: number, by: number, px: number, py: number): Point | undefined {
+    if (ax == bx && ay == ay) ax -= 0.00001;
+
+    let u = ((px - ax) * (bx - ax)) + ((py - ay) * (by - ay));
+
+    let udenom = Math.pow(bx - ax, 2) + Math.pow(by - ay, 2);
+
+    u /= udenom;
+
+    let rx = ax + (u * (bx - ax));
+    let ry = ay + (u * (by - ay));
+
+    let minx, maxx, miny, maxy;
+
+    minx = Math.min(ax, bx);
+    maxx = Math.max(ax, bx);
+
+    miny = Math.min(ay, by);
+    maxy = Math.max(ay, by);
+
+    let isValid = (rx >= minx && rx <= maxx) && (ry >= miny && ry <= maxy);
+
+    return isValid ? [rx, ry] : undefined;
+}
 

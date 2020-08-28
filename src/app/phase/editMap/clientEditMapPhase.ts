@@ -1,5 +1,5 @@
 import {EditMapPhase} from "./editMapPhase";
-import {ClientNetworkSystem, HostNetworkSystem} from "../../ecs/systems/networkSystem";
+import {ClientNetworkSystem} from "../../ecs/systems/networkSystem";
 import {FlagEcsStorage} from "../../ecs/storage";
 import {ClientDungeonBackgroundSystem} from "../../ecs/systems/dungeonBackgroundSystem";
 

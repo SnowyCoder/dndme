@@ -120,12 +120,12 @@ export class HostEditMapPhase extends EditMapPhase {
 
         this.currentLevel.loadInto(this.ecs);
 
-        let ch = this.networkManager.channel.eventEmitter;
+        //let ch = this.networkManager.channel.eventEmitter;
         //ch.on("_device_join", this.onDeviceJoin, this);
     }
 
     disable() {
-        let ch = this.networkManager.channel.eventEmitter;
+        //let ch = this.networkManager.channel.eventEmitter;
         //ch.off("_device_join", this.onDeviceJoin, this);
 
         app.view.ondrop = undefined;

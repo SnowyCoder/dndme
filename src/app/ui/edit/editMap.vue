@@ -18,7 +18,7 @@
                 <b-button title="Move" squared class="toolbar-btn" v-on:click="changeTool('move')" v-if="isAdmin">
                     <i class="fas fa-arrows-alt"></i>
                 </b-button>
-                <b-button title="Add room" squared class="toolbar-btn" v-on:click="changeTool('create_room')" v-if="isAdmin">
+                <b-button title="Add wall" squared class="toolbar-btn" v-on:click="changeTool('create_wall')" v-if="isAdmin">
                     <i class="fas fa-plus"/>
                 </b-button>
                 <b-button title="Add pin" squared class="toolbar-btn" v-on:click="changeTool('create_pin')" v-if="isAdmin">

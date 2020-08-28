@@ -4,13 +4,13 @@ import * as PIXI from "pixi.js";
 import {app, stage} from "../../index";
 import {BackgroundSystem} from "../../ecs/systems/backgroundSystem";
 import {PointDB} from "../../game/pointDB";
-import {RoomSystem} from "../../ecs/systems/roomSystem";
 import {SelectionGroup} from "../../game/selectionGroup";
 import {NetworkManager} from "../../network/networkManager";
 import {HostEditMapPhase} from "./hostEditMapPhase";
 import {GameMap} from "../../map/gameMap";
 import {PinSystem} from "../../ecs/systems/pinSystem";
 import {EcsEntityLinked} from "../../ecs/ecs";
+import {WallSystem} from "../../ecs/systems/wallSystem";
 
 
 export class EditMapPhase extends BirdEyePhase {
@@ -20,7 +20,7 @@ export class EditMapPhase extends BirdEyePhase {
     tool: Tool = Tool.INSPECT;
 
     backgroundSystem: BackgroundSystem;
-    roomSystem: RoomSystem;
+    wallSystem: WallSystem;
     pinSystem: PinSystem;
 
     pointDb: PointDB;
@@ -45,7 +45,7 @@ export class EditMapPhase extends BirdEyePhase {
         this.pointDb = new PointDB(this.gridSystem);
 
         this.backgroundSystem = new BackgroundSystem(this.ecs, this);
-        this.roomSystem = new RoomSystem(this.ecs, this);
+        this.wallSystem = new WallSystem(this.ecs, this);
         this.pinSystem = new PinSystem(this.ecs, this);
 
         this.ecs.events.on('selection_update', (group: SelectionGroup) => {
@@ -79,8 +79,8 @@ export class EditMapPhase extends BirdEyePhase {
     changeTool(tool: Tool) {
         let oldTool = this.tool;
 
-        if (oldTool === Tool.CREATE_ROOM) {
-            this.roomSystem.endRoomCreation(false);
+        if (oldTool === Tool.CREATE_WALL) {
+            this.wallSystem.endCreation(true);
         } else if (oldTool === Tool.CREATE_PIN) {
             this.pinSystem.cancelCreation();
         }
@@ -88,8 +88,8 @@ export class EditMapPhase extends BirdEyePhase {
         if (tool !== Tool.MOVE && tool !== Tool.INSPECT) {
             this.selection.clear();
         }
-        if (tool === Tool.CREATE_ROOM) {
-            this.roomSystem.initRoomCreation();
+        if (tool === Tool.CREATE_WALL) {
+            this.wallSystem.initCreation();
         } else if (tool === Tool.CREATE_PIN) {
             this.pinSystem.initCreation();
         }
@@ -109,6 +109,11 @@ export class EditMapPhase extends BirdEyePhase {
         let nearest = this.pointDb.findNearest([point.x, point.y]);
         if (nearest !== undefined && nearest[1] < 100) {
             point.set(nearest[0][0], nearest[0][1]);
+        } else {
+            let onWallLoc = this.wallSystem.findLocationOnWall(point, 50);
+            if (onWallLoc !== undefined) {
+                point.copyFrom(onWallLoc);
+            }
         }
         return point;
     }
@@ -131,10 +136,10 @@ export class EditMapPhase extends BirdEyePhase {
 
     onPointerMove(event: PIXI.InteractionEvent) {
         super.onPointerMove(event);
-        if (this.tool === Tool.CREATE_ROOM) {
+        if (this.tool === Tool.CREATE_WALL) {
             let point = this.getMapPointFromMouseInteraction(event);
 
-            this.roomSystem.redrawLastLine(this.roomSystem.currentRoom, point);
+            this.wallSystem.redrawCreationLastLine(point);
         } else if (this.isMovingSelection) {
             let point = this.getMapPointFromMouseInteraction(event);
 
@@ -168,7 +173,7 @@ export class EditMapPhase extends BirdEyePhase {
     findEntityAt(point: PIXI.Point): number | undefined {
         let entity = this.pinSystem.findPinAt(point);
         if (entity !== undefined) return entity;
-        entity = this.roomSystem.findRoomAt(point);
+        // TODO: entity = this.wallSystem.findWallAt(point);
         if (entity !== undefined) return entity;
         return undefined;
     }
@@ -176,8 +181,8 @@ export class EditMapPhase extends BirdEyePhase {
     onPointerClick(event: PIXI.InteractionEvent) {
         super.onPointerClick(event);
         let point = this.getMapPointFromMouseInteraction(event);
-        if (this.tool === Tool.CREATE_ROOM) {
-           this.roomSystem.addVertex(point);
+        if (this.tool === Tool.CREATE_WALL) {
+           this.wallSystem.addVertex(point);
            return;
         }
         if (this.tool === Tool.CREATE_PIN) {
@@ -240,9 +245,9 @@ export class EditMapPhase extends BirdEyePhase {
 
     onPointerRightDown(event: PIXI.InteractionEvent) {
         super.onPointerRightDown(event);
-        if (this.tool === Tool.CREATE_ROOM) {
+        if (this.tool === Tool.CREATE_WALL) {
             let point = this.getMapPointFromMouseInteraction(event);
-            this.roomSystem.undoVertex(point);
+            this.wallSystem.undoVertex(point);
         }
     }
 
@@ -261,13 +266,13 @@ export class EditMapPhase extends BirdEyePhase {
         this.setupBoard();
 
         this.backgroundSystem.enable();
-        this.roomSystem.enable();
+        this.wallSystem.enable();
         this.pinSystem.enable();
     }
 
     disable() {
         this.pinSystem.destroy();
-        this.roomSystem.destroy();
+        this.wallSystem.destroy();
         this.backgroundSystem.destroy();
 
         super.disable();
@@ -277,7 +282,7 @@ export class EditMapPhase extends BirdEyePhase {
 export enum Tool {
     INSPECT= 'inspect',
     MOVE = 'move',
-    CREATE_ROOM = 'create_room',
+    CREATE_WALL = 'create_wall',
     CREATE_PIN = 'create_pin',
     GRID = 'grid',
 }
