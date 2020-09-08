@@ -6,10 +6,10 @@
 // so we also have something similar to a "multiple component".
 
 import {EcsStorage} from "./storage";
-import * as PIXI from 'pixi.js';
-import EventEmitter = PIXI.utils.EventEmitter;
+import PIXI from "../PIXI";
 import {Component} from "./component";
 import {HiddenResource, Resource} from "./resource";
+import EventEmitter = PIXI.utils.EventEmitter;
 
 
 export type SerializedEcs = {
@@ -24,6 +24,7 @@ export interface EcsEntityLinked {
 
 export class EcsTracker {
     storages = new Map<string, EcsStorage<any>>();
+    storageList = new Array<EcsStorage<any>>();
     entities = new Set<number>();
     resources = new Map<string, Resource>();
     isDeserializing: boolean = false;
@@ -84,7 +85,8 @@ export class EcsTracker {
 
     despawnEntity(entity: number): void {
         this.events.emit('entity_despawn', entity);
-        for (let storage of this.storages.values()) {
+        for (let i = this.storageList.length - 1; i >= 0; --i) {
+            let storage = this.storageList[i];
             let comps = [...storage.getComponents(entity)]
             for (let component of comps) {
                 this.events.emit('component_remove', component);
@@ -124,6 +126,7 @@ export class EcsTracker {
 
     addStorage(storage: EcsStorage<any>): void {
         this.storages.set(storage.type, storage);
+        this.storageList.push(storage);
     }
 
     getComponent(entity: number, type: string, multiId?: number): Component | undefined {
@@ -251,7 +254,7 @@ export class EcsTracker {
         for (let type in data.resources) {
             let res = data.resources[type];
             res.type = type;
-            this.addResource(res);
+            this.addResource(res, 'update');
         }
 
 

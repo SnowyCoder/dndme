@@ -1,11 +1,10 @@
 import {System} from "../system";
 import {EcsTracker} from "../ecs";
 import {Component, PositionComponent} from "../component";
-import {BackgroundImageComponent, BackgroundSystem} from "./backgroundSystem";
 import {FlagEcsStorage, SingleEcsStorage} from "../storage";
 import {Channel} from "../../network/channel";
 import {RoomMapDraw} from "../../protocol/game";
-import * as PIXI from "pixi.js";
+import PIXI from "../../PIXI";
 import {app} from "../../index";
 import {DESTROY_ALL, loadTexture} from "../../util/pixi";
 import {PacketContainer} from "../../protocol/packet";

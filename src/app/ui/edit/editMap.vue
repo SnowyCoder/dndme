@@ -27,6 +27,9 @@
                 <b-button title="Edit grid" squared class="toolbar-btn" v-on:click="changeTool('grid')" v-if="isAdmin">
                     <i class="fas fa-border-all"/>
                 </b-button>
+                <b-button title="Light settings" squared class="toolbar-btn" v-on:click="changeTool('light')" v-if="isAdmin">
+                  <i class="fas fa-lightbulb"/>
+                </b-button>
             </b-button-group>
             <b-button title="Export map" squared  variant="success" class="btn-xs" v-on:click="phase.exportMap()" v-if="isAdmin">
                 <i class="fas fa-download"/>
@@ -96,12 +99,20 @@
                 </div>
             </div>
             <!----------------------------------      ENTITY INSPECTOR      ---------------------------------->
-            <div class="" v-show="tool === 'inspect'">
+            <div v-show="tool === 'inspect'">
                 <entity-inspect
                         v-bind:components="this.selectedComponents"
                         v-bind:entity="this.selectedEntityOpts"
                         v-bind:isAdmin="isAdmin"
+                        v-bind:selectedAddable="selectedAddable"
                         @ecs-property-change="onEcsPropertyChange"/>
+            </div>
+            <!----------------------------------      LIGHT SETTINGS      ---------------------------------->
+            <div class="px-3 py-2" v-show="tool === 'light'">
+                <div class="d-flex flex-row align-items-center">
+                    <div class="">Light:</div>
+                    <b-input type="color" v-model="light.ambientLight" :readonly="!isAdmin" @change="onAmbientLightChange"></b-input>
+                </div>
             </div>
 
             <template v-slot:footer>
@@ -126,6 +137,11 @@
     import EntityInspect from "../ecs/entityInspect.vue";
     import {Component} from "../../ecs/component";
     import {GridResource} from "../../ecs/resource";
+    import {AddComponent} from "../../game/selectionGroup";
+    import {LightSettings} from "../../ecs/systems/lightSystem";
+    import PIXI from "../../PIXI";
+    import hex2string = PIXI.utils.hex2string;
+    import string2hex = PIXI.utils.string2hex;
 
     export default Vue.extend({
         components: {EntityInspect},
@@ -144,8 +160,12 @@
                     opacity: 0.5,
                     width: 2,
                 },
+                light: {
+                    ambientLight: '#000000',
+                },
                 selectedComponents: new Array<Component>(),
                 selectedEntityOpts: {},
+                selectedAddable: new Array<AddComponent>(),
                 phase: null as EditMapPhase,
             };
         },
@@ -156,6 +176,13 @@
 
             onEcsPropertyChange(type: string, property: string, value: any, multiId: number) {
                 this.phase.selection.setProperty(type, property, value, multiId);
+            },
+
+            onAmbientLightChange() {
+              this.phase.ecs.addResource({
+                type: 'light_settings',
+                ambientLight: string2hex(this.light.ambientLight),
+              } as LightSettings, 'update')
             }
         },
         watch: {
@@ -177,7 +204,7 @@
                             size: newGrid.size,
                             offX: newGrid.offX,
                             offY: newGrid.offY,
-                            color: parseInt(newGrid.color.substring(1), 16),
+                            color: string2hex(newGrid.color),
                             opacity: parseFloat(newGrid.opacity),
                             width: newGrid.width,
                         } as GridResource, 'update');
@@ -189,6 +216,8 @@
             },
         },
         mounted() {
+            // TODO: Make these responsive (ex: something changes the resource in the background: the UI changes too).
+            // How you may ask? I think that a subscription to 'resource_edit' will be necessary
             let grid: GridResource = this.phase.ecs.getResource('grid');
             switch (grid !== undefined ? grid.gridType : undefined) {
                 case undefined:
@@ -205,9 +234,12 @@
             this.grid.size = opts.size;
             this.grid.offX = opts.offX;
             this.grid.offY = opts.offY;
-            this.grid.color = '#' + opts.color.toString(16).padEnd(6, '0');
+            this.grid.color = hex2string(opts.color);
             this.grid.opacity = opts.opacity;
             this.grid.width = opts.width;
+
+            let light: LightSettings = this.phase.ecs.getResource('light_settings');
+            this.light.ambientLight = hex2string(light.ambientLight);
 
             this.eventEmitter.on('changeTool', (t: Tool) => { this.tool = t; });
         },

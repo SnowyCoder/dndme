@@ -11,7 +11,7 @@
     </div>
 </template>
 
-<script>
+<script lang="ts">
     export default {
         name: "ecs-position",
         props: ["component", "isAdmin"],
@@ -32,10 +32,10 @@
             }
         },
         watch: {
-            'component.x': function(newVal) {
+            'component.x': function(newVal: number) {
                 this.x = newVal;
             },
-            'component.y': function(newVal) {
+            'component.y': function(newVal: number) {
                 this.y = newVal;
             }
         }

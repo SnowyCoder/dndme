@@ -1,13 +1,11 @@
 import {System} from "../system";
 import {EcsEntityLinked, EcsTracker} from "../ecs";
-import * as PIXI from "pixi.js";
+import PIXI from "../../PIXI";
 import {DESTROY_ALL, loadTexture} from "../../util/pixi";
 import {EditMapPhase} from "../../phase/editMap/editMapPhase";
 import {Component, PositionComponent, TransformComponent} from "../component";
 import {SingleEcsStorage} from "../storage";
-import {Rectangle} from "pixi.js";
 import {EditMapDisplayPrecedence} from "../../phase/editMap/displayPrecedence";
-import trimCanvas = PIXI.utils.trimCanvas;
 
 type BACKGROUND_TYPE = 'background_image';
 const BACKGROUND_TYPE = 'background_image';
@@ -29,6 +27,7 @@ export class BackgroundSystem implements System {
     readonly storage: SingleEcsStorage<BackgroundImageComponent>;
 
     displayMaps: PIXI.Container;
+    displayLayer: PIXI.display.Layer;
 
     constructor(tracker: EcsTracker, phase: EditMapPhase) {
         this.ecs = tracker;
@@ -53,15 +52,6 @@ export class BackgroundSystem implements System {
         let img = this.storage.getComponent(entity);
         if (img === undefined) return;
         img._display.tint = 0xFFFFFF;
-    }
-
-    enable() {
-        this.displayMaps = new PIXI.Container();
-        this.displayMaps.zIndex = EditMapDisplayPrecedence.BACKGROUND;
-        this.displayMaps.interactive = true;
-        this.displayMaps.interactiveChildren = true;
-
-        this.phase.board.addChild(this.displayMaps);
     }
 
     async onEntitySpawned(entity: number): Promise<void> {
@@ -94,6 +84,7 @@ export class BackgroundSystem implements System {
         sprite.position.set(pos.x, pos.y);
         sprite.angle = transform.rotation;
         sprite.interactive = true;
+        sprite.parentLayer = this.displayLayer;
         (sprite as EcsEntityLinked)._ecs_entity = entity;
         bkgImg._display = sprite;
         bkgImg._html = img;
@@ -121,7 +112,20 @@ export class BackgroundSystem implements System {
         c._display.destroy(DESTROY_ALL);
     }
 
+    enable() {
+        this.displayMaps = new PIXI.Container();
+        this.displayMaps.zIndex = EditMapDisplayPrecedence.BACKGROUND;
+        this.displayMaps.interactive = true;
+        this.displayMaps.interactiveChildren = true;
+
+        this.displayLayer = new PIXI.display.Layer();
+        this.displayLayer.zIndex = EditMapDisplayPrecedence.BACKGROUND;
+
+        this.phase.board.addChild(this.displayMaps);
+    }
+
     destroy(): void {
+        this.displayLayer.destroy(DESTROY_ALL);
         this.displayMaps.destroy(DESTROY_ALL);
     }
 }

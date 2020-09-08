@@ -2,7 +2,7 @@
     <span>Your regular background image</span>
 </template>
 
-<script>
+<script lang="ts">
     export default {
         name: "ecs-background-image",
         props: ["component"],

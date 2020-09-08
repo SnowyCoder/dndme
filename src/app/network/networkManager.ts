@@ -1,7 +1,7 @@
 import Peer from "peerjs";
 import {P2pConnection} from "./p2pConnection";
 import {Channel} from "./channel";
-import * as PIXI from "pixi.js";
+import PIXI from "../PIXI";
 import EventEmitter = PIXI.utils.EventEmitter;
 
 export class NetworkManager extends EventEmitter {

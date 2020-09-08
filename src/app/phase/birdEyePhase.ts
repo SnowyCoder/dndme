@@ -1,5 +1,5 @@
 import {Phase} from "./phase";
-import * as PIXI from "pixi.js";
+import PIXI from "../PIXI";
 import {app} from "../index";
 import {EcsTracker} from "../ecs/ecs";
 import {registerCommonStorage} from "../ecs/component";
@@ -34,9 +34,7 @@ export class BirdEyePhase extends Phase {
         this.board = new PIXI.Container();
         this.board.interactive = true;
         this.board.interactiveChildren = true;
-        this.board.sortableChildren = true;
         this.board.position.set(0, 0);
-        this.board.zIndex = 100;
     }
 
     setupEcs() {
@@ -239,9 +237,11 @@ export class BirdEyePhase extends Phase {
         //app.renderer.backgroundColor = 0x3e2723; // dark brown
 
         // PIXI
-        app.stage = new PIXI.Container();
-        app.stage.addChild(this.board);
-        app.stage.addChild(this.gridSystem.sprite);
+        let stage = new PIXI.display.Stage();
+        app.stage = stage;
+        stage.group.enableSort = true;
+        stage.addChild(this.board);
+        stage.addChild(this.gridSystem.sprite);
 
         app.stage.interactive = true;
         app.stage.hitArea = {

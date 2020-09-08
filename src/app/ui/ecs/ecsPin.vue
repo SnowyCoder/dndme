@@ -1,27 +1,41 @@
 <template>
-    <b-input type="color" v-model="color" @change="onChange" :readonly="!isAdmin"></b-input>
+    <div>
+        <b-input type="color" v-model="color" @change="onChange" :readonly="!isAdmin"></b-input>
+        <b-input v-model="label" :readonly="!isAdmin" placeholder="Label" @change="onChange"/>
+    </div>
 </template>
 
-<script>
+<script lang="ts">
+    import PIXI from "../../PIXI";
+    import hex2string = PIXI.utils.hex2string;
+    import string2hex = PIXI.utils.string2hex;
+
     export default {
         name: "ecs-pin",
         props: ["component", "isAdmin"],
         data: function () {
             return {
-                color: '#' + this.component.color.toString(16).padEnd(6, '0'),
+                color: hex2string(this.component.color),
+                label: this.component.label,
             }
         },
         methods: {
             onChange: function () {
                 if (this.component.color !== this.color && this.color !== '') {
-                    let c = parseInt(this.color.substring(1), 16);
+                    let c = string2hex(this.color);
                     this.$emit('ecs-property-change', 'pin', 'color', c);
+                }
+                if (this.label !== this.component.label) {
+                    this.$emit('ecs-property-change', 'pin', 'label', this.label);
                 }
             }
         },
         watch: {
-            'component.color': function (newColor) {
-                this.color = '#' + newColor.toString(16).padEnd(6, '0');
+            'component.color': function (newColor: number) {
+                this.color = hex2string(newColor);
+            },
+            'component.label': function (newLabel: string) {
+                this.label = newLabel;
             }
         }
     }

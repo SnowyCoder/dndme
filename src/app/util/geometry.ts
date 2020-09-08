@@ -1,5 +1,7 @@
-import * as PIXI from "pixi.js";
+import PIXI from "../PIXI";
+import {StupidPoint} from "../geometry/point";
 
+type PPoint = PIXI.Point;
 export type Point = [number, number];
 
 export function polygonPointIntersect(point: PIXI.Point, polygon: number[]): boolean {
@@ -33,7 +35,7 @@ export function distSquared2d(x1: number, y1: number, x2: number, y2: number): n
     return x * x + y * y
 }
 
-export function projectPointOnLine(ax: number, ay: number, bx: number, by: number, px: number, py: number): Point | undefined {
+export function projectPointOnSegment(ax: number, ay: number, bx: number, by: number, px: number, py: number): Point | undefined {
     if (ax == bx && ay == ay) ax -= 0.00001;
 
     let u = ((px - ax) * (bx - ax)) + ((py - ay) * (by - ay));
@@ -58,3 +60,20 @@ export function projectPointOnLine(ax: number, ay: number, bx: number, by: numbe
     return isValid ? [rx, ry] : undefined;
 }
 
+export function intersectLineVsLine(a1: StupidPoint, a2: StupidPoint, b1: StupidPoint, b2: StupidPoint, target?: PPoint): boolean {
+    let dbx = b2.x - b1.x;
+    let dby = b2.y - b1.y;
+    let dax = a2.x - a1.x;
+    let day = a2.y - a1.y;
+
+    let u_b = dby * dax - dbx * day;
+    if (u_b == 0) {
+        return false;
+    }
+    let ua = (dbx * (a1.y - b1.y) - dby * (a1.x - b1.x)) / u_b;
+
+    if (target !== undefined) {
+        target.set(a1.x - ua * -dax, a1.y - ua * -day);
+    }
+    return true;
+}

@@ -7,7 +7,7 @@
     </div>
 </template>
 
-<script>
+<script lang="ts">
     export default {
         name: "ecs-position",
         props: ["component", "isAdmin"],
@@ -26,7 +26,7 @@
             }
         },
         watch: {
-            'component.rotation': function(newVal) {
+            'component.rotation': function(newVal: number) {
                 this.rotation = newVal;
             }
         }

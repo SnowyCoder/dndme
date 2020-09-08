@@ -5,8 +5,7 @@
                 <template v-slot:button-content>
                     <i class="fas fa-plus"></i>
                 </template>
-                <b-dropdown-item @click="emitSpecial('addComponent', 'name')">Name</b-dropdown-item>
-                <b-dropdown-item @click="emitSpecial('addComponent', 'note')">Note</b-dropdown-item>
+                <b-dropdown-item v-for="x in selectedAddable" :key="x.type" @click="emitSpecial('addComponent', x.type)">{{x.name}}</b-dropdown-item>
             </b-dropdown>
             <b-button squared :title="entity.hidden ? 'Show entity' : 'Hide entity'" style="display: grid" v-if="isAdmin"
                       @click="emitSpecial('hidden', !entity.hidden)">
@@ -28,14 +27,14 @@
     </div>
 </template>
 
-<script>
-    import EcsComponentWrapper from "./compWrapper";
+<script lang="ts">
+    import EcsComponentWrapper from "./compWrapper.vue";
     export default {
         name: "entity-inspect",
         components: {EcsComponentWrapper},
-        props: ['entity', 'components', 'isAdmin'],
+        props: ['entity', 'components', 'isAdmin', 'selectedAddable'],
         methods: {
-            emitSpecial: function (name, par) {
+            emitSpecial: function (name: string, par: unknown) {
                 this.$emit('ecs-property-change', '$', name, par);
             }
         }

@@ -1,4 +1,4 @@
-import * as PIXI from "pixi.js";
+import PIXI from "../../PIXI";
 import {System} from "../system";
 import {EcsTracker} from "../ecs";
 import {EditMapPhase, Tool} from "../../phase/editMap/editMapPhase";
@@ -8,12 +8,14 @@ import {SingleEcsStorage} from "../storage";
 import {Component, PositionComponent} from "../component";
 import {app} from "../../index";
 import {Point} from "../../util/geometry";
+import {TextSystem} from "./textSystem";
 
 export interface PinComponent extends Component {
     type: 'pin';
     color: number;
     label?: string;
     _display: PIXI.Sprite;
+    _labelDisplay?: PIXI.Text;
     _selected?: boolean;
 }
 
@@ -33,13 +35,17 @@ export class PinSystem implements System {
 
     readonly storage = new SingleEcsStorage<PinComponent>('pin');
 
+    textSystem: TextSystem;
+
     displayPins: PIXI.ParticleContainer;
+    displayLabels: PIXI.Container;
+
+    layerPin: PIXI.display.Layer;
+
     circleTex: PIXI.Texture;
 
     // Sprite of the pin to be created
     createPin?: PIXI.Sprite;
-
-    pointToPin = new Map<string, number[]>();
 
     isTranslating: boolean = false;
 
@@ -47,6 +53,8 @@ export class PinSystem implements System {
     constructor(tracker: EcsTracker, phase: EditMapPhase) {
         this.ecs = tracker;
         this.phase = phase;
+
+        this.textSystem = phase.textSystem;
 
         tracker.addStorage(this.storage);
         tracker.events.on('entity_spawned', this.onEntitySpawned, this);
@@ -78,22 +86,11 @@ export class PinSystem implements System {
     }
 
     addPinPoint(p: Point, pin: number) {
-        let q = p[0] + '|' + p[1];
-        let arr = this.pointToPin.get(q);
-        if (arr === undefined) {
-            arr = new Array<number>();
-            this.pointToPin.set(q, arr);
-        }
-        arr.push(pin);
         this.phase.pointDb.insert(p);
     }
 
     removePinPoint(p: Point, pin: number) {
         this.phase.pointDb.remove(p);
-        let q = p[0] + '|' + p[1];
-        let arr = this.pointToPin.get(q);
-        arr.splice(arr.indexOf(pin), 1);
-        if (arr.length === 0) this.pointToPin.delete(q);
     }
 
     onEntitySpawned(entity: number): void {
@@ -198,6 +195,22 @@ export class PinSystem implements System {
 
         d.tint = color;
         d.position.set(pos.x, pos.y);
+
+        if (pin.label === undefined) {
+            if (pin._labelDisplay !== undefined) {
+                pin._labelDisplay.destroy(DESTROY_ALL);
+                pin._labelDisplay = undefined;
+            }
+        } else {
+            if (pin._labelDisplay === undefined) {
+                pin._labelDisplay = new PIXI.Text("");
+                pin._labelDisplay.parentLayer = this.textSystem.textLayer;
+                pin._labelDisplay.anchor.set(0.5, 1);
+                this.displayLabels.addChild(pin._labelDisplay);
+            }
+            pin._labelDisplay.position.set(pos.x, pos.y - RADIUS);
+            pin._labelDisplay.text = pin.label;
+        }
     }
 
     initCreation() {
@@ -248,6 +261,12 @@ export class PinSystem implements System {
     }
 
     enable() {
+        this.layerPin = new PIXI.display.Layer();
+        this.layerPin.zIndex = EditMapDisplayPrecedence.PINS;
+        app.stage.addChild(this.layerPin);
+
+        // TODO: unwrap ParticleContainer from Container https://github.com/pixijs/pixi-layers/issues/60
+        let cnt = new PIXI.Container();
         this.displayPins = new PIXI.ParticleContainer(10000, {
             vertices: false,
             position: true,
@@ -255,9 +274,12 @@ export class PinSystem implements System {
             uvs: false,
             tint: true,
         });
-        this.displayPins.zIndex = EditMapDisplayPrecedence.PINS;
+        cnt.parentLayer = this.layerPin;
+        this.displayLabels = new PIXI.Container();
 
-        this.phase.board.addChild(this.displayPins);
+        cnt.addChild(this.displayPins);
+
+        this.phase.board.addChild(cnt, this.displayLabels);
 
         let g = new PIXI.Graphics();
         g.beginFill(0xFFFFFF);
@@ -268,7 +290,9 @@ export class PinSystem implements System {
     }
 
     destroy(): void {
-        this.displayPins.destroy(DESTROY_ALL);
+        this.displayLabels.destroy(DESTROY_ALL);
         this.circleTex.destroy(true);
+        this.displayPins.destroy(DESTROY_ALL);
+        this.layerPin.destroy(DESTROY_ALL);
     }
 }

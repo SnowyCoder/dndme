@@ -29,14 +29,15 @@
     </div>
 </template>
 
-<script>
-    import ecsName from "./ecsName";
-    import ecsNote from "./ecsNote";
-    import ecsPosition from "./ecsPosition";
-    import ecsWall from "./ecsWall";
-    import ecsBackgroundImage from "./ecsBackgroundImage";
-    import ecsPin from "./ecsPin";
-    import ecsTransform from "./ecsTransform";
+<script lang="ts">
+    import ecsName from "./ecsName.vue";
+    import ecsNote from "./ecsNote.vue";
+    import ecsPosition from "./ecsPosition.vue";
+    import ecsWall from "./ecsWall.vue";
+    import ecsBackgroundImage from "./ecsBackgroundImage.vue";
+    import ecsPin from "./ecsPin.vue";
+    import ecsTransform from "./ecsTransform.vue";
+    import ecsLight from "./ecsLight.vue";
 
     export default {
         name: "ecs-component-wrapper",
@@ -52,7 +53,7 @@
             }
         },
         components: {
-            ecsName, ecsNote, ecsPosition, ecsWall, ecsBackgroundImage, ecsPin, ecsTransform,
+            ecsName, ecsNote, ecsPosition, ecsWall, ecsBackgroundImage, ecsPin, ecsTransform, ecsLight,
         }
     }
 </script>

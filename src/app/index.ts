@@ -1,5 +1,5 @@
 import {Stage} from "./phase/stage";
-import * as PIXI from "pixi.js";
+import PIXI from "./PIXI";
 
 import {HomePhase} from "./phase/homePhase";
 
@@ -47,9 +47,8 @@ function onHashCahnge() {
 }
 
 (async function () {
-    app = new PIXI.Application({
-        transparent: true
-    });
+    app = new PIXI.Application();
+    app.renderer.backgroundColor = 0x6e472c;
     // The app.view (canvas) is only appended when the game-phase starts.
 
     app.view.addEventListener('contextmenu', (e) => {

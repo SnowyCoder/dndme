@@ -1,4 +1,4 @@
-import * as PIXI from "pixi.js";
+import PIXI from "../../PIXI";
 import {app} from "../../index";
 import {Point} from "../../util/geometry";
 import {DESTROY_ALL} from "../../util/pixi";
@@ -6,6 +6,7 @@ import {GridGraphicalOptions, GridType} from "../../game/grid";
 import {GridResource, Resource} from "../resource";
 import {EcsTracker} from "../ecs";
 import {System} from "../system";
+import {EditMapDisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 
 
 const SQRT3 = Math.sqrt(3);
@@ -27,7 +28,7 @@ export class GridSystem implements System {
     constructor(ecs: EcsTracker) {
         this.ecs = ecs;
         this.sprite = new PIXI.TilingSprite(PIXI.Texture.EMPTY, app.screen.width, app.screen.height);
-        this.sprite.zIndex = 5000;
+        this.sprite.zIndex = EditMapDisplayPrecedence.GRID;
 
         ecs.events.on('resource_add', this.onResourceAdd, this);
         ecs.events.on('resource_edited', this.onResourceEdited, this);

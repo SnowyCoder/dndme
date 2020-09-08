@@ -1,6 +1,6 @@
 import EditMapComponent from "../../ui/edit/editMap.vue";
 import {BirdEyePhase} from "../birdEyePhase";
-import * as PIXI from "pixi.js";
+import PIXI from "../../PIXI";
 import {app, stage} from "../../index";
 import {BackgroundSystem} from "../../ecs/systems/backgroundSystem";
 import {PointDB} from "../../game/pointDB";
@@ -11,6 +11,8 @@ import {GameMap} from "../../map/gameMap";
 import {PinSystem} from "../../ecs/systems/pinSystem";
 import {EcsEntityLinked} from "../../ecs/ecs";
 import {WallSystem} from "../../ecs/systems/wallSystem";
+import {LightSystem} from "../../ecs/systems/lightSystem";
+import {TextSystem} from "../../ecs/systems/textSystem";
 
 
 export class EditMapPhase extends BirdEyePhase {
@@ -20,8 +22,10 @@ export class EditMapPhase extends BirdEyePhase {
     tool: Tool = Tool.INSPECT;
 
     backgroundSystem: BackgroundSystem;
+    textSystem: TextSystem;
     wallSystem: WallSystem;
     pinSystem: PinSystem;
+    lightSystem: LightSystem;
 
     pointDb: PointDB;
     selection: SelectionGroup;
@@ -45,12 +49,15 @@ export class EditMapPhase extends BirdEyePhase {
         this.pointDb = new PointDB(this.gridSystem);
 
         this.backgroundSystem = new BackgroundSystem(this.ecs, this);
+        this.textSystem = new TextSystem(this.ecs);
         this.wallSystem = new WallSystem(this.ecs, this);
         this.pinSystem = new PinSystem(this.ecs, this);
+        this.lightSystem = new LightSystem(this.ecs, this);
 
         this.ecs.events.on('selection_update', (group: SelectionGroup) => {
             this.vue.selectedEntityOpts = group.getCommonEntityOpts();
             this.vue.selectedComponents = group.getCommonComponents();
+            this.vue.selectedAddable = group.getAddableComponents();
         })
     }
 
@@ -173,7 +180,7 @@ export class EditMapPhase extends BirdEyePhase {
     findEntityAt(point: PIXI.Point): number | undefined {
         let entity = this.pinSystem.findPinAt(point);
         if (entity !== undefined) return entity;
-        // TODO: entity = this.wallSystem.findWallAt(point);
+        entity = this.wallSystem.findWallAt(point);
         if (entity !== undefined) return entity;
         return undefined;
     }
@@ -266,13 +273,17 @@ export class EditMapPhase extends BirdEyePhase {
         this.setupBoard();
 
         this.backgroundSystem.enable();
+        this.textSystem.enable();
         this.wallSystem.enable();
         this.pinSystem.enable();
+        this.lightSystem.enable();
     }
 
     disable() {
+        this.lightSystem.destroy();
         this.pinSystem.destroy();
         this.wallSystem.destroy();
+        this.textSystem.destroy();
         this.backgroundSystem.destroy();
 
         super.disable();
@@ -285,6 +296,7 @@ export enum Tool {
     CREATE_WALL = 'create_wall',
     CREATE_PIN = 'create_pin',
     GRID = 'grid',
+    LIGHT = 'light',
 }
 
 

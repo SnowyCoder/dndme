@@ -2,7 +2,7 @@
     <b-input v-model="component.name" :readonly="!isAdmin" placeholder="Entity name" @change="onChange"/>
 </template>
 
-<script>
+<script lang="ts">
     export default {
         name: "ecs-name",
         props: ["component", "isAdmin"],
@@ -12,7 +12,7 @@
             }
         },
         watch: {
-            'component.name': function (val) {
+            'component.name': function (val: string) {
                 this.name = val;
             }
         },

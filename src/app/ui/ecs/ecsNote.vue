@@ -11,7 +11,7 @@
     </div>
 </template>
 
-<script>
+<script lang="ts">
     export default {
         name: "ecs-note",
         props: ["component", "isAdmin"],
@@ -22,7 +22,7 @@
             }
         },
         watch: {
-            'component.note': function (val) {
+            'component.note': function (val: string) {
                 this.note = val;
             }
         },

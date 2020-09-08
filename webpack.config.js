@@ -6,6 +6,8 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const VueLoaderPlugin = require('vue-loader/lib/plugin');
 const DotEnv = require('dotenv-webpack');
 
+const webpack = require('webpack');
+
 const config = {
     entry: './src/app/index.ts',
     module: {
@@ -94,6 +96,9 @@ const config = {
             path: './.env',
             safe: true
         }),
+        new webpack.ProvidePlugin({
+            PIXI: 'pixi.js',
+        })
     ]
 };
 

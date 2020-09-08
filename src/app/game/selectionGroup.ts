@@ -1,5 +1,6 @@
 import {EcsTracker} from "../ecs/ecs";
 import {Component, NameComponent, NoteComponent, PositionComponent} from "../ecs/component";
+import {LightComponent} from "../ecs/systems/lightSystem";
 
 const MULTI_TYPES = ['name', 'note'];
 const ELIMINABLE_TYPES = ['name', 'note'];
@@ -18,6 +19,11 @@ const FULLSCREENABLE_TYPES = ['note'];
 
 interface TypeData {
     entities: Set<Component>;
+}
+
+export interface AddComponent {
+    type: string,
+    name: string,
 }
 
 export class SelectionGroup {
@@ -198,6 +204,29 @@ export class SelectionGroup {
         };
     }
 
+    getAddableComponents(): Array<AddComponent> {
+        let res = new Array<AddComponent>();
+
+        res.push(
+            {
+                type: 'name',
+                name: 'Name'
+            }, {
+               type: 'note',
+               name: 'Note'
+            }
+        );
+
+        if (this.hasEveryoneType('pin') && !this.hasComponentType('light')) {
+            res.push({
+                type: 'light',
+                name: 'Light'
+            });
+        }
+
+        return res;
+    }
+
     setProperty(type: string, propertyName: string, propertyValue: any, multiId?: number): void {
         if (type === '$') {
             // Special management
@@ -238,6 +267,13 @@ export class SelectionGroup {
                                 note: '',
                                 clientVisible: true,
                             } as NoteComponent;
+                            break;
+                        case 'light':
+                            comp = {
+                                type: 'light',
+                                range: 10,
+                                color: 0xFFFFFF,
+                            } as LightComponent;
                             break;
                         default: throw 'Cannot add unknown component: ' + propertyValue;
                     }
@@ -295,6 +331,12 @@ export class SelectionGroup {
         let data = this.dataByType.get(type);
         if (data === undefined) return false;
         return data.entities.size > 0;
+    }
+
+    private hasEveryoneType(type: string): boolean {
+        let data = this.dataByType.get(type);
+        if (data === undefined) return false;
+        return data.entities.size === this.selectedEntities.size;
     }
 }
 
