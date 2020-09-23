@@ -3,7 +3,7 @@ import {EcsTracker} from "../ecs";
 import {Channel} from "../../network/channel";
 import {Component, HideableComponent, MultiComponent} from "../component";
 import * as P from "../../protocol/game";
-import {HiddenResource, Resource} from "../resource";
+import {Resource} from "../resource";
 import {PacketContainer} from "../../protocol/packet";
 
 export class HostNetworkSystem implements System {
@@ -122,7 +122,7 @@ export class HostNetworkSystem implements System {
             return;
         }
 
-        if ((component as HideableComponent).clientVisible === false) return;
+        if (this.shouldIgnoreComponent0(component)) return;
 
         this.channel.broadcast({
             type: "component_edit",
@@ -153,7 +153,7 @@ export class HostNetworkSystem implements System {
     }
 
     private onResourceAdd(resource: Resource): void {
-        if (!this.isEnabled || (resource as HiddenResource)._clientHide === true) return;
+        if (!this.isEnabled || resource._sync !== true) return;
 
         this.channel.broadcast({
             type: "resource_add",
@@ -162,7 +162,7 @@ export class HostNetworkSystem implements System {
     }
 
     private onResourceEdit(resource: Resource, changes: any): void {
-        if (!this.isEnabled || (resource as HiddenResource)._clientHide === true) return;
+        if (!this.isEnabled || resource._sync !== true) return;
 
         this.channel.broadcast({
             type: "resource_edit",
@@ -172,7 +172,7 @@ export class HostNetworkSystem implements System {
     }
 
     private onResourceRemove(resource: Resource): void {
-        if (!this.isEnabled || (resource as HiddenResource)._clientHide === true) return;
+        if (!this.isEnabled || resource._sync !== true) return;
 
         this.channel.broadcast({
             type: "resource_remove",
@@ -183,7 +183,12 @@ export class HostNetworkSystem implements System {
     // ---------------------------------- UTILS ----------------------------------
 
     private shouldIgnoreComponent(component: Component): boolean {
-        return this.shouldIgnoreEntity(component.entity) || ((component as HideableComponent).clientVisible === false) || component.type.startsWith('host_')
+        if (this.shouldIgnoreEntity(component.entity)) return true;
+        return this.shouldIgnoreComponent0(component)
+    }
+
+    private shouldIgnoreComponent0(component: Component): boolean {
+        return ((component as HideableComponent).clientVisible === false) || !this.ecs.storages.get(component.type).sync;
     }
 
     private shouldIgnoreEntity(entity: number): boolean {
@@ -196,8 +201,7 @@ export class HostNetworkSystem implements System {
         let comps = [];
 
         for (let comp of components) {
-            if (comp.type.startsWith('host_')) continue;
-            if ((comp as HideableComponent).clientVisible === false) continue;
+            if (this.shouldIgnoreComponent0(comp)) continue;
             comps.push(processComponent(comp));
         }
 

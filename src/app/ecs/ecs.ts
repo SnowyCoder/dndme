@@ -8,7 +8,7 @@
 import {EcsStorage} from "./storage";
 import PIXI from "../PIXI";
 import {Component} from "./component";
-import {HiddenResource, Resource} from "./resource";
+import {Resource} from "./resource";
 import EventEmitter = PIXI.utils.EventEmitter;
 
 
@@ -28,6 +28,7 @@ export class EcsTracker {
     entities = new Set<number>();
     resources = new Map<string, Resource>();
     isDeserializing: boolean = false;
+    isMaster: boolean;
 
     //      Event list:
     // entity_spawn(id)
@@ -46,18 +47,27 @@ export class EcsTracker {
     // resource_removed(resource)
     // clear()
     // cleared()
+    // serialize()
+    // serialized(res)
     // deserialize()
     // deserialized()
     //      External events:
+    // query_hit(event: QueryHitEvent)
     // selection_begin(entities)
     // selection_end(entities)
     // selection_update()
     // tool_move_begin()
     // tool_move_end()
+    // players_visibility_enter(entity)
+    // players_visibility_leave(entity)
     //      TODO
     // batch_update_begin()
     // batch_update_end()
     events = new EventEmitter();
+
+    constructor(isMaster: boolean) {
+        this.isMaster = isMaster;
+    }
 
     spawnEntity(...components: Array<Component>): number {
         let id = -1;
@@ -193,15 +203,19 @@ export class EcsTracker {
     }
 
     serialize(): SerializedEcs {
+        this.events.emit('serialize');
+
         let storages: {[type: string]: any} = {};
 
         for (let storage of this.storages.values()) {
+            if (!storage.save) continue;
             storages[storage.type] = storage.serialize();
         }
 
         let resources: {[type: string]: any} = {};
 
         for (let resource of this.resources.values()) {
+            if (!resource._save) continue;
             let res = {} as any;
             for (let name in resource) {
                 if (name[0] === '_' || name === 'type') continue;
@@ -210,11 +224,15 @@ export class EcsTracker {
             resources[resource.type] = res;
         }
 
-        return {
+        let res = {
             entities: [...this.entities],
             storages,
             resources,
         } as SerializedEcs;
+
+        this.events.emit('serialized', res);
+
+        return res;
     }
 
     serializeClient(): SerializedEcs {
@@ -223,14 +241,14 @@ export class EcsTracker {
         let hostHidden = this.storages.get('host_hidden');
 
         for (let storage of this.storages.values()) {
-            if (storage.type.startsWith('host_')) continue;
+            if (!storage.save || !storage.sync) continue;
             storages[storage.type] = storage.serializeClient((e) => hostHidden.getFirstComponent(e) !== undefined);
         }
 
         let resources: {[type: string]: any} = {};
 
         for (let resource of this.resources.values()) {
-            if ((resource as HiddenResource)._clientHide === true) continue;
+            if (!resource._save || !resource._sync) continue;
             let res = {} as any;
             for (let name in resource) {
                 if (name[0] === '_' || name === 'type') continue;

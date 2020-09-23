@@ -200,6 +200,8 @@
                     if (type !== undefined) {
                         this.phase.ecs.addResource({
                             type: 'grid',
+                            _save: true,
+                            _sync: true,
                             gridType: type,
                             size: newGrid.size,
                             offX: newGrid.offX,

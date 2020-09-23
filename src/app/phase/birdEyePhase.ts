@@ -26,14 +26,14 @@ export class BirdEyePhase extends Phase {
 
     pointers = new Map<number, PointerData>();
 
-    constructor(name: string) {
+    constructor(name: string, isMaster: boolean) {
         super(name);
 
-        this.ecs = new EcsTracker();
+        this.ecs = new EcsTracker(isMaster);
 
         this.board = new PIXI.Container();
-        this.board.interactive = true;
-        this.board.interactiveChildren = true;
+        this.board.interactive = false;
+        this.board.interactiveChildren = false;
         this.board.position.set(0, 0);
     }
 

@@ -37,6 +37,11 @@ export class Line {
         let rx = this.fromX + u * (this.toX - this.fromX);
         let ry = this.fromY + u * (this.toY - this.fromY);
 
+        if (ignoreValid) {
+            target.set(rx, ry);
+            return true;
+        }
+
         let minx = this.fromX, maxx = this.toX;
         let miny = this.fromY, maxy = this.toY;
 
@@ -45,11 +50,18 @@ export class Line {
 
         let isValid = (rx >= minx && rx <= maxx) && (ry >= miny && ry <= maxy);
 
-        if (isValid || ignoreValid) {
+        if (isValid) {
             target.set(rx, ry);
             return true;
         } else {
             return false;
         }
+    }
+
+    copy(): Line {
+        return new Line(
+            this.fromX, this.fromY,
+            this.toX, this.toY
+        );
     }
 }

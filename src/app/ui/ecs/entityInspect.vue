@@ -12,17 +12,14 @@
                 <div class="g11" :style="{visibility: entity.hidden ? 'visible' : 'hidden'}"><i class="fas fa-eye-slash"/></div>
                 <div class="g11" :style="{visibility: entity.hidden ? 'hidden' : 'visible'}"><i class="fas fa-eye"/></div>
             </b-button>
-            <b-button v-if="isAdmin" variant="danger" title="Forget" squared
-                      v-show="entity.forgettable" @click="emitSpecial('forget')">
-                <i class="fas fa-eraser"></i>
-            </b-button>
             <b-button v-if="isAdmin" variant="danger" title="Delete entity" squared
                       @click="emitSpecial('delete')">
                 <i class="fas fa-trash"></i>
             </b-button>
         </div>
 
-        <ecs-component-wrapper v-for="comp of components" v-bind:component="comp" v-bind:key="comp.type + (comp.multiId || '')" v-bind:isAdmin="isAdmin"
+        <ecs-component-wrapper v-for="comp of renderedComponents" v-bind:key="comp.type + (comp.multiId || '')"
+                               v-bind:component="comp" v-bind:isAdmin="isAdmin" v-bind:allComps="allComponents"
                                @ecs-property-change="$emit('ecs-property-change', arguments[0], arguments[1], arguments[2], arguments[3])"/>
     </div>
 </template>
@@ -36,6 +33,18 @@
         methods: {
             emitSpecial: function (name: string, par: unknown) {
                 this.$emit('ecs-property-change', '$', name, par);
+            }
+        },
+        computed: {
+            renderedComponents: function() {
+                return this.components.filter((c: any) => c._save);
+            },
+            allComponents: function () {
+                let m = {} as any;
+                for (let c of this.components) {
+                    m[c.type] = c;
+                }
+                return m;
             }
         }
     }

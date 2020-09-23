@@ -13,6 +13,8 @@ export function serializeObj(obj: Component): any {
 
 export interface EcsStorage<C extends Component> {
     readonly type: string;
+    readonly sync: boolean;
+    readonly save: boolean;
 
     getFirstComponent(entity: number, multiId?: number): C | undefined;
 
@@ -33,11 +35,15 @@ export interface EcsStorage<C extends Component> {
 
 export class MultiEcsStorage<C extends MultiComponent> implements EcsStorage<C> {
     readonly type: string;
+    readonly sync: boolean;
+    readonly save: boolean;
 
     private data = new Map<number, Array<C>>();
 
-    constructor(type: string) {
+    constructor(type: string, sync: boolean = true, save: boolean = true) {
         this.type = type;
+        this.sync = sync;
+        this.save = save;
     }
 
     getFirstComponent(entity: number, multiId?: number): C | undefined {
@@ -170,11 +176,15 @@ export class MultiEcsStorage<C extends MultiComponent> implements EcsStorage<C> 
 
 export class SingleEcsStorage<C extends Component> implements EcsStorage<C> {
     readonly type: string;
+    readonly sync: boolean;
+    readonly save: boolean;
 
     private data = new Map<number, C>();
 
-    constructor(type: string) {
+    constructor(type: string, sync: boolean = true, save: boolean = true) {
         this.type = type;
+        this.sync = sync;
+        this.save = save;
     }
 
     getComponent(entity: number): C | undefined {
@@ -251,11 +261,15 @@ export class SingleEcsStorage<C extends Component> implements EcsStorage<C> {
 
 export class FlagEcsStorage implements EcsStorage<Component> {
     readonly type: string;
+    readonly sync: boolean;
+    readonly save: boolean;
 
     private data = new Map<number, Component>();
 
-    constructor(type: string) {
+    constructor(type: string, sync: boolean = true, save: boolean = true) {
         this.type = type;
+        this.sync = sync;
+        this.save = save;
     }
 
     getComponent(entity: number): Component | undefined {

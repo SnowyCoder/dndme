@@ -4,7 +4,7 @@ import {StupidPoint} from "../geometry/point";
 type PPoint = PIXI.Point;
 export type Point = [number, number];
 
-export function polygonPointIntersect(point: PIXI.Point, polygon: number[]): boolean {
+export function polygonPointIntersect(point: PIXI.IPointData, polygon: number[]): boolean {
     const x = point.x;
     const y = point.y;
     let inside = false;

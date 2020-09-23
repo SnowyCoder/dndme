@@ -6,14 +6,12 @@ import {app} from "../../index";
 import {GameMap} from "../../map/gameMap";
 import {MapLevel} from "../../map/mapLevel";
 import {HostNetworkSystem} from "../../ecs/systems/networkSystem";
-import {HostDungeonBackgroundSystem} from "../../ecs/systems/dungeonBackgroundSystem";
 
 export class HostEditMapPhase extends EditMapPhase {
     map: GameMap;
     currentLevel: MapLevel;
 
     networkSystem: HostNetworkSystem;
-    roomBackgroundSystem: HostDungeonBackgroundSystem;
 
     constructor(map: GameMap) {
         super('editHost', true);
@@ -30,9 +28,8 @@ export class HostEditMapPhase extends EditMapPhase {
 
     setupEcs() {
         super.setupEcs();
-        this.ecs.addStorage(new FlagEcsStorage("host_hidden"));
+        this.ecs.addStorage(new FlagEcsStorage("host_hidden", false, true));
 
-        this.roomBackgroundSystem = new HostDungeonBackgroundSystem(this.ecs, this.networkManager.channel);
         this.networkSystem = new HostNetworkSystem(this.ecs, this.networkManager.channel);
     }
 

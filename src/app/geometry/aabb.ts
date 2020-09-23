@@ -32,6 +32,13 @@ export class Aabb {
         return (this.maxX - this.minX + this.maxY - this.minY) * 2;
     }
 
+    translate(x: number, y: number, target: Aabb): void {
+        target.minX = this.minX + x;
+        target.minY = this.minY + y;
+        target.maxX = this.maxX + x;
+        target.maxY = this.maxY + y;
+    }
+
     combine(other: Aabb, target: Aabb): void {
         target.minX = Math.min(this.minX, other.minX);
         target.minY = Math.min(this.minY, other.minY);
@@ -53,7 +60,29 @@ export class Aabb {
         this.maxY = other.maxY;
     }
 
-    clone(): Aabb {
+    reset(): void {
+        this.minX = 0;
+        this.minY = 0;
+        this.maxX = 0;
+        this.maxY = 0;
+    }
+
+    wrapPolygon(polygon: number[]): void {
+        this.minX = Number.POSITIVE_INFINITY;
+        this.minY = Number.POSITIVE_INFINITY;
+        this.maxX = Number.NEGATIVE_INFINITY;
+        this.maxY = Number.NEGATIVE_INFINITY;
+
+        let len = polygon.length;
+        for (let i = 0; i < len; i += 2) {
+            this.minX = Math.min(this.minX, polygon[i]);
+            this.minY = Math.min(this.minY, polygon[i + 1]);
+            this.maxX = Math.max(this.maxX, polygon[i]);
+            this.maxY = Math.max(this.maxY, polygon[i + 1]);
+        }
+    }
+
+    copy(): Aabb {
         let other = Aabb.zero();
         other.copyFrom(this);
         return other;
@@ -65,6 +94,14 @@ export class Aabb {
 
     static zero(): Aabb {
         return new Aabb(0, 0, 0, 0);
+    }
+
+    static fromBounds(b: PIXI.Rectangle): Aabb {
+        return new Aabb(b.left, b.top, b.right, b.bottom);
+    }
+
+    static fromPoint(p: PIXI.IPointData): Aabb {
+        return new Aabb(p.x, p.y, p.x, p.y);
     }
 }
 

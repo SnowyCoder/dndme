@@ -18,11 +18,11 @@
 
     export default {
         name: "ecs-light",
-        props: ["component", "isAdmin"],
+        props: ["component", "isAdmin", "allComps"],
         data: function () {
             return {
                 color: hex2string(this.component.color),
-                range: this.component.range
+                range: this.allComps.visibility.range,
             }
         },
         methods: {
@@ -33,7 +33,7 @@
                 }
                 if (this.component.range !== this.range && this.range !== '') {
                     let c = parseInt(this.range);
-                    this.$emit('ecs-property-change', 'light', 'range', c);
+                    this.$emit('ecs-property-change', 'visibility', 'range', c);
                 }
             }
         },
@@ -41,7 +41,7 @@
             'component.color': function (newColor: number) {
                 this.color = hex2string(newColor);
             },
-            'component.range': function (range: number) {
+            'allComps.visibility.range': function (range: number) {
                 this.range = range;
             }
         }

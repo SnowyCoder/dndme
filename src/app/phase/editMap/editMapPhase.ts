@@ -9,10 +9,13 @@ import {NetworkManager} from "../../network/networkManager";
 import {HostEditMapPhase} from "./hostEditMapPhase";
 import {GameMap} from "../../map/gameMap";
 import {PinSystem} from "../../ecs/systems/pinSystem";
-import {EcsEntityLinked} from "../../ecs/ecs";
 import {WallSystem} from "../../ecs/systems/wallSystem";
 import {LightSystem} from "../../ecs/systems/lightSystem";
 import {TextSystem} from "../../ecs/systems/textSystem";
+import {QueryHitEvent} from "../../ecs/interaction";
+import {VisibilitySystem} from "../../ecs/systems/visibilitySystem";
+import {InteractionSystem} from "../../ecs/systems/interactionSystem";
+import {PlayerSystem} from "../../ecs/systems/playerSystem";
 
 
 export class EditMapPhase extends BirdEyePhase {
@@ -21,13 +24,15 @@ export class EditMapPhase extends BirdEyePhase {
 
     tool: Tool = Tool.INSPECT;
 
+    interactionSystem: InteractionSystem;
     backgroundSystem: BackgroundSystem;
     textSystem: TextSystem;
     wallSystem: WallSystem;
     pinSystem: PinSystem;
+    visibilitySystem: VisibilitySystem;
+    playerSystem: PlayerSystem;
     lightSystem: LightSystem;
 
-    pointDb: PointDB;
     selection: SelectionGroup;
 
     isMovingSelection: boolean = false;
@@ -35,7 +40,7 @@ export class EditMapPhase extends BirdEyePhase {
     lastMove = new PIXI.Point(0, 0);
 
     constructor(name: string, isHost: boolean) {
-        super(name);
+        super(name, isHost);
         this.isHost = isHost;
 
         this.selection = new SelectionGroup(this.ecs);
@@ -46,12 +51,13 @@ export class EditMapPhase extends BirdEyePhase {
 
         super.setupEcs();
 
-        this.pointDb = new PointDB(this.gridSystem);
-
+        this.interactionSystem = new InteractionSystem(this.ecs, this);
         this.backgroundSystem = new BackgroundSystem(this.ecs, this);
         this.textSystem = new TextSystem(this.ecs);
         this.wallSystem = new WallSystem(this.ecs, this);
         this.pinSystem = new PinSystem(this.ecs, this);
+        this.visibilitySystem = new VisibilitySystem(this.ecs, this);
+        this.playerSystem = new PlayerSystem(this.ecs, this);
         this.lightSystem = new LightSystem(this.ecs, this);
 
         this.ecs.events.on('selection_update', (group: SelectionGroup) => {
@@ -87,7 +93,7 @@ export class EditMapPhase extends BirdEyePhase {
         let oldTool = this.tool;
 
         if (oldTool === Tool.CREATE_WALL) {
-            this.wallSystem.endCreation(true);
+            this.wallSystem.endCreation();
         } else if (oldTool === Tool.CREATE_PIN) {
             this.pinSystem.cancelCreation();
         }
@@ -113,7 +119,7 @@ export class EditMapPhase extends BirdEyePhase {
     getMapPointFromMouseInteraction(event: PIXI.InteractionEvent, orig?: PIXI.Point): PIXI.Point {
         let point = event.data.getLocalPosition(this.board, orig);
 
-        let nearest = this.pointDb.findNearest([point.x, point.y]);
+        let nearest = this.interactionSystem.snapDb.findNearest([point.x, point.y]);
         if (nearest !== undefined && nearest[1] < 100) {
             point.set(nearest[0][0], nearest[0][1]);
         } else {
@@ -177,12 +183,11 @@ export class EditMapPhase extends BirdEyePhase {
         super.onPointerUpOutside(event);
     }
 
-    findEntityAt(point: PIXI.Point): number | undefined {
-        let entity = this.pinSystem.findPinAt(point);
-        if (entity !== undefined) return entity;
-        entity = this.wallSystem.findWallAt(point);
-        if (entity !== undefined) return entity;
-        return undefined;
+    findEntitiesAt(point: PIXI.Point, multi: boolean): number[] {
+        let event = QueryHitEvent.queryPoint(point, multi);
+
+        this.ecs.events.emit('query_hit', event);
+        return [...event.hits];
     }
 
     onPointerClick(event: PIXI.InteractionEvent) {
@@ -196,24 +201,21 @@ export class EditMapPhase extends BirdEyePhase {
             this.pinSystem.confirmCreation(point);
             return;
         }
-
-        let entity = this.findEntityAt(point);
-
-        if (entity === undefined) {
-            entity = (event.target as EcsEntityLinked)._ecs_entity;
-        }
-
         let ctrlPressed = !!event.data.originalEvent.ctrlKey;
+
+        let entities = this.findEntitiesAt(point, ctrlPressed);
 
         if (this.tool === Tool.INSPECT) {
             if (!ctrlPressed) {
-                if (entity !== undefined) {
-                    this.selection.setOnlyEntity(entity);
+                if (entities.length !== 0) {
+                    this.selection.setOnlyEntity(entities[0]);
                 } else {
                     this.selection.clear();
                 }
-            } else if (entity !== undefined) {
-                this.selection.toggleEntity(entity);
+            } else {
+                for (let id of entities) {
+                    this.selection.toggleEntity(id);
+                }
             }
         }
     }
@@ -272,19 +274,25 @@ export class EditMapPhase extends BirdEyePhase {
 
         this.setupBoard();
 
+        this.interactionSystem.enable();
         this.backgroundSystem.enable();
         this.textSystem.enable();
         this.wallSystem.enable();
         this.pinSystem.enable();
+        //this.visibilitySystem.enable();
+        this.playerSystem.enable();
         this.lightSystem.enable();
     }
 
     disable() {
         this.lightSystem.destroy();
+        this.playerSystem.destroy();
+        this.visibilitySystem.destroy();
         this.pinSystem.destroy();
         this.wallSystem.destroy();
         this.textSystem.destroy();
         this.backgroundSystem.destroy();
+        this.interactionSystem.destroy();
 
         super.disable();
     }

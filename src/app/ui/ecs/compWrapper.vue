@@ -21,7 +21,7 @@
             </div>
         </div>
         <b-collapse v-model="visible" class="component-body" visible>
-            <component v-bind:is="componentType" v-bind:component="component" v-bind:isAdmin="isAdmin"
+            <component v-bind:is="componentType" v-bind:component="component" v-bind:isAdmin="isAdmin" v-bind:allComps="allComps"
                        v-on:ecs-property-change="$emit('ecs-property-change', arguments[0], arguments[1], arguments[2], arguments[3])">
 
             </component>
@@ -41,7 +41,7 @@
 
     export default {
         name: "ecs-component-wrapper",
-        props: ["component", "isAdmin"],
+        props: ["component", "isAdmin", "allComps"],
         data: function() {
             return {
                 visible: true,

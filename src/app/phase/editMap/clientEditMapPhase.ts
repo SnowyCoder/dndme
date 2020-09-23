@@ -1,11 +1,9 @@
 import {EditMapPhase} from "./editMapPhase";
 import {ClientNetworkSystem} from "../../ecs/systems/networkSystem";
 import {FlagEcsStorage} from "../../ecs/storage";
-import {ClientDungeonBackgroundSystem} from "../../ecs/systems/dungeonBackgroundSystem";
 
 export class ClientEditMapPhase extends EditMapPhase {
     networkSystem: ClientNetworkSystem;
-    roomBackgroundSystem: ClientDungeonBackgroundSystem;
 
     constructor(id: string) {
         super('editClient', false);
@@ -16,22 +14,18 @@ export class ClientEditMapPhase extends EditMapPhase {
 
     setupEcs() {
         super.setupEcs();
-        this.ecs.addStorage(new FlagEcsStorage("host_hidden"));
+        this.ecs.addStorage(new FlagEcsStorage("host_hidden", false, true));
 
-        this.roomBackgroundSystem = new ClientDungeonBackgroundSystem(this, this.networkManager.channel);
         this.networkSystem = new ClientNetworkSystem(this.ecs, this.networkManager.channel);
     }
 
     enable() {
         super.enable();
-
-        this.roomBackgroundSystem.enable();
     }
 
     disable() {
         super.disable();
 
         this.networkSystem.destroy();
-        this.roomBackgroundSystem.destroy();
     }
 }

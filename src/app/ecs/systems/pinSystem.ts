@@ -9,6 +9,9 @@ import {Component, PositionComponent} from "../component";
 import {app} from "../../index";
 import {Point} from "../../util/geometry";
 import {TextSystem} from "./textSystem";
+import {GeomertyQueryType, QueryHitEvent} from "../interaction";
+import {InteractionComponent, shapePoint} from "./interactionSystem";
+import {PlayerVisibleComponent} from "./playerSystem";
 
 export interface PinComponent extends Component {
     type: 'pin';
@@ -33,7 +36,7 @@ export class PinSystem implements System {
     readonly ecs: EcsTracker;
     readonly phase: EditMapPhase;
 
-    readonly storage = new SingleEcsStorage<PinComponent>('pin');
+    readonly storage = new SingleEcsStorage<PinComponent>('pin', true, true);
 
     textSystem: TextSystem;
 
@@ -57,53 +60,41 @@ export class PinSystem implements System {
         this.textSystem = phase.textSystem;
 
         tracker.addStorage(this.storage);
-        tracker.events.on('entity_spawned', this.onEntitySpawned, this);
+        tracker.events.on('component_add', this.onComponentAdd, this);
         tracker.events.on('component_edited', this.onComponentEdited, this);
         tracker.events.on('component_remove', this.onComponentRemove, this);
         tracker.events.on('selection_begin', this.onSelectionBegin, this);
         tracker.events.on('selection_end', this.onSelectionEnd, this);
-        tracker.events.on('tool_move_begin', this.onToolMoveBegin, this);
-        tracker.events.on('tool_move_end', this.onToolMoveEnd, this);
-    }
-
-    findPinAt(point: PIXI.Point): number | undefined {
-        let closest = -1;
-        let closestDist = Number.POSITIVE_INFINITY;
-        for (let pin of this.storage.allComponents()) {
-            let pos = this.ecs.getComponent(pin.entity, 'position') as PositionComponent;
-            let dx = pos.x - point.x;
-            let dy = pos.y - point.y;
-            let d = dx * dx + dy * dy;
-            if (d < closestDist) {
-                closest = pin.entity;
-                closestDist = d;
-            }
+        if (!tracker.isMaster) {
+            tracker.events.on('players_visibility_enter', this.onPlayerVisible, this);
+            tracker.events.on('players_visibility_exit', this.onNotPlayerVisible, this);
         }
-        if (closestDist <= RADIUS*RADIUS) {
-            return closest;
-        }
-        return undefined;
     }
 
-    addPinPoint(p: Point, pin: number) {
-        this.phase.pointDb.insert(p);
-    }
-
-    removePinPoint(p: Point, pin: number) {
-        this.phase.pointDb.remove(p);
-    }
-
-    onEntitySpawned(entity: number): void {
-        let pin = this.storage.getComponent(entity);
-        if (pin === undefined) return;
-        let pos = this.ecs.getComponent(entity, "position") as PositionComponent;
+    private onComponentAdd(c: Component): void {
+        if (c.type !== 'pin') return;
+        let pin = c as PinComponent;
+        let pos = this.ecs.getComponent(c.entity, "position") as PositionComponent;
         if (pos === undefined) return;
 
-        this.addPinPoint([pos.x, pos.y], entity);
+
         this.addPin(pos, pin);
+
+        this.ecs.addComponent(c.entity, {
+            type: "interaction",
+            entity: -1,
+            snapEnabled: true,
+            selectPriority: EditMapDisplayPrecedence.PINS,
+            shape: shapePoint(new PIXI.Point(pos.x, pos.y)),
+        } as InteractionComponent);
+        this.ecs.addComponent(c.entity, {
+            type: "player_visible",
+            entity: -1,
+            _visibleBy: [],
+        } as PlayerVisibleComponent);
     }
 
-    onComponentEdited(comp: Component, changed: any): void {
+    private onComponentEdited(comp: Component, changed: any): void {
         if (comp.type !== 'pin' && comp.type !== 'position') return;
 
         let pin, position;
@@ -117,60 +108,51 @@ export class PinSystem implements System {
 
         if (pin === undefined || position === undefined) return;
 
-        if (comp.type === 'position' && !(this.isTranslating && pin._selected === true)) {
-            let oldX = changed.x === undefined ? position.x : changed.x;
-            let oldY = changed.y === undefined ? position.y : changed.y;
-            this.removePinPoint([oldX, oldY], comp.entity);
-            this.addPinPoint([position.x, position.y], comp.entity);
-        }
-
-        this.redrawComponent(position, pin);
+        this.redrawComponent(pin, position);
     }
 
-    onComponentRemove(component: Component): void {
+    private onComponentRemove(component: Component): void {
         if (component.type !== 'pin') return;
         (component as PinComponent)._display.destroy({
            children: true,
            texture: false,
            baseTexture: false,
         });
-
-        let pos = this.ecs.getComponent(component.entity, 'position') as PositionComponent;
-        this.removePinPoint([pos.x, pos.y], component.entity);
     }
 
-    onSelectionBegin(entity: number): void {
+    private onSelectionBegin(entity: number): void {
         let pin = this.storage.getComponent(entity);
         if (pin === undefined) return;
         pin._selected = true;
-        let pos = this.ecs.getComponent(pin.entity, 'position') as PositionComponent;
-        this.redrawComponent(pos, pin);
+        this.redrawComponent(pin, undefined);
     }
 
-    onSelectionEnd(entity: number): void {
+    private onSelectionEnd(entity: number): void {
         let pin = this.storage.getComponent(entity);
         if (pin === undefined) return;
         pin._selected = undefined;
-        let pos = this.ecs.getComponent(pin.entity, 'position') as PositionComponent;
-        this.redrawComponent(pos, pin);
+        this.redrawComponent(pin, undefined);
     }
 
-    onToolMoveBegin(): void {
-        this.isTranslating = true;
-        for (let component of this.phase.selection.getSelectedByType("pin")) {
-            let pin = component as PinComponent;
-            let pos = this.ecs.getComponent(pin.entity, 'position') as PositionComponent;
-            this.removePinPoint([pos.x, pos.y], pin.entity);
+    private onPlayerVisible(entity: number): void {
+        let pin = this.storage.getComponent(entity);
+        if (pin === undefined) return;
+        if (!pin._display.visible) {
+            pin._display.visible = true;
+            this.displayPins.addChild(pin._display);
         }
+        if (pin._labelDisplay !== undefined) pin._labelDisplay.visible = true;
+        this.redrawComponent(pin, undefined);
     }
 
-    onToolMoveEnd(): void {
-        this.isTranslating = false;
-        for (let component of this.phase.selection.getSelectedByType("pin")) {
-            let pin = component as PinComponent;
-            let pos = this.ecs.getComponent(pin.entity, 'position') as PositionComponent;
-            this.addPinPoint([pos.x, pos.y], pin.entity);
+    private onNotPlayerVisible(entity: number): void {
+        let pin = this.storage.getComponent(entity);
+        if (pin === undefined) return;
+        if (pin._display.visible) {
+            pin._display.visible = false;
+            this.displayPins.removeChild(pin._display);
         }
+        if (pin._labelDisplay !== undefined) pin._labelDisplay.visible = false;
     }
 
 
@@ -178,13 +160,21 @@ export class PinSystem implements System {
         if (p._display === undefined) {
             let g = new PIXI.Sprite(this.circleTex);
 
-            this.displayPins.addChild(g);
+            if (!this.ecs.isMaster) {
+                g.visible = false;
+            } else {
+                this.displayPins.addChild(g);
+            }
             p._display = g;
         }
-        this.redrawComponent(pos, p);
+        this.redrawComponent(p, pos);
     }
 
-    redrawComponent(pos: PositionComponent, pin: PinComponent) {
+    redrawComponent(pin: PinComponent, pos: PositionComponent | undefined) {
+        if (pos === undefined) {
+            pos = this.ecs.getComponent(pin.entity, 'position') as PositionComponent;
+        }
+
         let d = pin._display;
 
         let color = pin.color;

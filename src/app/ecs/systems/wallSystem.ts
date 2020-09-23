@@ -6,19 +6,17 @@ import {DESTROY_ALL} from "../../util/pixi";
 import {EditMapDisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {SingleEcsStorage} from "../storage";
 import {Component, PositionComponent} from "../component";
-import {distSquared2d} from "../../util/geometry";
-import {DynamicTree} from "../../geometry/dynamicTree";
+import {distSquared2d, Point} from "../../util/geometry";
 import {Aabb} from "../../geometry/aabb";
 import {Line} from "../../geometry/line";
 import {intersectSegmentVsSegment, SegmentVsSegmentRes} from "../../geometry/collision";
-import {EPSILON} from "../../geometry/visibilityPolygon";
 import {app} from "../../index";
+import {InteractionComponent, LineShape, shapeAabb, shapeLine} from "./interactionSystem";
+import {VisibilityBlocker} from "./visibilitySystem";
 
 export interface WallComponent extends Component {
     type: 'wall';
-    lineStrip: number[];
-    _worldStrip: number[];
-    _worldStripIds: number[];
+    vec: Point;
     _display: PIXI.Graphics;
     _selected?: boolean;
 }
@@ -34,14 +32,11 @@ export class WallSystem implements System {
     displayWalls: PIXI.Container;
 
     // Sprite of the pin to be created
-    createStrip?: number[];
-    createStripIds?: number[];
-    createDisplay: PIXI.Graphics;
+    createdIds: number[] = [];
+    createdLastPos?: Point;
     createLastLineDisplay: PIXI.Graphics;
 
     layer: PIXI.display.Layer;
-
-    wallAabbTree = new DynamicTree<[Line, number]>(0, 1);// Static tree
 
     isTranslating: boolean = false;
 
@@ -60,69 +55,6 @@ export class WallSystem implements System {
         tracker.events.on('tool_move_end', this.onToolMoveEnd, this);
     }
 
-    findWallAt(point: PIXI.IPointData): number | undefined {
-        let r = 20;
-        let points = this.wallAabbTree.query(new Aabb(
-            point.x - r, point.y - r,
-            point.x + r, point.y + r
-        ));
-        let r2 = r*r;
-        let bestWall = undefined;
-        let bestDist = Number.POSITIVE_INFINITY;
-
-        let tmpPoint = new PIXI.Point();
-        for (let node of points) {
-            let line = node.tag[0];
-            if (!line.projectPoint(point, tmpPoint, true)) {
-                continue;
-            }
-            let dist = distSquared2d(tmpPoint.x, tmpPoint.y, point.x, point.y);
-
-            if (dist < bestDist && dist < r2) {
-                bestWall = node.tag[1];
-                bestDist = dist;
-            }
-        }
-
-        return bestWall;
-    }
-
-    private addStripToLocator(wallId: number, strip: number[], stripIds: number[], start: number = 0, end?: number) {
-        end = end !== undefined ? end : strip.length;
-        //console.log("Adding from: " + start + " to " + end);
-        for (let i = start; i < end; i += 2) {
-            this.phase.pointDb.insert([strip[i], strip[i + 1]])
-        }
-        for (let i = Math.max(start, 2); i < end; i += 2) {
-            stripIds[i / 2 - 1] = this.wallAabbTree.createProxy(new Aabb(
-                strip[i - 2],
-                strip[i - 1],
-                strip[i],
-                strip[i + 1]
-            ), [new Line(
-                strip[i - 2],
-                strip[i - 1],
-                strip[i],
-                strip[i + 1]
-            ), wallId]);
-        }
-    }
-
-    private removeStripFromLocator(strip: number[], stripIds: number[], start: number = 0, end?: number) {
-        end = end !== undefined ? end : strip.length;
-        //console.log("Removing from: " + start + " to " + end);
-        for (let i = start; i < end; i += 2) {
-            this.phase.pointDb.remove([strip[i], strip[i + 1]])
-        }
-
-        let from = Math.max(start / 2 - 1, 0);
-        let to = end / 2 - 1;
-        for (let i = from; i < to; i++) {
-            this.wallAabbTree.destroyProxy(stripIds[i]);
-        }
-        stripIds.length = from + 1;
-    }
-
     onComponentAdd(component: Component): void {
         if (component.type !== 'wall') return;
         let wall = component as WallComponent;
@@ -132,66 +64,32 @@ export class WallSystem implements System {
             return;
         }
 
-        if (wall._worldStrip === undefined) {
-            this.recomputeWorldCoords(pos, wall);
-            wall._worldStripIds = [];
-            this.addStripToLocator(wall.entity, wall._worldStrip, wall._worldStripIds);
-        }
+        this.ecs.addComponent(component.entity, {
+            type: "interaction",
+            entity: -1,
+            shape: shapeLine(new Line(pos.x, pos.y, pos.x + wall.vec[0], pos.y + wall.vec[1])),
+            snapEnabled: true,
+            selectPriority: EditMapDisplayPrecedence.WALL,
+        } as InteractionComponent);
+        this.ecs.addComponent(component.entity, {
+            type: "visibility_blocker",
+            entity: -1
+        } as VisibilityBlocker);
 
         this.addWall(pos, wall);
     }
 
-    fixWallPreTranslation(wall: WallComponent) {
-        this.removeStripFromLocator(wall._worldStrip, wall._worldStripIds);
+    fixWallPreTranslation(walls: WallComponent[]) {
         // what changes here? a little bittle thing:
         // we need to unfix the wall (remove the intersection breaks).
-
-        let s = wall.lineStrip;
-        for (let i = 4; i < s.length; i += 2) {
-            let prevX = s[i - 4];
-            let prevY = s[i - 3];
-            let currX = s[i - 2];
-            let currY = s[i - 1];
-            let nextX = s[i    ];
-            let nextY = s[i + 1];
-
-            let dPrev = (currY - prevY) * (nextX - currX);
-            let dNext = (nextY - currY) * (currX - prevX);
-
-            if (Math.abs(dPrev - dNext) < EPSILON) {
-                s.splice(i - 2, 2);// Remove middle point
-                i -= 2;// Fix iterator;
-            }
-        }
+        // TODO: we need to remove the intersection breaks from the selected walls and also to
+        // remove them from the unselected walls (?).
     }
 
-    fixWallPostTranslation(wall: WallComponent) {
-        let pos = this.ecs.getComponent(wall.entity, 'position') as PositionComponent;
-        this.recomputeWorldCoords(pos, wall);
-
-        let s = wall.lineStrip;
-        let ws = wall._worldStrip;
-        wall._worldStripIds
-
+    fixWallPostTranslation(walls: WallComponent[]) {
         // Recompute intersections with other walls.
         // Why not all everything directly? we want to compute also the self-intersections
-        let localDirty = false;
-        for (let i = 0; i < ws.length; i += 2) {
-            let start = i;
-            if (i !== 0) {
-                i = this.fixIntersections(ws, start - 2, i + 2) - 2;
-            }
-            localDirty ||= start !== i;
-            this.addStripToLocator(wall.entity, ws, wall._worldStripIds, start, i + 2);
-        }
-
-        if (localDirty) {
-            //console.log("Recomputing local");
-            for (let i = 0; i < ws.length; i += 2) {
-                s[i] = ws[i] - pos.x;
-                s[i + 1] = ws[i + 1] - pos.y;
-            }
-        }
+        // TODO
     }
 
     onComponentEdited(comp: Component, changed: any): void {
@@ -208,10 +106,10 @@ export class WallSystem implements System {
 
         if (wall === undefined || position === undefined) return;
 
-        if (!this.isTranslating) {
+        /*if (!this.isTranslating) {
             this.fixWallPreTranslation(wall);
             this.fixWallPostTranslation(wall);
-        }
+        }*/
 
         if (comp.type === 'position') {
             wall._display.position.set(position.x, position.y);
@@ -221,16 +119,20 @@ export class WallSystem implements System {
     }
 
     findLocationOnWall(point: PIXI.Point, radius: number): PIXI.Point | undefined {
-        let points = this.wallAabbTree.query(new Aabb(
+        let interactionSystem = this.phase.interactionSystem;
+
+        let points = interactionSystem.query(shapeAabb(new Aabb(
             point.x - radius, point.y - radius,
             point.x + radius, point.y + radius
-        ));
+        )), c => {
+            return this.storage.getComponent(c.entity) !== undefined;
+        });
         let bestPoint = new PIXI.Point();
         let bestDist = Number.POSITIVE_INFINITY;
 
         let tmpPoint = new PIXI.Point();
         for (let node of points) {
-            let line = node.tag[0];
+            let line = (node.shape as LineShape).data;
             if (!line.projectPoint(point, tmpPoint)) {
                 continue;
             }
@@ -252,9 +154,8 @@ export class WallSystem implements System {
     onComponentRemove(component: Component): void {
         if (component.type !== 'wall') return;
         let wall = component as WallComponent;
-        this.removeStripFromLocator(wall._worldStrip, wall._worldStripIds);
 
-        (component as WallComponent)._display.destroy(DESTROY_ALL);
+        wall._display.destroy(DESTROY_ALL);
     }
 
     onSelectionBegin(entity: number): void {
@@ -275,29 +176,14 @@ export class WallSystem implements System {
 
     onToolMoveBegin(): void {
         this.isTranslating = true;
-        for (let component of this.phase.selection.getSelectedByType("wall")) {
-            let wall = component as WallComponent;
-            this.fixWallPreTranslation(wall);
-        }
+        let walls = [...this.phase.selection.getSelectedByType("wall")] as WallComponent[];
+        this.fixWallPreTranslation(walls);
     }
 
     onToolMoveEnd(): void {
         this.isTranslating = false;
-        for (let component of this.phase.selection.getSelectedByType("wall")) {
-            let wall = component as WallComponent;
-            this.fixWallPostTranslation(wall);
-        }
-    }
-
-    recomputeWorldCoords(pos: PositionComponent, wall: WallComponent) {
-        if (wall._worldStrip === undefined || wall._worldStrip.length !== wall.lineStrip.length) {
-            wall._worldStrip = new Array<number>(wall.lineStrip.length);
-        }
-        let pol = wall._worldStrip;
-        for (let i = 0; i < pol.length; i += 2) {
-            pol[i] = wall.lineStrip[i] + pos.x;
-            pol[i + 1] = wall.lineStrip[i + 1] + pos.y;
-        }
+        let walls = [...this.phase.selection.getSelectedByType("wall")] as WallComponent[];
+        this.fixWallPostTranslation(walls);
     }
 
     fixIntersections(strip: number[], start: number, end?: number): number {
@@ -305,7 +191,7 @@ export class WallSystem implements System {
 
         end = end === undefined ? strip.length : end;
 
-        for (let i = 0; i < strip.length; i += 2) {
+        for (let i = start; i < end; i += 2) {
             aabb.minX = Math.min(aabb.minX, strip[i]);
             aabb.minY = Math.min(aabb.minY, strip[i + 1]);
             aabb.maxX = Math.max(aabb.maxX, strip[i]);
@@ -314,14 +200,19 @@ export class WallSystem implements System {
 
         let tmpLine = new Line(0, 0, 0, 0);
         let tmpPoint = new PIXI.Point();
-        for (let wall of this.wallAabbTree.query(aabb)) {
+        let query = this.phase.interactionSystem.query(shapeAabb(aabb), c => {
+            return this.storage.getComponent(c.entity) !== undefined;
+        });
+
+        for (let wall of query) {
             //console.log("Checking wall: ", wall.tag);
             for (let i = start + 2; i < end; i += 2) {
                 tmpLine.fromX = strip[i - 2];
                 tmpLine.fromY = strip[i - 1];
                 tmpLine.toX = strip[i];
                 tmpLine.toY = strip[i + 1];
-                let res = intersectSegmentVsSegment(tmpLine, wall.tag[0], tmpPoint);
+                let line = (wall.shape as LineShape).data;
+                let res = intersectSegmentVsSegment(tmpLine, line, tmpPoint);
                 // Only continue if the intersection is inside of both lines (not on the edge)
                 if (res !== SegmentVsSegmentRes.INTERN) continue;
                 // Insert the intersection point in the strip
@@ -334,72 +225,7 @@ export class WallSystem implements System {
         return end;
     }
 
-    addVertex(point: PIXI.Point): void {
-        let strip = this.createStrip;
-        if (strip === undefined) return;
-
-        if (strip.length > 0 && point.x == strip[strip.length - 2] && point.y == strip[strip.length - 1]) {
-            this.endCreation(true);
-        } else {
-            let prevLen = strip.length;
-            strip.push(point.x, point.y);
-            if (strip.length > 2) {
-                this.fixIntersections(strip, strip.length - 4);
-            }
-            this.addStripToLocator(-1, strip, this.createStripIds, prevLen);
-            this.redrawWall0(this.createDisplay, strip, true, SELECTION_COLOR);
-        }
-    }
-
-    undoVertex(point: PIXI.Point): void {
-        let strip = this.createStrip;
-        if (strip === undefined) return;
-
-        if (strip.length !== 0) {
-            this.removeStripFromLocator(strip, this.createStripIds, strip.length - 2);
-            this.createStripIds.length = this.createStripIds.length - 1;
-            strip.length = strip.length - 2;
-
-            this.redrawWall0(this.createDisplay, strip, true, SELECTION_COLOR);
-            this.redrawCreationLastLine(point);
-        }
-    }
-
-    initCreation(): void {
-        this.endCreation(false);
-        this.createStrip = [];
-        this.createStripIds = [];
-    }
-
-    endCreation(save: boolean): void {
-        this.createDisplay.clear();
-        this.createLastLineDisplay.clear();
-        if (this.createStrip === undefined) return;
-
-        let strip = this.createStrip;
-        let stripIds = this.createStripIds;
-        this.createStrip = undefined;
-        this.createStripIds = undefined;
-
-        if (!save) return;
-        if (strip.length < 4) {
-            this.removeStripFromLocator(strip, stripIds);
-            return;// 2 points = 1 line (2 points = 4 coords)
-        }
-
-        let minX = Number.POSITIVE_INFINITY;
-        let minY = Number.POSITIVE_INFINITY;
-        for (let i = 0; i < strip.length; i += 2) {
-            minX = Math.min(minX, strip[i]);
-            minY = Math.min(minY, strip[i + 1]);
-        }
-
-        let newStrip = new Array<number>(strip.length);
-        for (let i = 0; i < strip.length; i += 2) {
-            newStrip[i] = strip[i] - minX;
-            newStrip[i + 1] = strip[i + 1] - minY;
-        }
-
+    private createWall(minX: number, minY: number, maxX: number, maxY: number): void {
         let id = this.ecs.spawnEntity(
             {
                 type: 'position',
@@ -409,18 +235,75 @@ export class WallSystem implements System {
             } as PositionComponent,
             {
                 type: 'wall',
-                entity: -1,
-                lineStrip: newStrip,
-                _worldStrip: strip,
-                _worldStripIds: stripIds,
+                vec: [maxX - minX, maxY - minY],
+                _selected: true,
             } as WallComponent,
         );
+        this.createdIds.push(id);
+    }
 
-        for (let i = 0; i < stripIds.length; i++) {
-            this.wallAabbTree.getTag(stripIds[i])[1] = id;
+    addVertex(point: PIXI.Point): void {
+        let lp = this.createdLastPos;
+
+        if (lp === undefined) {
+            this.createdLastPos = [point.x, point.y];
+        } else if (point.x == lp[0] && point.y == lp[1]) {
+            this.endCreation();
+        } else {
+            let points = [lp[0], lp[1], point.x, point.y];
+            this.fixIntersections(points, 0);
+            let plen = points.length;
+
+            for (let i = 2; i < plen; i += 2) {
+                this.createWall(
+                    points[i - 2], points[i - 1],
+                    points[i    ], points[i + 1]
+                );
+            }
+            this.createdLastPos = [point.x, point.y];
+        }
+    }
+
+    undoVertex(point: PIXI.Point): void {
+        if (this.createdLastPos === undefined) return;
+
+        if (this.createdIds.length === 0) {
+            this.createdLastPos = undefined;
+        } else {
+            let lastCreated = this.createdIds.pop();
+
+            let wallPos = this.ecs.getComponent(lastCreated, 'position') as PositionComponent;
+            let wall = this.storage.getComponent(lastCreated);
+
+            if (wallPos.x === this.createdLastPos[0] && wallPos.y == this.createdLastPos[1]) {
+                this.createdLastPos = [
+                    wallPos.x + wall.vec[0],
+                    wallPos.y + wall.vec[1],
+                ];
+            } else {
+                this.createdLastPos = [
+                    wallPos.x,
+                    wallPos.y,
+                ];
+            }
+
+            this.ecs.despawnEntity(lastCreated);
         }
 
-        this.phase.selection.setOnlyEntity(id);
+        this.redrawCreationLastLine(point);
+    }
+
+    initCreation(): void {
+        this.endCreation();
+    }
+
+    endCreation(): void {
+        this.createLastLineDisplay.clear();
+
+        if (this.createdIds.length === 0) return;
+
+        this.phase.selection.setOnlyEntities(this.createdIds);
+        this.createdIds.length = 0;
         this.phase.changeTool(Tool.INSPECT);
     }
 
@@ -441,7 +324,12 @@ export class WallSystem implements System {
             color = SELECTION_COLOR;
         }
 
-        this.redrawWall0(wall._display, wall.lineStrip, wall._selected, color);
+        let strip = [
+            0, 0,
+            wall.vec[0], wall.vec[1]
+        ];
+
+        this.redrawWall0(wall._display, strip, wall._selected, color);
     }
 
     redrawWall0(display: PIXI.Graphics, strip: number[], drawPoints: boolean, color: number) {
@@ -471,18 +359,19 @@ export class WallSystem implements System {
     }
 
     redrawCreationLastLine(pos: PIXI.Point): void {
-        let strip = this.createStrip;
-        if (strip === undefined) return;
-
         let g = this.createLastLineDisplay;
         g.clear();
 
-        if (this.createStrip.length !== 0) {
-            g.moveTo(strip[strip.length - 2], strip[strip.length - 1]);
+        if (this.createdLastPos !== undefined) {
+            g.moveTo(this.createdLastPos[0], this.createdLastPos[1]);
             g.lineStyle(5, SELECTION_COLOR);
             g.lineTo(pos.x, pos.y);
         }
         g.lineStyle(0);
+        if (this.createdIds.length === 0 && this.createdLastPos !== undefined) {
+            g.beginFill(0xe51010);
+            g.drawCircle(this.createdLastPos[0], this.createdLastPos[1], 10);
+        }
         g.beginFill(0x405FFE);
         g.drawCircle(pos.x, pos.y, 10);
     }
@@ -497,21 +386,16 @@ export class WallSystem implements System {
         this.displayWalls.parentLayer = this.layer;
         this.displayWalls.interactive = false;
         this.displayWalls.interactiveChildren = false;
-        this.createDisplay = new PIXI.Graphics();
-        this.createDisplay.interactive = false;
-        this.createDisplay.parentLayer = this.layer;
-        this.createDisplay.zOrder = 1;
         this.createLastLineDisplay = new PIXI.Graphics();
         this.createLastLineDisplay.parentLayer = this.layer
         this.createLastLineDisplay.zOrder = 2;
 
-        this.phase.board.addChild(this.displayWalls, this.createDisplay, this.createLastLineDisplay);
+        this.phase.board.addChild(this.displayWalls, this.createLastLineDisplay);
     }
 
     destroy(): void {
         this.layer.destroy(DESTROY_ALL);
         this.displayWalls.destroy(DESTROY_ALL);
-        this.createDisplay.destroy(DESTROY_ALL);
         this.createLastLineDisplay.destroy(DESTROY_ALL)
     }
 }

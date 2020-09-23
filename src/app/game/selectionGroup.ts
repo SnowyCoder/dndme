@@ -1,9 +1,10 @@
 import {EcsTracker} from "../ecs/ecs";
 import {Component, NameComponent, NoteComponent, PositionComponent} from "../ecs/component";
 import {LightComponent} from "../ecs/systems/lightSystem";
+import {PlayerComponent} from "../ecs/systems/playerSystem";
 
 const MULTI_TYPES = ['name', 'note'];
-const ELIMINABLE_TYPES = ['name', 'note'];
+const ELIMINABLE_TYPES = ['name', 'note', 'player', 'light'];
 const FULLSCREENABLE_TYPES = ['note'];
 
 // name
@@ -98,6 +99,22 @@ export class SelectionGroup {
         this.addEntity(id);
     }
 
+    setOnlyEntities(ids: number[]): void {
+        let idSet = new Set(ids);
+
+        let removeIds = new Array<number>();
+        for (let id of this.selectedEntities) {
+            if (!idSet.has(id)) removeIds.push(id);
+        }
+        for (let id of removeIds) {
+            this.removeEntity(id);
+        }
+        for (let id of ids) {
+            if (this.selectedEntities.has(id)) continue;
+            this.addEntity(id);
+        }
+    }
+
     toggleEntity(id: number): void {
         if (this.selectedEntities.has(id)) {
             this.removeEntity(id);
@@ -136,9 +153,12 @@ export class SelectionGroup {
     }
 
     private initialComponent(type: string): Object {
+        let storage = this.ecs.storages.get(type);
         return {
             _canDelete: ELIMINABLE_TYPES.indexOf(type) >= 0,
             _isFullscreen: FULLSCREENABLE_TYPES.indexOf(type) >= 0 ? false : undefined,
+            _sync: storage.sync,
+            _save: storage.save,
         };
     }
 
@@ -217,10 +237,13 @@ export class SelectionGroup {
             }
         );
 
-        if (this.hasEveryoneType('pin') && !this.hasComponentType('light')) {
+        if (this.hasEveryoneType('pin') && !(this.hasComponentType('light') || this.hasComponentType('player'))) {
             res.push({
                 type: 'light',
                 name: 'Light'
+            }, {
+                type: 'player',
+                name: 'Player',
             });
         }
 
@@ -271,9 +294,14 @@ export class SelectionGroup {
                         case 'light':
                             comp = {
                                 type: 'light',
-                                range: 10,
                                 color: 0xFFFFFF,
                             } as LightComponent;
+                            break;
+                        case 'player':
+                            comp = {
+                                type: 'player',
+                                nightVision: true,
+                            } as PlayerComponent;
                             break;
                         default: throw 'Cannot add unknown component: ' + propertyValue;
                     }
