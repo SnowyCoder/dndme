@@ -300,7 +300,7 @@ export class SelectionGroup {
                         case 'player':
                             comp = {
                                 type: 'player',
-                                nightVision: true,
+                                nightVision: false,
                             } as PlayerComponent;
                             break;
                         default: throw 'Cannot add unknown component: ' + propertyValue;

@@ -58,8 +58,6 @@ export class EcsTracker {
     // selection_update()
     // tool_move_begin()
     // tool_move_end()
-    // players_visibility_enter(entity)
-    // players_visibility_leave(entity)
     //      TODO
     // batch_update_begin()
     // batch_update_end()

@@ -467,7 +467,7 @@ export class InteractionSystem implements System {
         if (playerVis === undefined) return this.query(shape, preCheck);
         return this.query(shape, c => {
             let visC = playerVis.getComponent(c.entity);
-            if (visC !== undefined && visC._visibleBy.length === 0) return false;
+            if (visC !== undefined && visC.visible) return false;
             return preCheck === undefined ? true : preCheck(c);
         })
     }

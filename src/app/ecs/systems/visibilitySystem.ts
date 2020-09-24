@@ -22,6 +22,7 @@ export interface VisibilityComponent extends Component {
     polygon?: number[];
     aabb?: Aabb;
     _aabbTreeId?: number;
+    _canSee: number[];// Visibility aware components
 }
 
 export interface VisibilityBlocker extends Component {
@@ -122,7 +123,9 @@ export class VisibilitySystem implements System {
 
     private onComponentAdd(c: Component): void {
         if (c.type === 'visibility') {
-            this.updatePolygon(c as VisibilityComponent);
+            let v = c as VisibilityComponent;
+            v._canSee = [];
+            this.updatePolygon(v);
         } else if (c.type === 'visibility_blocker') {
             let cmp = this.ecs.getComponent(c.entity, 'interaction') as InteractionComponent;
             if (cmp !== undefined) {
@@ -166,9 +169,11 @@ export class VisibilitySystem implements System {
         }
     }
 
+    enable(): void {
+        // Nothing to do
+    }
 
     destroy(): void {
-        // Nothing to do
     }
 }
 

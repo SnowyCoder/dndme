@@ -50,8 +50,6 @@ export class PinSystem implements System {
     // Sprite of the pin to be created
     createPin?: PIXI.Sprite;
 
-    isTranslating: boolean = false;
-
 
     constructor(tracker: EcsTracker, phase: EditMapPhase) {
         this.ecs = tracker;
@@ -65,10 +63,6 @@ export class PinSystem implements System {
         tracker.events.on('component_remove', this.onComponentRemove, this);
         tracker.events.on('selection_begin', this.onSelectionBegin, this);
         tracker.events.on('selection_end', this.onSelectionEnd, this);
-        if (!tracker.isMaster) {
-            tracker.events.on('players_visibility_enter', this.onPlayerVisible, this);
-            tracker.events.on('players_visibility_exit', this.onNotPlayerVisible, this);
-        }
     }
 
     private onComponentAdd(c: Component): void {
@@ -90,25 +84,45 @@ export class PinSystem implements System {
         this.ecs.addComponent(c.entity, {
             type: "player_visible",
             entity: -1,
-            _visibleBy: [],
+            visible: false,
         } as PlayerVisibleComponent);
     }
 
     private onComponentEdited(comp: Component, changed: any): void {
-        if (comp.type !== 'pin' && comp.type !== 'position') return;
+        if (comp.type === 'pin' || comp.type === 'position') {
+            let pin, position;
+            if (comp.type === 'pin') {
+                pin = comp as PinComponent;
+                position = this.ecs.getComponent(comp.entity, 'position') as PositionComponent;
+            } else {
+                pin = this.storage.getComponent(comp.entity);
+                position = comp as PositionComponent;
+            }
 
-        let pin, position;
-        if (comp.type === 'pin') {
-            pin = comp as PinComponent;
-            position = this.ecs.getComponent(comp.entity, 'position') as PositionComponent;
-        } else {
-            pin = this.storage.getComponent(comp.entity);
-            position = comp as PositionComponent;
+            if (pin === undefined || position === undefined) return;
+
+            this.redrawComponent(pin, position);
+        } else if (comp.type === 'player_visible') {
+            if (this.ecs.isMaster) return;// The DM always sees everything
+            let pv = comp as PlayerVisibleComponent;
+
+            let pin = this.storage.getComponent(pv.entity);
+            if (pin === undefined) return;
+            if (pv.visible) {
+                if (!pin._display.visible) {
+                    pin._display.visible = true;
+                    this.displayPins.addChild(pin._display);
+                }
+                if (pin._labelDisplay !== undefined) pin._labelDisplay.visible = true;
+                this.redrawComponent(pin, undefined);
+            } else {
+                if (pin._display.visible) {
+                    pin._display.visible = false;
+                    this.displayPins.removeChild(pin._display);
+                }
+                if (pin._labelDisplay !== undefined) pin._labelDisplay.visible = false;
+            }
         }
-
-        if (pin === undefined || position === undefined) return;
-
-        this.redrawComponent(pin, position);
     }
 
     private onComponentRemove(component: Component): void {
@@ -133,28 +147,6 @@ export class PinSystem implements System {
         pin._selected = undefined;
         this.redrawComponent(pin, undefined);
     }
-
-    private onPlayerVisible(entity: number): void {
-        let pin = this.storage.getComponent(entity);
-        if (pin === undefined) return;
-        if (!pin._display.visible) {
-            pin._display.visible = true;
-            this.displayPins.addChild(pin._display);
-        }
-        if (pin._labelDisplay !== undefined) pin._labelDisplay.visible = true;
-        this.redrawComponent(pin, undefined);
-    }
-
-    private onNotPlayerVisible(entity: number): void {
-        let pin = this.storage.getComponent(entity);
-        if (pin === undefined) return;
-        if (pin._display.visible) {
-            pin._display.visible = false;
-            this.displayPins.removeChild(pin._display);
-        }
-        if (pin._labelDisplay !== undefined) pin._labelDisplay.visible = false;
-    }
-
 
     addPin(pos: PositionComponent, p: PinComponent) {
         if (p._display === undefined) {

@@ -16,6 +16,7 @@ import {QueryHitEvent} from "../../ecs/interaction";
 import {VisibilitySystem} from "../../ecs/systems/visibilitySystem";
 import {InteractionSystem} from "../../ecs/systems/interactionSystem";
 import {PlayerSystem} from "../../ecs/systems/playerSystem";
+import {VisibilityAwareSystem} from "../../ecs/systems/visibilityAwareSystem";
 
 
 export class EditMapPhase extends BirdEyePhase {
@@ -28,8 +29,9 @@ export class EditMapPhase extends BirdEyePhase {
     backgroundSystem: BackgroundSystem;
     textSystem: TextSystem;
     wallSystem: WallSystem;
-    pinSystem: PinSystem;
     visibilitySystem: VisibilitySystem;
+    visibilityAwareSystem: VisibilityAwareSystem;
+    pinSystem: PinSystem;
     playerSystem: PlayerSystem;
     lightSystem: LightSystem;
 
@@ -55,8 +57,9 @@ export class EditMapPhase extends BirdEyePhase {
         this.backgroundSystem = new BackgroundSystem(this.ecs, this);
         this.textSystem = new TextSystem(this.ecs);
         this.wallSystem = new WallSystem(this.ecs, this);
-        this.pinSystem = new PinSystem(this.ecs, this);
         this.visibilitySystem = new VisibilitySystem(this.ecs, this);
+        this.visibilityAwareSystem = new VisibilityAwareSystem(this.ecs, this);
+        this.pinSystem = new PinSystem(this.ecs, this);
         this.playerSystem = new PlayerSystem(this.ecs, this);
         this.lightSystem = new LightSystem(this.ecs, this);
 
@@ -278,8 +281,9 @@ export class EditMapPhase extends BirdEyePhase {
         this.backgroundSystem.enable();
         this.textSystem.enable();
         this.wallSystem.enable();
+        this.visibilitySystem.enable();
+        this.visibilityAwareSystem.enable();
         this.pinSystem.enable();
-        //this.visibilitySystem.enable();
         this.playerSystem.enable();
         this.lightSystem.enable();
     }
@@ -287,8 +291,9 @@ export class EditMapPhase extends BirdEyePhase {
     disable() {
         this.lightSystem.destroy();
         this.playerSystem.destroy();
-        this.visibilitySystem.destroy();
         this.pinSystem.destroy();
+        this.visibilityAwareSystem.destroy();
+        this.visibilitySystem.destroy();
         this.wallSystem.destroy();
         this.textSystem.destroy();
         this.backgroundSystem.destroy();

@@ -2,26 +2,25 @@ import {System} from "../system";
 import {EcsTracker} from "../ecs";
 import {SingleEcsStorage} from "../storage";
 import {EditMapPhase} from "../../phase/editMap/editMapPhase";
-import {Component, PositionComponent} from "../component";
+import {Component} from "../component";
 import {VisibilityComponent} from "./visibilitySystem";
 import * as PointLightRender from "../../game/pointLightRenderer";
 import {DESTROY_ALL} from "../../util/pixi";
-import {polygonPointIntersect} from "../../util/geometry";
-import {shapePoint, shapePolygon} from "./interactionSystem";
-import {overlapPointVsCircle} from "../../geometry/collision";
-import {arrayRemoveElem} from "../../util/array";
-import {Aabb} from "../../geometry/aabb";
+import {newVisibilityAwareComponent, VisibilityAwareComponent} from "./visibilityAwareSystem";
+import {LightComponent} from "./lightSystem";
 
 
 export interface PlayerComponent extends Component {
     type: "player";
     nightVision: boolean;
-    _canSee: number[];
 }
 
 export interface PlayerVisibleComponent extends Component {
     type: "player_visible";
-    _visibleBy: number[];
+    visible: boolean;
+    _lightCount: number;
+    _playerCount: number;
+    _playerNightVisionCount: number;
 }
 
 export interface VisibilityData {
@@ -47,22 +46,64 @@ export class PlayerSystem implements System {
         this.ecs.events.on('component_add', this.onComponentAdd, this);
         this.ecs.events.on('component_edited', this.onComponentEdited, this);
         this.ecs.events.on('component_remove', this.onComponentRemove, this);
+
+        let visAware = phase.visibilityAwareSystem;
+        visAware.events.on('aware_update', this.onVisibilityAwareUpdate, this);
     }
 
-    private playerVisibleAdd(src: PlayerComponent, trg: PlayerVisibleComponent): void {
-        if (trg._visibleBy.length === 1) {
-            this.ecs.events.emit('players_visibility_enter', trg.entity);
+    private onPlayerVisibleCountersUpdate(t: PlayerVisibleComponent) {
+        let newVisible = t._playerNightVisionCount > 0 || (t._lightCount > 0 && t._playerCount > 0);
+        if (newVisible !== t.visible) {
+            this.ecs.editComponent(t.entity, t.type, {
+                visible: newVisible,
+            });
         }
     }
 
-    private playerVisibleRemove(src: PlayerComponent, trg: PlayerVisibleComponent): void {
-        arrayRemoveElem(trg._visibleBy, src.entity);
+    private onVisibilityAwareUpdate(target: VisibilityAwareComponent, added: number[], removed: number[]): void {
+        console.log("VIS AWARE UPDATE " + target.entity + ", added: " + added + ", removed: " + removed);
+        let playerVisible = this.visibleStorage.getComponent(target.entity);
+        if (playerVisible === undefined) return;
 
-        if (trg._visibleBy.length === 0) {
-            if (!this.ecs.isMaster && this.phase.selection.selectedEntities.has(trg.entity)) {
-                this.phase.selection.removeEntity(trg.entity);
+        for (let e of added) {
+            let player = this.storage.getComponent(e);
+            if (player !== undefined) {
+                playerVisible._playerCount += 1;
+                if (player.nightVision) playerVisible._playerNightVisionCount += 1;
+                continue
             }
-            this.ecs.events.emit('players_visibility_exit', trg.entity);
+            let light = this.ecs.getComponent(e, 'light') as LightComponent;
+            if (light !== undefined) {
+                playerVisible._lightCount += 1;
+            }
+        }
+
+        for (let e of removed) {
+            let player = this.storage.getComponent(e);
+            if (player !== undefined) {
+                playerVisible._playerCount -= 1;
+                if (player.nightVision) playerVisible._playerNightVisionCount -= 1;
+                continue
+            }
+            let light = this.ecs.getComponent(e, 'light') as LightComponent;
+            if (light !== undefined) {
+                playerVisible._lightCount -= 1;
+            }
+        }
+
+        this.onPlayerVisibleCountersUpdate(playerVisible);
+    }
+
+    private onNightVisionUpdate(player: PlayerComponent) {
+        let vis = this.ecs.getComponent(player.entity, 'visibility') as VisibilityComponent;
+
+        let diff = player.nightVision ? +1 : -1;
+
+        for (let t of vis._canSee) {
+            let playerVisible = this.visibleStorage.getComponent(t);
+            if (playerVisible === undefined) continue;
+            playerVisible._playerNightVisionCount += diff;
+            this.onPlayerVisibleCountersUpdate(playerVisible);
         }
     }
 
@@ -97,101 +138,10 @@ export class PlayerSystem implements System {
         cnt.destroy(DESTROY_ALL);
     }
 
-    private visibilityChange(player: PlayerComponent, polygon: number[] | undefined, range: number): void {
-        range *= 50;
-        if (polygon === undefined) {
-            // Player visibility null
-            let oldCanSee = player._canSee;
-            player._canSee = [];
-            for (let x of oldCanSee) {
-                this.playerVisibleRemove(player, this.visibleStorage.getComponent(x));
-            }
-            return;
-        }
-
-        if (!player.nightVision) return;// TODO:
-        let oldCanSee = player._canSee;
-
-        player._canSee = [];
-        let posStorage = this.ecs.storages.get('position') as SingleEcsStorage<PositionComponent>;
-        let playerPos = posStorage.getComponent(player.entity);
-
-        for (let i of oldCanSee) {
-            let pos = posStorage.getComponent(i);
-
-            if (polygonPointIntersect(pos, polygon) && overlapPointVsCircle(pos, playerPos, range)) {
-                player._canSee.push(i);
-            } else {
-                let target = this.visibleStorage.getComponent(i);
-                // No need to remove target.entity from player._canSee as it's already been removed
-                arrayRemoveElem(target._visibleBy, player.entity);
-                this.playerVisibleRemove(player, target);
-            }
-        }
-
-        let iter = this.phase.interactionSystem.query(shapePolygon(polygon), c => {
-            return this.visibleStorage.getComponent(c.entity) !== undefined && oldCanSee.indexOf(c.entity) === -1;
-        });
-        for (let e of iter) {
-            let pos = posStorage.getComponent(e.entity);
-            if (!overlapPointVsCircle(pos, playerPos, range)) continue;
-
-            let target = this.visibleStorage.getComponent(e.entity);
-            player._canSee.push(e.entity);
-            target._visibleBy.push(player.entity);
-            this.playerVisibleAdd(player, target);
-        }
-    }
-
-    private visibleElementMove(e: PlayerVisibleComponent) {
-        let posStorage = this.ecs.storages.get('position') as SingleEcsStorage<PositionComponent>;
-        let visStorage = this.ecs.storages.get('visibility') as SingleEcsStorage<VisibilityComponent>;
-
-        let pos = posStorage.getComponent(e.entity);
-
-        let oldVisibleBy = e._visibleBy;
-        e._visibleBy = [];
-
-        // Search for new players
-        for (let p of this.phase.visibilitySystem.aabbTree.query(Aabb.fromPoint(pos))) {
-            let entity = p.tag.entity;
-            let player = this.storage.getComponent(entity);
-            if (player === undefined && oldVisibleBy.indexOf(entity) !== -1) continue;
-
-            let ppos = posStorage.getComponent(entity);
-            let pvis = visStorage.getComponent(entity);
-
-            let range = pvis.range * 50;
-            if (!overlapPointVsCircle(pos, ppos, range) || !polygonPointIntersect(pos, p.tag.polygon)) continue;
-
-            player._canSee.push(e.entity);
-            e._visibleBy.push(player.entity);
-            this.playerVisibleAdd(player, e);
-        }
-
-        // Check for old players
-        for (let p of oldVisibleBy) {
-            let player = this.storage.getComponent(p);
-            let ppos = posStorage.getComponent(p);
-            let pvis = visStorage.getComponent(p);
-
-            let range = pvis.range * 50;
-            if (overlapPointVsCircle(pos, ppos, range) && polygonPointIntersect(pos, pvis.polygon)) {
-                e._visibleBy.push(p);
-                continue;
-            }
-
-            // No need to remove e._visibleBy as it's already been cleared
-            arrayRemoveElem(player._canSee, e.entity);
-            this.playerVisibleRemove(player, e);
-        }
-    }
-
 
     private onComponentAdd(comp: Component): void {
         if (comp.type === 'player') {
             let player = comp as PlayerComponent;
-            player._canSee = [];
 
             let vis = this.ecs.getComponent(player.entity, 'visibility');
             if (vis === undefined) {
@@ -203,38 +153,38 @@ export class PlayerSystem implements System {
                 this.ecs.addComponent(comp.entity, vis);
             }
         } else if (comp.type === 'player_visible') {
-            this.visibleElementMove(comp as PlayerVisibleComponent);
+            let c = comp as PlayerVisibleComponent;
+            c._lightCount = 0;
+            c._playerCount = 0;
+            c._playerNightVisionCount = 0;
+            this.ecs.addComponent(c.entity, newVisibilityAwareComponent());
         }
     }
 
 
     private onComponentEdited(comp: Component, changed: any): void {
         if (comp.type === 'player') {
-            let c = comp as PlayerComponent;
+            let c = comp as PlayerComponent
+
+            if ('nightVision' in changed) {
+                this.onNightVisionUpdate(c);
+            }
+
             //let pos = this.ecs.getComponent(c.entity, 'position') as PositionComponent;
             let vis = this.ecs.getComponent(c.entity, 'visibility') as VisibilityComponent;
             if (vis.polygon !== undefined) {
-                this.visibilityChange(c, vis.polygon, vis.range);
+                // TODO: spread visibility?
             }
         } else if (comp.type === 'visibility') {
             let vis = comp as VisibilityComponent;
             let c = this.storage.getComponent(vis.entity);
             if (c === undefined || !('polygon' in changed)) return;
 
-            this.visibilityChange(c, vis.polygon, vis.range);
-        } else if (comp.type === 'position') {
-            let vis = this.visibleStorage.getComponent(comp.entity);
-            if (vis === undefined) return;
-
-            this.visibleElementMove(vis);
+            // TODO: spread visibility?
         }
     }
 
     private onComponentRemove(comp: Component) {
-        if (comp.type === 'player') {
-            let player = comp as PlayerComponent;
-            this.visibilityChange(player, undefined, 0);
-        }
     }
 
     enable(): void {

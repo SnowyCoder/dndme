@@ -38,6 +38,7 @@
     import ecsPin from "./ecsPin.vue";
     import ecsTransform from "./ecsTransform.vue";
     import ecsLight from "./ecsLight.vue";
+    import ecsPlayer from "./ecsPlayer.vue";
 
     export default {
         name: "ecs-component-wrapper",
@@ -53,7 +54,7 @@
             }
         },
         components: {
-            ecsName, ecsNote, ecsPosition, ecsWall, ecsBackgroundImage, ecsPin, ecsTransform, ecsLight,
+            ecsName, ecsNote, ecsPosition, ecsWall, ecsBackgroundImage, ecsPin, ecsTransform, ecsLight, ecsPlayer
         }
     }
 </script>
