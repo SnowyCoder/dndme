@@ -1,4 +1,3 @@
-
 import PIXI from "../PIXI";
 import hex2rgb = PIXI.utils.hex2rgb;
 
@@ -30,8 +29,8 @@ const LIGHT_FRAGMENT_SHADER = `
     void main() {
         vec2 diff = center - vecPos;
         float distSq = diff.x * diff.x + diff.y * diff.y;
-        float intensity = 1.0 - smoothstep(0., 1., distSq / radSquared);
-        gl_FragColor = vec4(color, 1) * intensity;// Pre multiplied alpha
+        float intensity = 1.0 - clamp(distSq / radSquared, 0., 1.);
+        gl_FragColor = vec4(color, 1) * (intensity * intensity);// Pre multiplied alpha
     }
 `;
 

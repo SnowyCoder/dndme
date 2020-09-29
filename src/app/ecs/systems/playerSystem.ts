@@ -2,12 +2,13 @@ import {System} from "../system";
 import {EcsTracker} from "../ecs";
 import {SingleEcsStorage} from "../storage";
 import {EditMapPhase} from "../../phase/editMap/editMapPhase";
-import {Component} from "../component";
+import {Component, PositionComponent} from "../component";
 import {VisibilityComponent} from "./visibilitySystem";
 import * as PointLightRender from "../../game/pointLightRenderer";
 import {DESTROY_ALL} from "../../util/pixi";
 import {newVisibilityAwareComponent, VisibilityAwareComponent} from "./visibilityAwareSystem";
 import {LightComponent} from "./lightSystem";
+import {Aabb} from "../../geometry/aabb";
 
 
 export interface PlayerComponent extends Component {
@@ -23,11 +24,18 @@ export interface PlayerVisibleComponent extends Component {
     _playerNightVisionCount: number;
 }
 
-export interface VisibilityData {
-    pos: PIXI.IPointData;
-    poly: number[];
-    range: number;
+export interface VisibilitySpreadData {
     nightVision: boolean;
+    aabb: Aabb,
+    lights: VisibilitySpreadEntryData[];
+    players: VisibilitySpreadEntryData[];
+    nightVisPlayers: VisibilitySpreadEntryData[];
+}
+
+export interface VisibilitySpreadEntryData {
+    mesh: PIXI.Mesh;
+    pos: PIXI.IPointData;
+    vis: VisibilityComponent,
 }
 
 export class PlayerSystem implements System {
@@ -61,7 +69,6 @@ export class PlayerSystem implements System {
     }
 
     private onVisibilityAwareUpdate(target: VisibilityAwareComponent, added: number[], removed: number[]): void {
-        console.log("VIS AWARE UPDATE " + target.entity + ", added: " + added + ", removed: " + removed);
         let playerVisible = this.visibleStorage.getComponent(target.entity);
         if (playerVisible === undefined) return;
 
@@ -107,35 +114,173 @@ export class PlayerSystem implements System {
         }
     }
 
-    private spreadPlayerVisibility(player: number, pos: PIXI.IPointData, poly: number[], range: number, nightVision: boolean): void {
-        // Prepare drawable container:
+    private createVisMesh(pos: PIXI.IPointData, vis: VisibilityComponent): PIXI.Mesh {
+        let mesh = PointLightRender.createMesh(true);
+        PointLightRender.updateMeshPolygons(mesh, pos, vis.polygon);
+        let r = vis.range * 50;
+        PointLightRender.updateMeshUniforms(mesh, pos, r*r, 0xFFFFFF);
+        return mesh;
+    }
 
-        let cnt = new PIXI.Container();
-
+    private spreadPlayerVisibility(player: number, pos: PIXI.IPointData, vis: VisibilityComponent, nightVision: boolean): void {
         let playerVis = PointLightRender.createMesh(true);
-        PointLightRender.updateMeshPolygons(playerVis, pos, poly);
-        PointLightRender.updateMeshUniforms(playerVis, pos, range * range, 0xFFFFFF);
-        playerVis.blendMode = PIXI.BLEND_MODES.DST_IN;
+        PointLightRender.updateMeshPolygons(playerVis, pos, vis.polygon);
+        let r = vis.range * 50;
+        PointLightRender.updateMeshUniforms(playerVis, pos, r * r, 0xFFFFFF);
 
-        cnt.addChild(playerVis);
+        let playerData = {
+            mesh: playerVis,
+            vis,
+            pos,
+        } as VisibilitySpreadEntryData;
 
+
+        let players = [];
+        let nightVisPlayers = [];
+
+        let lights = [];
+        let aabb;
         if (!nightVision) {
-            // TODO:
-            /*let aabb = new Aabb(
-                pos.x - range, pos.y - range,
-                pos.x + range, pos.y + range
-            );
-            for (let c of this.phase.visibilitySystem.aabbTree.query(aabb)) {
+            players.push(playerData);
+
+            aabb = undefined;
+            for (let c of this.phase.visibilitySystem.aabbTree.query(vis.aabb)) {
                 let visComponent = c.tag;
-                let lightComponent = this.ecs.getComponent(c.tag.entity, 'light') as LightComponent;
+                let lightComponent = this.ecs.getComponent(visComponent.entity, 'light') as LightComponent;
                 if (lightComponent === undefined || visComponent.range <= 0) continue;
-                lightComponent._lightDisplay
-            }*/
+                let pos = this.ecs.getComponent(visComponent.entity, 'position') as PositionComponent;
+
+                if (aabb === undefined) aabb = visComponent.aabb.copy();
+                else aabb.combine(visComponent.aabb, aabb);
+
+               let mesh = this.createVisMesh(pos, visComponent);
+
+                lights.push({
+                    mesh,
+                    pos,
+                    vis: visComponent,
+                } as VisibilitySpreadEntryData);
+            }
+            if (lights.length === 0) return;// no night vision AND no lights = can't see a thing!
+            aabb.intersect(vis.aabb, aabb);
+        } else {
+            nightVisPlayers.push(playerData)
+            aabb = vis.aabb;
         }
 
-        this.ecs.events.emit('visibility_spread', player, cnt);
+        let data = {
+            aabb,
+            lights,
+            players,
+            nightVisPlayers,
+        } as VisibilitySpreadData;
 
-        cnt.destroy(DESTROY_ALL);
+        this.ecs.events.emit('visibility_spread', data);
+
+        playerData.mesh.destroy(DESTROY_ALL);
+        for (let light of data.lights) light.mesh.destroy(DESTROY_ALL);
+    }
+
+    private spreadLightVisibility(lightVis: VisibilityComponent) {
+        // Quite similar to spreadPlayerVisibility but follows a light instead of a player,
+        // When a light visibility polygon is changed this will query each player in the polygon's reach and
+        // spread the visibility (only with that light!)
+
+        let lightPos = this.ecs.getComponent(lightVis.entity, 'position') as PositionComponent;
+        let lightMesh = this.createVisMesh(lightPos, lightVis);
+
+        let lightData = [{
+            mesh: lightMesh,
+            pos: lightPos,
+            vis: lightVis,
+        } as VisibilitySpreadEntryData];
+
+        let aabb = undefined;
+
+        let players = [];
+        for (let c of this.phase.visibilitySystem.aabbTree.query(lightVis.aabb)) {
+            let visComponent = c.tag;
+            let player = this.storage.getComponent(visComponent.entity);
+            if (player === undefined || visComponent.range <= 0 || player.nightVision) continue;
+
+            if (aabb === undefined) aabb = visComponent.aabb;
+            else aabb.combine(visComponent.aabb, aabb);
+
+            let vis = this.ecs.getComponent(player.entity, 'visibility') as VisibilityComponent;
+            let pos = this.ecs.getComponent(player.entity, 'position') as PositionComponent;
+
+            let mesh = this.createVisMesh(pos, vis);
+
+            players.push({
+                mesh,
+                pos,
+                vis,
+            } as VisibilitySpreadEntryData);
+        }
+
+        if (players.length === 0) return;
+
+        aabb.intersect(lightVis.aabb, aabb);
+
+        let data = {
+            aabb,
+            lights: lightData,
+            players,
+            nightVisPlayers: [],
+        } as VisibilitySpreadData;
+
+        this.ecs.events.emit('visibility_spread', data);
+        lightData[0].mesh.destroy(DESTROY_ALL);
+        for (let player of players) player.mesh.destroy(DESTROY_ALL);
+    }
+
+    getSpreadDataForAabb(aabb: Aabb, cb: (data: VisibilitySpreadData) => void): void {
+        let nightVisPlayers = [];
+        let players = [];
+        let lights = [];
+
+        for (let c of this.phase.visibilitySystem.aabbTree.query(aabb)) {
+            let vis = c.tag;
+
+            let player = this.storage.getComponent(vis.entity);
+            if (player !== undefined) {
+                let pos = this.ecs.getComponent(vis.entity, 'position') as PositionComponent;
+                let mesh = this.createVisMesh(pos, vis);
+
+                let data = {mesh, pos, vis} as VisibilitySpreadEntryData;
+                if (player.nightVision) nightVisPlayers.push(data);
+                else players.push(data);
+
+                continue;
+            }
+            let light = this.ecs.getComponent(vis.entity, 'light') as LightComponent;
+            if (light !== undefined) {
+                let pos = this.ecs.getComponent(vis.entity, 'position') as PositionComponent;
+                let mesh = this.createVisMesh(pos, vis);
+                let data = {mesh, pos, vis} as VisibilitySpreadEntryData;
+                lights.push(data);
+            }
+        }
+
+        let realPlayers = players;
+        let realLights = lights;
+
+        if (players.length === 0 || lights.length == 0) {
+            realPlayers = [];
+            realLights = [];
+        }
+
+        let data = {
+            aabb,
+            lights: realLights,
+            players: realPlayers,
+            nightVisPlayers,
+        } as VisibilitySpreadData;
+        cb(data);
+
+        for (let x of lights) x.mesh.destroy(DESTROY_ALL);
+        for (let x of players) x.mesh.destroy(DESTROY_ALL);
+        for (let x of nightVisPlayers) x.mesh.destroy(DESTROY_ALL);
     }
 
 
@@ -173,14 +318,24 @@ export class PlayerSystem implements System {
             //let pos = this.ecs.getComponent(c.entity, 'position') as PositionComponent;
             let vis = this.ecs.getComponent(c.entity, 'visibility') as VisibilityComponent;
             if (vis.polygon !== undefined) {
-                // TODO: spread visibility?
+                let pos = this.ecs.getComponent(comp.entity, 'position') as PositionComponent;
+                this.spreadPlayerVisibility(comp.entity, pos, vis, c.nightVision);
             }
         } else if (comp.type === 'visibility') {
             let vis = comp as VisibilityComponent;
-            let c = this.storage.getComponent(vis.entity);
-            if (c === undefined || !('polygon' in changed)) return;
-
-            // TODO: spread visibility?
+            if (!('polygon' in changed)) return;
+            let player = this.storage.getComponent(vis.entity);
+            if (player !== undefined) {
+                if (vis.polygon !== undefined) {
+                    let pos = this.ecs.getComponent(comp.entity, 'position') as PositionComponent;
+                    this.spreadPlayerVisibility(comp.entity, pos, vis, player.nightVision);
+                }
+                return;
+            }
+            let light = this.ecs.getComponent(vis.entity, 'light');
+            if (light !== undefined) {
+                this.spreadLightVisibility(vis);
+            }
         }
     }
 

@@ -196,6 +196,7 @@ export class HostNetworkSystem implements System {
     }
 
     private createEntitySpawnPacket(entity: number): P.EntitySpawn {
+        this.ecs.events.emit('serialize_entity', entity);
         let components = this.ecs.getAllComponents(entity);
 
         let comps = [];

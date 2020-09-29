@@ -63,6 +63,7 @@ export class VisibilityAwareSystem implements System {
             viewer._canSee = [];
             for (let x of oldCanSee) {
                 let target = this.storage.getComponent(x);
+                if (target === undefined) continue;
                 arrayRemoveElem(target.visibleBy, viewer.entity);
                 this.events.emit('aware_update', viewer, [], [viewer.entity]);
             }

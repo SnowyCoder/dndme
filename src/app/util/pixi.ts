@@ -6,6 +6,12 @@ export const DESTROY_ALL = {
     baseTexture: true,
 };
 
+export const DESTROY_MIN = {
+    children: false,
+    texture: false,
+    baseTexture: false,
+};
+
 const ALLOWED_IMAGETYPES = ['jpeg', 'png', 'x-jg', 'bmp', 'x-icon', 'ief', 'pjpeg', 'x-portable-bitmap', 'x-rgb', 'tiff', 'x-tiff']
 
 function validateImageMimeType(type: string): void {

@@ -8,12 +8,14 @@
 </template>
 
 <script lang="ts">
+import {DEG_TO_RAD, RAD_TO_DEG} from "pixi.js";
+
     export default {
         name: "ecs-position",
         props: ["component", "isAdmin"],
         data: function () {
             return {
-                rotation: this.component.rotation,
+                rotation: this.component.rotation * RAD_TO_DEG,
             }
         },
         methods: {
@@ -21,13 +23,13 @@
                 if (this.rotation === '') return;
                 let r = Math.min(Math.max(parseFloat(this.rotation), 0), 360);
                 if (this.component.rotation !== r) {
-                    this.$emit('ecs-property-change',  'transform', 'rotation', r);
+                    this.$emit('ecs-property-change',  'transform', 'rotation',  r * DEG_TO_RAD);
                 }
             }
         },
         watch: {
             'component.rotation': function(newVal: number) {
-                this.rotation = newVal;
+                this.rotation = newVal * RAD_TO_DEG;
             }
         }
     }

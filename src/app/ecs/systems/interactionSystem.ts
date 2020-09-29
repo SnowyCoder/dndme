@@ -1,28 +1,27 @@
-import {Component, MultiComponent, PositionComponent} from "../component";
+import {Component, PositionComponent, TransformComponent} from "../component";
 import {
     overlapAabbVsAabb,
     overlapAabbVsPoint,
     overlapCircleVsAabb,
     overlapCircleVsCircle,
-    overlapCircleVsPolygon, overlapLineVsCircle,
+    overlapCircleVsPolygon,
+    overlapLineVsCircle,
     overlapPointVsCircle,
     overlapRotatedRectVsAabb,
     overlapRotatedRectVsCircle,
     overlapRotatedRectVsPoint
 } from "../../geometry/collision";
 import {Aabb} from "../../geometry/aabb";
-import {Point, polygonPointIntersect} from "../../util/geometry";
+import {polygonPointIntersect} from "../../util/geometry";
 import {Obb} from "../../geometry/obb";
 import {EcsTracker} from "../ecs";
 import {DynamicTree} from "../../geometry/dynamicTree";
-import {MultiEcsStorage, SingleEcsStorage} from "../storage";
+import {SingleEcsStorage} from "../storage";
 import {System} from "../system";
 import {Line} from "../../geometry/line";
 import {GeomertyQueryType, QueryHitEvent} from "../interaction";
 import {PlayerVisibleComponent} from "./playerSystem";
 import {PointDB} from "../../game/pointDB";
-import {GridSystem} from "./gridSystem";
-import {WallComponent} from "./wallSystem";
 import {EditMapPhase} from "../../phase/editMap/editMapPhase";
 
 export enum ShapeType {
@@ -368,7 +367,13 @@ export class InteractionSystem implements System {
     }
 
     private onComponentEdited(comp: Component, changed: any): void {
-        if (comp.type === 'position') {
+        if (comp.type === 'interaction') {
+            let c = comp as InteractionComponent;
+
+            if ('shape' in changed) {
+                this.updateComponent(c);
+            }
+        } else if (comp.type === 'position') {
             let pos = comp as PositionComponent;
             let inter = this.storage.getComponent(pos.entity);
             if (inter === undefined || inter.shape === undefined) return;
@@ -381,15 +386,23 @@ export class InteractionSystem implements System {
             if (diffX !== 0 && diffY !== 0) {
                 // TODO: trigger component change(?)
                 shapeTranslate(inter.shape, diffX, diffY);
+                this.updateComponent(inter);
             }
 
             return;
-        } else if (comp.type === 'interaction') {
-            let c = comp as InteractionComponent;
-
-            if ('shape' in changed) {
-                this.updateComponent(c);
+        } else if (comp.type === 'transform') {
+            let trans = comp as TransformComponent;
+            let inter = this.storage.getComponent(trans.entity);
+            if (inter === undefined || inter.shape === undefined) return;
+            let shape = inter.shape;
+            if (shape.type !== ShapeType.OBB) {
+                console.warn("Unable to auto-rotate other shapes than OBB, watch your components!");
+                return;
             }
+            let s = shape as ObbShape;
+            s.data.rotation = trans.rotation;
+            s.data.recompute();
+            this.updateComponent(inter);
         }
     }
 
@@ -446,6 +459,7 @@ export class InteractionSystem implements System {
         let shape: Shape;
         switch (event.type) {
             case GeomertyQueryType.POINT: shape = shapeCircle(event.data as PIXI.IPointData, 20); break;
+            //case GeomertyQueryType.POINT: shape = shapePoint(event.data as PIXI.IPointData); break; // ENABLE THIS FOR POINT-PRECISION CLICKING
             case GeomertyQueryType.AABB: shape = shapeAabb(event.data as Aabb); break;
             default: throw 'Unknown query type';
         }

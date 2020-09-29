@@ -12,6 +12,10 @@ export class Obb {
         this.rotVertex = rotVertex;
     }
 
+    recompute() {
+        this.rotVertex = computeObbPoints(this.unrotated, this.rotation);
+    }
+
     copy(): Obb {
         return new Obb(this.unrotated.copy(), this.rotation, [...this.rotVertex]);
     }

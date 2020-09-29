@@ -43,7 +43,14 @@ export class Aabb {
         target.minX = Math.min(this.minX, other.minX);
         target.minY = Math.min(this.minY, other.minY);
         target.maxX = Math.max(this.maxX, other.maxX);
-        target.maxY = Math.max(this.maxY, other.maxY)
+        target.maxY = Math.max(this.maxY, other.maxY);
+    }
+
+    intersect(other: Aabb, target: Aabb) {
+        target.minX = Math.max(this.minX, other.minX);
+        target.minY = Math.max(this.minY, other.minY);
+        target.maxX = Math.min(this.maxX, other.maxX);
+        target.maxY = Math.min(this.maxY, other.maxY);
     }
 
     extend(amount: number, target: Aabb): void {

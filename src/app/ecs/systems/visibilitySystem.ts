@@ -81,8 +81,9 @@ export class VisibilitySystem implements System {
 
         if (c.range <= 0) {
             this.ecs.editComponent(c.entity, c.type, {
-               polygon: undefined,
-               aabb: undefined,
+                polygon: undefined,
+                polygonAabb: undefined,
+                aabb: undefined,
             });
             return;
         }

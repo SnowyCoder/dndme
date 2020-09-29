@@ -1,16 +1,18 @@
 import {System} from "../system";
-import {EcsEntityLinked, EcsTracker} from "../ecs";
+import {EcsTracker} from "../ecs";
 import PIXI from "../../PIXI";
-import {DESTROY_ALL, loadTexture} from "../../util/pixi";
+import {DESTROY_ALL, DESTROY_MIN, loadTexture} from "../../util/pixi";
 import {EditMapPhase} from "../../phase/editMap/editMapPhase";
 import {Component, PositionComponent, TransformComponent} from "../component";
 import {SingleEcsStorage} from "../storage";
 import {EditMapDisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {app} from "../../index";
 import {BitSet} from "../../util/bitSet";
-import {DynamicTree} from "../../geometry/dynamicTree";
 import {Aabb} from "../../geometry/aabb";
-import {GeomertyQueryType, QueryHitEvent} from "../interaction";
+import {VisibilitySpreadData} from "./playerSystem";
+import {InteractionComponent, ObbShape, shapeAabb, shapeObb} from "./interactionSystem";
+import {Obb} from "../../geometry/obb";
+import {BLEND_MODES, RenderTexturePool} from "pixi.js";
 
 type BACKGROUND_TYPE = 'background_image';
 const BACKGROUND_TYPE = 'background_image';
@@ -39,7 +41,7 @@ export class BackgroundSystem implements System {
     displayMaps: PIXI.Container;
     displayLayer: PIXI.display.Layer;
 
-    backgroundsByAabb = new DynamicTree<BackgroundImageComponent>();
+    renderTexturePool = new RenderTexturePool();
 
     constructor(tracker: EcsTracker, phase: EditMapPhase) {
         this.ecs = tracker;
@@ -52,8 +54,9 @@ export class BackgroundSystem implements System {
         this.ecs.events.on('component_remove', this.onComponentRemove, this);
         this.ecs.events.on('selection_begin', this.onSelectionBegin, this);
         this.ecs.events.on('selection_end', this.onSelectionEnd, this);
+        this.ecs.events.on('visibility_spread', this.onVisibilitySpread, this);
         this.ecs.events.on('serialize', this.onSerialize, this);
-        this.ecs.events.on('query_hit', this.onQueryHit, this);
+        this.ecs.events.on('serialize_entity', this.onSerializeEntity, this);
     }
 
     onSelectionBegin(entity: number): void {
@@ -66,20 +69,6 @@ export class BackgroundSystem implements System {
         let img = this.storage.getComponent(entity);
         if (img === undefined) return;
         img._display.tint = 0xFFFFFF;
-    }
-
-    private aabbTreeAdd(c: BackgroundImageComponent): void {
-        this.aabbTreeRemove(c);
-
-        let bounds = c._display.getBounds();
-        c._treeEntry = this.backgroundsByAabb.createProxy(Aabb.fromBounds(bounds), c);
-    }
-
-    private aabbTreeRemove(c: BackgroundImageComponent): void {
-        if (c._treeEntry === undefined) return;
-
-        this.backgroundsByAabb.destroyProxy(c._treeEntry);
-        c._treeEntry = undefined;
     }
 
     async onEntitySpawned(entity: number): Promise<void> {
@@ -107,32 +96,70 @@ export class BackgroundSystem implements System {
 
         let [tex, img] = await loadTexture(bkgImg.image, bkgImg.imageType);
 
-        let sprite = new PIXI.Sprite(tex);
+        bkgImg._texture = tex;
+        this.loadVisibility(bkgImg);
+
+        let backingTex = this.ecs.isMaster ? bkgImg._texture : bkgImg._renTex;
+        let sprite = new PIXI.Sprite(backingTex);
         sprite.anchor.set(0.5);
         sprite.position.set(pos.x, pos.y);
-        sprite.angle = transform.rotation;
+        sprite.rotation = transform.rotation;
         sprite.interactive = false;
+        sprite.interactiveChildren = false;
         sprite.parentLayer = this.displayLayer;
         bkgImg._display = sprite;
         bkgImg._html = img;
         this.displayMaps.addChild(sprite);
-        this.aabbTreeAdd(bkgImg);
+
+
+        let hw = bkgImg._texture.width / 2;
+        let hh = bkgImg._texture.height / 2;
+        let aabb = new Aabb(
+            pos.x - hw, pos.y - hh,
+            pos.x + hw, pos.y + hh,
+        );
+        let obb = Obb.rotateAabb(aabb.copy(), transform.rotation);
+
+        aabb.wrapPolygon(obb.rotVertex);
+
+        this.phase.playerSystem.getSpreadDataForAabb(new Aabb(
+            pos.x - tex.width / 2, pos.y - tex.height / 2,
+            pos.x + tex.width / 2, pos.y + tex.height / 2
+        ), data => this.updateVisibility(data, bkgImg))
+
+        this.ecs.addComponent(entity, {
+            type: 'interaction',
+            entity: -1,
+            shape: shapeObb(obb),
+            selectPriority: EditMapDisplayPrecedence.BACKGROUND,
+        } as InteractionComponent);
+
         console.log("Sprite added");
     }
 
     onComponentEdit(newCmp: Component) {
+        let spreadVis = false;
+
+
+        let mapCmp = this.storage.getComponent(newCmp.entity);
+        if (mapCmp === undefined) return;
+
         if (newCmp.type === 'position') {
+            spreadVis = true;
             let pos = newCmp as PositionComponent;
-            let mapCmp = this.storage.getComponent(newCmp.entity);
-            if (mapCmp === undefined) return;
             mapCmp._display.position.set(pos.x, pos.y);
-            this.aabbTreeAdd(mapCmp);
         } else if (newCmp.type === 'transform') {
+            spreadVis = true;
             let pos = newCmp as TransformComponent;
-            let mapCmp = this.storage.getComponent(newCmp.entity);
-            if (mapCmp === undefined) return;
-            mapCmp._display.angle = pos.rotation;
-            this.aabbTreeAdd(mapCmp);
+            mapCmp._display.rotation = pos.rotation;
+        }
+
+        if (spreadVis) {
+            let inter = this.ecs.getComponent(newCmp.entity, 'interaction') as InteractionComponent;
+            let obb = (inter.shape as ObbShape).data.rotVertex;
+            let aabb = Aabb.zero();
+            aabb.wrapPolygon(obb);
+            this.phase.playerSystem.getSpreadDataForAabb(aabb, data => this.updateVisibility(data, mapCmp));
         }
     }
 
@@ -140,7 +167,6 @@ export class BackgroundSystem implements System {
         if (cmp.type !== BACKGROUND_TYPE) return;
         let c = cmp as BackgroundImageComponent;
         c._display.destroy(DESTROY_ALL);
-        this.aabbTreeRemove(c);
     }
 
     private onSerialize(): void {
@@ -149,18 +175,20 @@ export class BackgroundSystem implements System {
         }
     }
 
-    private onQueryHit(data: QueryHitEvent): void {
-        if (!data.shouldContinue()) return;
-        if (data.type !== GeomertyQueryType.POINT) return; // TODO: AABB not supported
+    private onSerializeEntity(entity: number): void {
+        let c = this.storage.getComponent(entity);
+        if (c !== undefined) {
+            this.extractVisibility(c);
+        }
+    }
 
-        let point = data.data as PIXI.IPointData;
-
-        for (let node of this.backgroundsByAabb.query(data.aabb)) {
-            let c = node.tag;
-            if (c._display.containsPoint(point)) {
-                data.addHit(c.entity);
-                if (!data.shouldContinue()) return;
-            }
+    private onVisibilitySpread(data: VisibilitySpreadData) {
+        let iter = this.phase.interactionSystem.query(shapeAabb(data.aabb), c => {
+            return this.storage.getComponent(c.entity) !== undefined;
+        });
+        for (let bkg of iter) {
+            let cmp = this.storage.getComponent(bkg.entity);
+            this.updateVisibility(data, cmp)
         }
     }
 
@@ -174,7 +202,7 @@ export class BackgroundSystem implements System {
         let frame = tex.frame;
 
         renderer.renderTexture.bind(tex);
-        let webglPixels = new Uint8Array(tex.width * tex.height);
+        let webglPixels = new Uint8Array(tex.width * tex.height * 4);
 
         const gl = renderer.gl;
         gl.readPixels(
@@ -182,25 +210,21 @@ export class BackgroundSystem implements System {
             frame.y,
             frame.width,
             frame.height,
-            gl.ALPHA,
+            gl.RGBA,
             gl.UNSIGNED_BYTE,
             webglPixels
         );
 
-        let newLen = ((webglPixels.length - 1) >>> 5) + 1;
+        let fuckLen = webglPixels.length / 4;
+        let newLen = ((webglPixels.length / 4 - 1) >>> 5) + 1;
         let target = new Uint32Array(newLen);
-        for (let i = 0; i < newLen; i++) {
+        for (let i = 0; i < fuckLen; i++) {
+            let pixel = webglPixels[i * 4 + 3];
 
-            let d = 0;
-            for (let j = 0; j < 8; j++) {
-                // Gods of loop unrolling, I call upon you
-
-                let x = webglPixels[j + i << 5] & 0x80;
-                d |= x << j;
+            if ((pixel & 0x80) !== 0) {
+                target[i >>> 5] |= 1 << (i & 0b11111);
             }
-            target[i] = d;
         }
-
         c.visibilityMap = target;
         c._visibilityMapChanged = false;
     }
@@ -218,29 +242,29 @@ export class BackgroundSystem implements System {
             (bt as any).clearColor = [0.0, 0.0, 0.0, 0.0];
         }
 
+        if (c.visibilityMap === undefined) return;
+        let data = new Uint32Array(c.visibilityMap as ArrayBuffer);
+
         let texOpts = {
             width, height,
-            format: PIXI.FORMATS.LUMINANCE,
-            alphaMode: PIXI.ALPHA_MODES.NO_PREMULTIPLIED_ALPHA,
+            format: PIXI.FORMATS.RGBA,
         };
 
-        let texData = new Uint8Array(c._texture.width * c._texture.height);
+        let texData = new Uint32Array(c._texture.width * c._texture.height);
 
-        if (c.visibilityMap !== undefined) {
-            let set = new BitSet(c.visibilityMap);
-            for (let i = 0; i < texData.length; i++) {
-                if (set.get(i)) {
-                    texData[i] = 0xFF;
-                }
-            }
+        let set = new BitSet(data);
+        let len = texData.length;
+        for (let i = 0; i < len; i++) {
+            texData[i] = set.get(i) ? 0xFFFFFFFF : 0;
         }
 
-        let resource = new PIXI.resources.BufferResource(texData, { width, height });
+        let byteData = new Uint8Array(texData.buffer);
+        let resource = new PIXI.resources.BufferResource(byteData, { width, height });
         let baseTexture = new PIXI.BaseTexture(resource, texOpts)
 
         let tex = new PIXI.Texture(baseTexture);
         let lumSprite = new PIXI.Sprite(tex);
-        lumSprite.blendMode = PIXI.BLEND_MODES.DST_IN;
+        lumSprite.blendMode = PIXI.BLEND_MODES.SRC_IN;
 
         let mapSprite = new PIXI.Sprite(c._texture);
         let cnt = new PIXI.Container();
@@ -248,25 +272,110 @@ export class BackgroundSystem implements System {
 
         app.renderer.render(cnt, c._renTex, true);
 
-
         lumSprite.destroy(DESTROY_ALL);
 
         c._visibilityMapChanged = false;
     }
 
-    private updateVisibility(c: BackgroundImageComponent, d: PIXI.DisplayObject) {
-        // TODO: set blendMode to d?
-        let cnt = new PIXI.Container();
-        let texSprite = new PIXI.Sprite(c._texture);
-        texSprite.position.copyFrom(c._display);
+    private updateVisibility(data: VisibilitySpreadData, bkg: BackgroundImageComponent) {
+        // Kill me
+        //      Part 1. What?
+        // So, what does this spaghetti mess do? Good question!
+        // We have players and lights, some players can see without lights and others can't
+        // The task is to update the rendertexture of the background component adding the visible spots to it.
+        // The visible spots are: The meshes of the players with night vision enabled and the intersection of the
+        // union of the vision mesh of the normal players with the union of the vison meshes of the lights.
+        // Common case: 1 NV player 0 lights, 1 player multiple lights, multiple players 1 light
+        // Possible (but uncommon) cases: x NV players, y normal players, z lights (with x, y, z naturals).
 
-        cnt.position.set(-c._display.x, -c._display.y);
+        //      Part 2. How?
+        // The initial idea is simple, render anything on the bkg._renTex and then render the original texture with
+        // blendMode = SRC_IN, any spot with alpha = 1 will then be replaced with the correct texture.
+        // The night vision players rendering is quite simple, just render the meshes before the final texture render
+        // The normal players will be a bit different since we need to intersect their meshes with the light mesh.
+        // To do that we can render all the players meshes in a framebuffer A, then render all of the lights in another
+        // frame buffer B, then render A onto B with blendMode = SRC_IN to create a sort of union of the two.
+        // Once that is done we can render B into the bkg._renTex and proceed normally.
+        // Another way to do this using only a single rendertexture is to use the stencil buffer, but it will double the
+        // mesh render calls (and since they are not buffered, it's a slow operation)
+        // I don't think that there is another way to perform this in the general case, please prove me wrong.
+        // TODO: maybe we can optimize this when only 1 player and 1 light is present (like, avoiding 1 of the 2 framebuffers).
 
-        let filter = new PIXI.filters.AlphaFilter();
-        cnt.filters = [filter];
+        // Skip EVERYTHING if this entity is hidden.
+        if (this.ecs.getComponent(bkg.entity, 'host_hidden')) return;
 
-        cnt.addChild(texSprite, d);
-        app.renderer.render(cnt, c._renTex, false);
+        //console.time('updateVisibility');
+
+        let renderer = app.renderer;
+
+        let localCnt = new PIXI.Container();
+        // Setup local transform
+        localCnt.position.copyFrom(bkg._display.position);
+        localCnt.position.set(
+            -(localCnt.position.x - bkg._texture.width / 2),
+            -(localCnt.position.y - bkg._texture.height / 2)
+        );
+        localCnt.rotation = -bkg._display.rotation;
+
+        let worldCnt = new PIXI.Container();
+
+        // If there are any players without night vision (and there are lights) render them (THIS IS SLOW!)
+        let tex, tex2, nightSprite;
+        if (data.players.length !== 0 && data.lights.length !== 0) {
+            tex = (this.renderTexturePool as any).getOptimalTexture(bkg._display.width, bkg._display.height);
+            tex2 = (this.renderTexturePool as any).getOptimalTexture(bkg._display.width, bkg._display.height);
+
+            for (let player of data.players) {
+                localCnt.addChild(player.mesh);
+            }
+
+            // Render the players visibility meshes onto tex
+            renderer.render(localCnt, tex, true);
+            localCnt.removeChildren();
+
+            for (let light of data.lights) {
+                light.mesh.blendMode = PIXI.BLEND_MODES.ADD;
+                localCnt.addChild(light.mesh);
+            }
+
+            let playerSprite = new PIXI.Sprite(tex);
+            playerSprite.blendMode = BLEND_MODES.SRC_IN;
+
+            // Render the lights onto tex2, then render tex as BLEND_MODE.SRC_IN to filter out where the lights were not
+            // present.
+            worldCnt.addChild(localCnt, playerSprite);
+            renderer.render(worldCnt, tex2, true);
+            worldCnt.removeChildren();
+            localCnt.removeChildren();
+
+            // Add tex2 to the main phase
+            nightSprite = new PIXI.Sprite(tex2);
+            nightSprite.blendMode = PIXI.BLEND_MODES.ADD;
+            worldCnt.addChild(nightSprite);
+        }
+
+        for (let player of data.nightVisPlayers) {
+            localCnt.addChild(player.mesh);
+        }
+
+        let origTex = new PIXI.Sprite(bkg._texture);
+        origTex.blendMode = PIXI.BLEND_MODES.SRC_IN;
+
+        worldCnt.addChild(localCnt, origTex)
+
+        // Render everything to bkg._renTex and then redraw the original only where is alpha=1.
+        app.renderer.render(worldCnt, bkg._renTex, false);
+        bkg._visibilityMapChanged = true;
+
+        // Cleanup time (don't worry, I'm recycling and there's a garbage cleaner, we're eco friendly!)
+        worldCnt.destroy(DESTROY_MIN);
+        origTex.destroy(DESTROY_MIN);
+
+        if (tex !== undefined) this.renderTexturePool.returnTexture(tex);
+        if (tex2 !== undefined) this.renderTexturePool.returnTexture(tex2);
+        if (nightSprite !== undefined) nightSprite.destroy(DESTROY_MIN);
+
+        //console.timeEnd('updateVisibility');
     }
 
     enable() {
@@ -281,6 +390,7 @@ export class BackgroundSystem implements System {
         this.displayLayer.interactiveChildren = false;
 
         this.phase.board.addChild(this.displayMaps);
+        app.stage.addChild(this.displayLayer);
     }
 
     destroy(): void {

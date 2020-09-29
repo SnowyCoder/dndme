@@ -49,7 +49,8 @@ export class EcsTracker {
     // cleared()
     // serialize()
     // serialized(res)
-    // deserialize()
+    // serialize_entity(entity)
+    // deserialize(data)
     // deserialized()
     //      External events:
     // query_hit(event: QueryHitEvent)
@@ -201,7 +202,7 @@ export class EcsTracker {
     }
 
     serialize(): SerializedEcs {
-        this.events.emit('serialize');
+        this.events.emit('serialize', 'save');
 
         let storages: {[type: string]: any} = {};
 
@@ -234,6 +235,8 @@ export class EcsTracker {
     }
 
     serializeClient(): SerializedEcs {
+        this.events.emit('serialize', 'client');
+
         let storages: {[type: string]: any} = {};
 
         let hostHidden = this.storages.get('host_hidden');
@@ -255,17 +258,22 @@ export class EcsTracker {
             resources[resource.type] = res;
         }
 
-        return {
+        let res = {
             entities: [...this.entities].filter((e) => hostHidden.getFirstComponent(e) === undefined),
             storages,
             resources,
         } as SerializedEcs;
+
+
+        this.events.emit('serialized', res);
+
+        return res;
     }
 
     deserialize(data: SerializedEcs) {
         this.clear();
         this.isDeserializing = true;
-        this.events.emit('deserialize');
+        this.events.emit('deserialize', data);
 
         for (let type in data.resources) {
             let res = data.resources[type];

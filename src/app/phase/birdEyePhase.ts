@@ -31,6 +31,9 @@ export class BirdEyePhase extends Phase {
 
         this.ecs = new EcsTracker(isMaster);
 
+        // TODO: we should create render phases, one for the world (using the projection matrix to move the camera)
+        //       and the other for the GUI (or other things that do not depend on camera position, as the GridSystem(?)).
+        //       to create a custom game loop: https://github.com/pixijs/pixi.js/wiki/v5-Custom-Application-GameLoop
         this.board = new PIXI.Container();
         this.board.interactive = false;
         this.board.interactiveChildren = false;

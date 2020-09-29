@@ -19,14 +19,16 @@ export class BitSet {
     get(i: number): boolean {
         i |= 0;
         let wi = i >>> 5;
-        if (this.data.length > wi) return false;
+        if (wi >= this.data.length) return false;
         let b = this.data[wi];
         return !!((b >>> i) & 1);
     }
 
     private ensureCapacity(wi: number): void {
-        if (this.data.length > wi) return;
-        let newData = new Uint32Array(this.data.length * 2);
+        let newLen = this.data.length;
+        while (newLen < wi) newLen *= 2;
+        if (newLen === this.data.length) return;
+        let newData = new Uint32Array(newLen);
         newData.set(this.data);
         this.data = newData;
     }

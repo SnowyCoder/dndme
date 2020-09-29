@@ -299,6 +299,7 @@ export class WallSystem implements System {
 
     endCreation(): void {
         this.createLastLineDisplay.clear();
+        this.createdLastPos = undefined;
 
         if (this.createdIds.length === 0) return;
 
