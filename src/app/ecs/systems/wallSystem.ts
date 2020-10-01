@@ -13,10 +13,14 @@ import {intersectSegmentVsSegment, SegmentVsSegmentRes} from "../../geometry/col
 import {app} from "../../index";
 import {InteractionComponent, LineShape, shapeAabb, shapeLine} from "./interactionSystem";
 import {VisibilityBlocker} from "./visibilitySystem";
+import {PlayerVisibleComponent} from "./playerSystem";
+import {Resource} from "../resource";
+import {LocalLightSettings} from "./lightSystem";
 
 export interface WallComponent extends Component {
     type: 'wall';
     vec: Point;
+    visible: boolean,
     _display: PIXI.Graphics;
     _selected?: boolean;
 }
@@ -49,13 +53,14 @@ export class WallSystem implements System {
         tracker.events.on('component_add', this.onComponentAdd, this);
         tracker.events.on('component_edited', this.onComponentEdited, this);
         tracker.events.on('component_remove', this.onComponentRemove, this);
+        tracker.events.on('resource_edited', this.onResourceEdited, this);
         tracker.events.on('selection_begin', this.onSelectionBegin, this);
         tracker.events.on('selection_end', this.onSelectionEnd, this);
         tracker.events.on('tool_move_begin', this.onToolMoveBegin, this);
         tracker.events.on('tool_move_end', this.onToolMoveEnd, this);
     }
 
-    onComponentAdd(component: Component): void {
+    private onComponentAdd(component: Component): void {
         if (component.type !== 'wall') return;
         let wall = component as WallComponent;
         let pos = this.ecs.getComponent(wall.entity, "position") as PositionComponent;
@@ -64,6 +69,9 @@ export class WallSystem implements System {
             return;
         }
 
+        if (wall.visible === undefined) wall.visible = false;
+        this.addWallDisplay(pos, wall);
+
         this.ecs.addComponent(component.entity, {
             type: "interaction",
             entity: -1,
@@ -71,12 +79,20 @@ export class WallSystem implements System {
             snapEnabled: true,
             selectPriority: EditMapDisplayPrecedence.WALL,
         } as InteractionComponent);
+
+        if (!wall.visible) {
+            this.ecs.addComponent(component.entity, {
+                type: "player_visible",
+                entity: -1,
+                visible: false,
+                isWall: true,
+            } as PlayerVisibleComponent);
+        }
+
         this.ecs.addComponent(component.entity, {
             type: "visibility_blocker",
             entity: -1
         } as VisibilityBlocker);
-
-        this.addWall(pos, wall);
     }
 
     fixWallPreTranslation(walls: WallComponent[]) {
@@ -92,7 +108,19 @@ export class WallSystem implements System {
         // TODO
     }
 
-    onComponentEdited(comp: Component, changed: any): void {
+    private onComponentEdited(comp: Component, changed: any): void {
+        if (comp.type === 'player_visible') {
+            let  c = comp as PlayerVisibleComponent;
+            let wall = this.storage.getComponent(comp.entity);
+            if (wall === undefined || !c.visible) return;
+
+            this.ecs.editComponent(comp.entity, 'wall', { visible: true });
+            wall._display.visible = true;
+            this.ecs.removeComponent(comp);
+
+            return;
+        }
+
         if (comp.type !== 'wall' && comp.type !== 'position') return;
 
         let wall, position;
@@ -151,14 +179,25 @@ export class WallSystem implements System {
         }
     }
 
-    onComponentRemove(component: Component): void {
+    private onComponentRemove(component: Component): void {
         if (component.type !== 'wall') return;
         let wall = component as WallComponent;
 
         wall._display.destroy(DESTROY_ALL);
     }
 
-    onSelectionBegin(entity: number): void {
+    private onResourceEdited(res: Resource, changes: any): void {
+        if (res.type === 'local_light_settings' && 'visionType' in changes) {
+            let lls = res as LocalLightSettings;
+            let visAll = lls.visionType === 'dm';
+            for (let c of this.storage.allComponents()) {
+                console.log("Setting visibility: " + visAll + ", " + c.visible + " to " + c.entity);
+                c._display.visible = visAll || c.visible;
+            }
+        }
+    }
+
+    private onSelectionBegin(entity: number): void {
         let wall = this.storage.getComponent(entity);
         if (wall === undefined) return;
         wall._selected = true;
@@ -166,7 +205,7 @@ export class WallSystem implements System {
         this.redrawWall(pos, wall);
     }
 
-    onSelectionEnd(entity: number): void {
+    private onSelectionEnd(entity: number): void {
         let wall = this.storage.getComponent(entity);
         if (wall === undefined) return;
         wall._selected = undefined;
@@ -174,13 +213,13 @@ export class WallSystem implements System {
         this.redrawWall(pos, wall);
     }
 
-    onToolMoveBegin(): void {
+    private onToolMoveBegin(): void {
         this.isTranslating = true;
         let walls = [...this.phase.selection.getSelectedByType("wall")] as WallComponent[];
         this.fixWallPreTranslation(walls);
     }
 
-    onToolMoveEnd(): void {
+    private onToolMoveEnd(): void {
         this.isTranslating = false;
         let walls = [...this.phase.selection.getSelectedByType("wall")] as WallComponent[];
         this.fixWallPostTranslation(walls);
@@ -236,6 +275,7 @@ export class WallSystem implements System {
             {
                 type: 'wall',
                 vec: [maxX - minX, maxY - minY],
+                visible: false,
                 _selected: true,
             } as WallComponent,
         );
@@ -308,7 +348,7 @@ export class WallSystem implements System {
         this.phase.changeTool(Tool.INSPECT);
     }
 
-    addWall(pos: PositionComponent, wall: WallComponent) {
+    addWallDisplay(pos: PositionComponent, wall: WallComponent) {
         let g = new PIXI.Graphics();
 
         this.displayWalls.addChild(g);
@@ -317,6 +357,7 @@ export class WallSystem implements System {
     }
 
     redrawWall(pos: PositionComponent, wall: WallComponent) {
+        wall._display.visible = wall.visible || this.phase.lightSystem.localLightSettings.visionType === 'dm';
         wall._display.position.set(pos.x, pos.y);
 
         let color = 0;

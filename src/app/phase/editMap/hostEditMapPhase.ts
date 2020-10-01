@@ -37,6 +37,9 @@ export class HostEditMapPhase extends EditMapPhase {
         event.stopPropagation();
         event.preventDefault();
 
+        let x = event.pageX;
+        let y = event.pageY;
+
         if (event.dataTransfer.items) {
             let res = [];
             for (let f of event.dataTransfer.items) {
@@ -46,9 +49,9 @@ export class HostEditMapPhase extends EditMapPhase {
                 }
             }
 
-            await this.onFileDrop(res);
+            await this.onFileDrop(res, x, y);
         } else {
-            await this.onFileDrop(event.dataTransfer.files);
+            await this.onFileDrop(event.dataTransfer.files, x, y);
         }
     }
 
@@ -60,15 +63,19 @@ export class HostEditMapPhase extends EditMapPhase {
     }
 
 
-    async onFileDrop(files: AbsFileList) {
+    async onFileDrop(files: AbsFileList, x: number, y: number) {
         if (files.length == 0) return;
         let firstFile = files[0];
 
+        // Sometimes this does not work but the problem is not the matrix calculation, it's the browser coords
+        // so if you have firefox and linux (this seems to be the wrong stack) and have spare time, pls debug this.
+        // Could be caused by: https://bugzilla.mozilla.org/show_bug.cgi?id=505521#c80
+        let p = new PIXI.Point(x, y);
+        this.board.updateTransform();
+        this.board.transform.worldTransform.applyInverse(p, p);
+
         if (firstFile.type.startsWith("image/")) {
             this.ecs.spawnEntity(
-                {
-                    type: 'host_hidden'
-                } as Component,
                 {
                     type: 'name',
                     name: firstFile.name,
@@ -76,8 +83,8 @@ export class HostEditMapPhase extends EditMapPhase {
                 } as NameComponent,
                 {
                     type: "position",
-                    x: 0,
-                    y: 0,
+                    x: p.x,
+                    y: p.y,
                 } as PositionComponent,
                 {
                     type: "transform",

@@ -113,6 +113,16 @@
                     <div class="">Light:</div>
                     <b-input type="color" v-model="light.ambientLight" :readonly="!isAdmin" @change="onAmbientLightChange"></b-input>
                 </div>
+                <div class="d-flex flex-row align-items-center">
+                    <div class="">Needs light:</div>
+                    <b-form-checkbox v-model="light.needsLight" @input="onAmbientLightChange" :readonly="!isAdmin"></b-form-checkbox>
+                </div>
+                <div class="d-flex flex-row align-items-center">
+                    <div class="">Vision type:</div>
+                    <b-button :pressed.sync="light.roleplayVision" :readonly="!isAdmin">
+                        {{ light.roleplayVision ? "Roleplayer" : "Master" }}
+                    </b-button>
+                </div>
             </div>
 
             <template v-slot:footer>
@@ -138,7 +148,7 @@
     import {Component} from "../../ecs/component";
     import {GridResource} from "../../ecs/resource";
     import {AddComponent} from "../../game/selectionGroup";
-    import {LightSettings} from "../../ecs/systems/lightSystem";
+    import {LightSettings, LocalLightSettings} from "../../ecs/systems/lightSystem";
     import PIXI from "../../PIXI";
     import hex2string = PIXI.utils.hex2string;
     import string2hex = PIXI.utils.string2hex;
@@ -162,6 +172,8 @@
                 },
                 light: {
                     ambientLight: '#000000',
+                    needsLight: true,
+                    roleplayVision: false,
                 },
                 selectedComponents: new Array<Component>(),
                 selectedEntityOpts: {},
@@ -182,6 +194,7 @@
               this.phase.ecs.addResource({
                 type: 'light_settings',
                 ambientLight: string2hex(this.light.ambientLight),
+                needsLight: this.light.needsLight,
               } as LightSettings, 'update')
             }
         },
@@ -216,6 +229,11 @@
                 },
                 deep: true,
             },
+            'light.roleplayVision': function () {
+                let visionType = this.light.roleplayVision ? 'rp' : 'dm';
+
+                this.phase.ecs.editResource('local_light_settings', { visionType });
+            }
         },
         mounted() {
             // TODO: Make these responsive (ex: something changes the resource in the background: the UI changes too).
@@ -242,6 +260,10 @@
 
             let light: LightSettings = this.phase.ecs.getResource('light_settings');
             this.light.ambientLight = hex2string(light.ambientLight);
+            this.light.needsLight = light.needsLight;
+            let llight: LocalLightSettings = this.phase.ecs.getResource('local_light_settings');
+            this.light.roleplayVision = llight.visionType === 'rp';
+
 
             this.eventEmitter.on('changeTool', (t: Tool) => { this.tool = t; });
         },

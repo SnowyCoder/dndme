@@ -97,6 +97,7 @@ export class EcsTracker {
         for (let i = this.storageList.length - 1; i >= 0; --i) {
             let storage = this.storageList[i];
             let comps = [...storage.getComponents(entity)]
+            if (comps.length === 0) continue;
             for (let component of comps) {
                 this.events.emit('component_remove', component);
             }
@@ -155,6 +156,8 @@ export class EcsTracker {
 
     editComponent(entity: number, type: string, changes: any, multiId?: number): void {
         let c = this.getComponent(entity, type, multiId);
+
+        if (!clearChanges(c, changes)) return;// No real changes
         this.events.emit('component_edit', c, changes);
 
         let changed = assignSwap(c, changes);
@@ -184,6 +187,8 @@ export class EcsTracker {
 
     editResource(type: string, changes: any): void {
         let res = this.getResource(type);
+
+        if (!clearChanges(res, changes)) return;// No real changes
         this.events.emit('resource_edit', res, changes);
         assignSwap(res, changes);// changes now has old values
         this.events.emit('resource_edited', res, changes);
@@ -214,7 +219,7 @@ export class EcsTracker {
         let resources: {[type: string]: any} = {};
 
         for (let resource of this.resources.values()) {
-            if (!resource._save) continue;
+            if (resource._save === false) continue;// undefined is treated as true so that loaded resources get saved again
             let res = {} as any;
             for (let name in resource) {
                 if (name[0] === '_' || name === 'type') continue;
@@ -230,6 +235,7 @@ export class EcsTracker {
         } as SerializedEcs;
 
         this.events.emit('serialized', res);
+        console.log("SERIALIZED " + JSON.stringify(res, null, '\t'));
 
         return res;
     }
@@ -249,7 +255,7 @@ export class EcsTracker {
         let resources: {[type: string]: any} = {};
 
         for (let resource of this.resources.values()) {
-            if (!resource._save || !resource._sync) continue;
+            if (resource._save === false || resource._sync === false) continue;
             let res = {} as any;
             for (let name in resource) {
                 if (name[0] === '_' || name === 'type') continue;
@@ -271,6 +277,7 @@ export class EcsTracker {
     }
 
     deserialize(data: SerializedEcs) {
+        console.log("DESERIALIZE " + JSON.stringify(data, null, '\t'));
         this.clear();
         this.isDeserializing = true;
         this.events.emit('deserialize', data);
@@ -326,5 +333,17 @@ function assignSwap(obj: any, changes: any): void {
         obj[name] = tmp;
     }
     return changes;
+}
+
+function clearChanges(from: any, changes: any): boolean {
+    let changec = 0;
+    for (let change in changes) {
+        if (from[change] === changes[change]) {
+            delete changes[change];
+        } else {
+            changec++;
+        }
+    }
+    return changec !== 0;
 }
 

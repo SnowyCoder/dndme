@@ -14,14 +14,15 @@ import EventEmitter = PIXI.utils.EventEmitter;
 export interface VisibilityAwareComponent extends Component {
     type: "visibility_aware";
     visibleBy: number[];
-    byTypeCounter: Map<string, number>;
+    isWall: boolean;
 }
 
-export function newVisibilityAwareComponent(): VisibilityAwareComponent {
+export function newVisibilityAwareComponent(isWall: boolean = false): VisibilityAwareComponent {
     return {
         type: "visibility_aware",
         entity: -1,
-        visibleBy: []
+        visibleBy: [],
+        isWall,
     } as VisibilityAwareComponent;
 }
 
@@ -65,7 +66,7 @@ export class VisibilityAwareSystem implements System {
                 let target = this.storage.getComponent(x);
                 if (target === undefined) continue;
                 arrayRemoveElem(target.visibleBy, viewer.entity);
-                this.events.emit('aware_update', viewer, [], [viewer.entity]);
+                this.events.emit('aware_update', target, [], [viewer.entity]);
             }
             return;
         }
@@ -90,7 +91,8 @@ export class VisibilityAwareSystem implements System {
         }
 
         let iter = this.phase.interactionSystem.query(shapePolygon(polygon), c => {
-            return this.storage.getComponent(c.entity) !== undefined && oldCanSee.indexOf(c.entity) === -1;
+            let target = this.storage.getComponent(c.entity);
+            return  target !== undefined && target.isWall !== true && oldCanSee.indexOf(c.entity) === -1;
         });
         for (let e of iter) {
             let pos = posStorage.getComponent(e.entity);
@@ -103,7 +105,8 @@ export class VisibilityAwareSystem implements System {
         }
     }
 
-    private visibleElementMove(aware: VisibilityAwareComponent) {
+    private visibleElementMove(aware: VisibilityAwareComponent): void {
+        if (aware.isWall === true) return;
         let posStorage = this.ecs.storages.get('position') as SingleEcsStorage<PositionComponent>;
         let visStorage = this.ecs.storages.get('visibility') as SingleEcsStorage<VisibilityComponent>;
 
@@ -154,6 +157,55 @@ export class VisibilityAwareSystem implements System {
         }
     }
 
+    private onViewBlockerEdited(viewer: VisibilityComponent, newWalls: number[], oldWalls?: number[]) {
+        oldWalls = oldWalls || [];
+        if (newWalls.length === 0) {
+            // Player visibility null
+            for (let x of oldWalls) {
+                let target = this.storage.getComponent(x);
+                if (target === undefined) continue;
+                arrayRemoveElem(target.visibleBy, viewer.entity);
+                this.events.emit('aware_update', target, [], [viewer.entity]);
+            }
+            return;
+        }
+        let commonWalls = [];
+        //console.log("WALL UPDATE, old: " + oldWalls + " new: " + newWalls);
+
+        // Check if old awares can still be seen
+        for (let i of oldWalls) {
+            if (newWalls.indexOf(i) !== -1) {
+                //console.log("| =" + i);
+                commonWalls.push(i);
+                continue;
+            }
+
+            let target = this.storage.getComponent(i);
+            if (target === undefined) {
+                //console.log("| %" + i);
+                continue;
+            }
+            //console.log("| -" + target.entity);
+
+            arrayRemoveElem(target.visibleBy, viewer.entity);
+            this.events.emit('aware_update', target, [], [viewer.entity]);
+        }
+
+        for (let e of newWalls) {
+            if (commonWalls.indexOf(e) !== -1) continue;
+
+            let target = this.storage.getComponent(e);
+            if (target === undefined) {
+                //console.log("| ^" + e);
+                continue;
+            }
+            //console.log("| +" + target.entity);
+
+            target.visibleBy.push(viewer.entity);
+            this.events.emit('aware_update', target, [viewer.entity], []);
+        }
+    }
+
     private onComponentAdd(comp: Component): void {
         if (comp.type === 'visibility_aware') {
             this.visibleElementMove(comp as VisibilityAwareComponent);
@@ -168,6 +220,9 @@ export class VisibilityAwareSystem implements System {
             if ('polygon' in changed) {
                 this.visibilityChange(vis, vis.polygon, vis.range);
             }
+            if ('_canSeeWalls' in changed) {
+                this.onViewBlockerEdited(vis, vis._canSeeWalls, changed.walls);
+            }
         } else if (comp.type === 'position') {
             let visAware = this.storage.getComponent(comp.entity);
             if (visAware === undefined) return;
@@ -180,6 +235,15 @@ export class VisibilityAwareSystem implements System {
         if (comp.type === 'visibility') {
             let vis = comp as VisibilityComponent;
             this.visibilityChange(vis, undefined, 0);
+            this.onViewBlockerEdited(vis, [], vis._canSeeWalls);
+        } else if (comp.type === 'visibility_aware') {
+            let va = comp as VisibilityAwareComponent;
+            va.visibleBy
+            let visStorage = this.ecs.storages.get('visibility') as SingleEcsStorage<VisibilityComponent>;
+            for (let p of va.visibleBy) {
+                let vis = visStorage.getComponent(p);
+                arrayRemoveElem(vis._canSee, va.entity);
+            }
         }
     }
 

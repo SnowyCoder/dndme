@@ -7,18 +7,22 @@ import {VisibilityComponent} from "./visibilitySystem";
 import * as PointLightRender from "../../game/pointLightRenderer";
 import {DESTROY_ALL} from "../../util/pixi";
 import {newVisibilityAwareComponent, VisibilityAwareComponent} from "./visibilityAwareSystem";
-import {LightComponent} from "./lightSystem";
+import {LightComponent, LightSettings} from "./lightSystem";
 import {Aabb} from "../../geometry/aabb";
+import PIXI from "../../PIXI";
+import {Resource} from "../resource";
 
 
 export interface PlayerComponent extends Component {
     type: "player";
     nightVision: boolean;
+    range: number;
 }
 
 export interface PlayerVisibleComponent extends Component {
     type: "player_visible";
     visible: boolean;
+    isWall?: boolean;// Non modifiable
     _lightCount: number;
     _playerCount: number;
     _playerNightVisionCount: number;
@@ -45,6 +49,9 @@ export class PlayerSystem implements System {
     visibleStorage = new SingleEcsStorage<PlayerVisibleComponent>('player_visible', false, false);
     phase: EditMapPhase;
 
+    // If false a player can see a thing only if it's illuminated by artificial light
+    ambientIlluminated: boolean;
+
     constructor(ecs: EcsTracker, phase: EditMapPhase) {
         this.ecs = ecs;
         this.phase = phase;
@@ -54,13 +61,15 @@ export class PlayerSystem implements System {
         this.ecs.events.on('component_add', this.onComponentAdd, this);
         this.ecs.events.on('component_edited', this.onComponentEdited, this);
         this.ecs.events.on('component_remove', this.onComponentRemove, this);
+        this.ecs.events.on('resource_edited', this.onResourceEdited, this);
 
         let visAware = phase.visibilityAwareSystem;
         visAware.events.on('aware_update', this.onVisibilityAwareUpdate, this);
     }
 
     private onPlayerVisibleCountersUpdate(t: PlayerVisibleComponent) {
-        let newVisible = t._playerNightVisionCount > 0 || (t._lightCount > 0 && t._playerCount > 0);
+        let newVisible = t._playerNightVisionCount > 0 ||
+            ((this.ambientIlluminated || t._lightCount > 0 || t.isWall) && t._playerCount > 0);
         if (newVisible !== t.visible) {
             this.ecs.editComponent(t.entity, t.type, {
                 visible: newVisible,
@@ -106,16 +115,18 @@ export class PlayerSystem implements System {
 
         let diff = player.nightVision ? +1 : -1;
 
-        for (let t of vis._canSee) {
+        let fun = (t: number) => {
             let playerVisible = this.visibleStorage.getComponent(t);
-            if (playerVisible === undefined) continue;
+            if (playerVisible === undefined) return;
             playerVisible._playerNightVisionCount += diff;
             this.onPlayerVisibleCountersUpdate(playerVisible);
-        }
+        };
+        for (let t of vis._canSee) fun(t);
+        for (let t of vis._canSeeWalls) fun(t);
     }
 
-    private createVisMesh(pos: PIXI.IPointData, vis: VisibilityComponent): PIXI.Mesh {
-        let mesh = PointLightRender.createMesh(true);
+    private createVisMeshFrom(pos: PIXI.IPointData, vis: VisibilityComponent): PIXI.Mesh {
+        let mesh = PointLightRender.createMesh('const');
         PointLightRender.updateMeshPolygons(mesh, pos, vis.polygon);
         let r = vis.range * 50;
         PointLightRender.updateMeshUniforms(mesh, pos, r*r, 0xFFFFFF);
@@ -123,10 +134,13 @@ export class PlayerSystem implements System {
     }
 
     private spreadPlayerVisibility(player: number, pos: PIXI.IPointData, vis: VisibilityComponent, nightVision: boolean): void {
-        let playerVis = PointLightRender.createMesh(true);
+        let playerVis = PointLightRender.createMesh('const');
         PointLightRender.updateMeshPolygons(playerVis, pos, vis.polygon);
         let r = vis.range * 50;
         PointLightRender.updateMeshUniforms(playerVis, pos, r * r, 0xFFFFFF);
+
+        let lightStorage = this.ecs.storages.get('light') as SingleEcsStorage<LightComponent>;
+        let posStorage = this.ecs.storages.get('position') as SingleEcsStorage<PositionComponent>;
 
         let playerData = {
             mesh: playerVis,
@@ -140,20 +154,20 @@ export class PlayerSystem implements System {
 
         let lights = [];
         let aabb;
-        if (!nightVision) {
+        if (!nightVision && this.phase.lightSystem.lightSettings.needsLight) {
             players.push(playerData);
 
             aabb = undefined;
             for (let c of this.phase.visibilitySystem.aabbTree.query(vis.aabb)) {
                 let visComponent = c.tag;
-                let lightComponent = this.ecs.getComponent(visComponent.entity, 'light') as LightComponent;
+                let lightComponent = lightStorage.getComponent(visComponent.entity);
                 if (lightComponent === undefined || visComponent.range <= 0) continue;
-                let pos = this.ecs.getComponent(visComponent.entity, 'position') as PositionComponent;
+                let pos = posStorage.getComponent(visComponent.entity);
 
                 if (aabb === undefined) aabb = visComponent.aabb.copy();
                 else aabb.combine(visComponent.aabb, aabb);
 
-               let mesh = this.createVisMesh(pos, visComponent);
+               let mesh = this.createVisMeshFrom(pos, visComponent);
 
                 lights.push({
                     mesh,
@@ -181,13 +195,18 @@ export class PlayerSystem implements System {
         for (let light of data.lights) light.mesh.destroy(DESTROY_ALL);
     }
 
-    private spreadLightVisibility(lightVis: VisibilityComponent) {
+    private spreadLightVisibility(lightVis: VisibilityComponent): void {
         // Quite similar to spreadPlayerVisibility but follows a light instead of a player,
         // When a light visibility polygon is changed this will query each player in the polygon's reach and
         // spread the visibility (only with that light!)
 
+        if (!this.phase.lightSystem.lightSettings.needsLight) return;// Who needs lights?
+
+        let visStorage = this.ecs.storages.get('visibility') as SingleEcsStorage<VisibilityComponent>;
+        let posStorage = this.ecs.storages.get('position') as SingleEcsStorage<PositionComponent>;
+
         let lightPos = this.ecs.getComponent(lightVis.entity, 'position') as PositionComponent;
-        let lightMesh = this.createVisMesh(lightPos, lightVis);
+        let lightMesh = this.createVisMeshFrom(lightPos, lightVis);
 
         let lightData = [{
             mesh: lightMesh,
@@ -206,10 +225,10 @@ export class PlayerSystem implements System {
             if (aabb === undefined) aabb = visComponent.aabb;
             else aabb.combine(visComponent.aabb, aabb);
 
-            let vis = this.ecs.getComponent(player.entity, 'visibility') as VisibilityComponent;
-            let pos = this.ecs.getComponent(player.entity, 'position') as PositionComponent;
+            let vis = visStorage.getComponent(player.entity);
+            let pos = posStorage.getComponent(player.entity);
 
-            let mesh = this.createVisMesh(pos, vis);
+            let mesh = this.createVisMeshFrom(pos, vis);
 
             players.push({
                 mesh,
@@ -234,31 +253,74 @@ export class PlayerSystem implements System {
         for (let player of players) player.mesh.destroy(DESTROY_ALL);
     }
 
+    private spreadAfterLightNotNeeded(): void {
+        // Something changed, light is not needed anymore
+        // this means that most of the things that were not visible anymore now are
+        // but what? and where? this is the questions i will answer today
+        let players = [];
+
+        let visStorage = this.ecs.storages.get('visibility') as SingleEcsStorage<VisibilityComponent>;
+        let posStorage = this.ecs.storages.get('position') as SingleEcsStorage<PositionComponent>;
+
+        let aabb = undefined;
+        for (let player of this.storage.allComponents()) {
+            if (player.nightVision) continue;
+
+            let vis = visStorage.getComponent(player.entity);
+            let pos = posStorage.getComponent(vis.entity);
+            let mesh = this.createVisMeshFrom(pos, vis);
+
+            if (aabb === undefined) aabb = vis.aabb.copy();
+            else aabb.combine(vis.aabb, aabb);
+
+            let data = {mesh, pos, vis} as VisibilitySpreadEntryData;
+            players.push(data);
+        }
+
+        if (aabb === undefined) return;// Not enough players
+
+        let data = {
+            aabb,
+            lights: [],
+            players: [],
+            nightVisPlayers: players,
+        } as VisibilitySpreadData;
+        this.ecs.events.emit('visibility_spread', data);
+
+        for (let x of players) x.mesh.destroy(DESTROY_ALL);
+    }
+
     getSpreadDataForAabb(aabb: Aabb, cb: (data: VisibilitySpreadData) => void): void {
         let nightVisPlayers = [];
         let players = [];
         let lights = [];
+
+        let lightsNeeded = this.phase.lightSystem.lightSettings.needsLight;
+        let lightStorage = this.ecs.storages.get('light') as SingleEcsStorage<LightComponent>;
+        let posStorage = this.ecs.storages.get('position') as SingleEcsStorage<PositionComponent>;
 
         for (let c of this.phase.visibilitySystem.aabbTree.query(aabb)) {
             let vis = c.tag;
 
             let player = this.storage.getComponent(vis.entity);
             if (player !== undefined) {
-                let pos = this.ecs.getComponent(vis.entity, 'position') as PositionComponent;
-                let mesh = this.createVisMesh(pos, vis);
+                let pos = posStorage.getComponent(vis.entity);
+                let mesh = this.createVisMeshFrom(pos, vis);
 
                 let data = {mesh, pos, vis} as VisibilitySpreadEntryData;
-                if (player.nightVision) nightVisPlayers.push(data);
+                if (player.nightVision || !lightsNeeded) nightVisPlayers.push(data);
                 else players.push(data);
 
                 continue;
             }
-            let light = this.ecs.getComponent(vis.entity, 'light') as LightComponent;
-            if (light !== undefined) {
-                let pos = this.ecs.getComponent(vis.entity, 'position') as PositionComponent;
-                let mesh = this.createVisMesh(pos, vis);
-                let data = {mesh, pos, vis} as VisibilitySpreadEntryData;
-                lights.push(data);
+            if (lightsNeeded) {
+                let light = lightStorage.getComponent(vis.entity);
+                if (light !== undefined) {
+                    let pos = posStorage.getComponent(vis.entity);
+                    let mesh = this.createVisMeshFrom(pos, vis);
+                    let data = {mesh, pos, vis} as VisibilitySpreadEntryData;
+                    lights.push(data);
+                }
             }
         }
 
@@ -287,13 +349,17 @@ export class PlayerSystem implements System {
     private onComponentAdd(comp: Component): void {
         if (comp.type === 'player') {
             let player = comp as PlayerComponent;
+            let pv = this.visibleStorage.getComponent(comp.entity);
+            pv._playerNightVisionCount++;// A bit hackish, but it works ;)
+            this.onPlayerVisibleCountersUpdate(pv);
 
-            let vis = this.ecs.getComponent(player.entity, 'visibility');
+            let vis = this.ecs.getComponent(player.entity, 'visibility') as VisibilityComponent;
             if (vis === undefined) {
                 // We need a visibility component, create one if it does not already exist
                 vis = {
                     type: "visibility",
-                    range: 5,
+                    range: player.range,
+                    trackWalls: true,
                 } as VisibilityComponent;
                 this.ecs.addComponent(comp.entity, vis);
             }
@@ -302,7 +368,7 @@ export class PlayerSystem implements System {
             c._lightCount = 0;
             c._playerCount = 0;
             c._playerNightVisionCount = 0;
-            this.ecs.addComponent(c.entity, newVisibilityAwareComponent());
+            this.ecs.addComponent(c.entity, newVisibilityAwareComponent(c.isWall === true));
         }
     }
 
@@ -315,11 +381,17 @@ export class PlayerSystem implements System {
                 this.onNightVisionUpdate(c);
             }
 
-            //let pos = this.ecs.getComponent(c.entity, 'position') as PositionComponent;
-            let vis = this.ecs.getComponent(c.entity, 'visibility') as VisibilityComponent;
-            if (vis.polygon !== undefined) {
-                let pos = this.ecs.getComponent(comp.entity, 'position') as PositionComponent;
-                this.spreadPlayerVisibility(comp.entity, pos, vis, c.nightVision);
+            if ('range' in changed) {
+                this.ecs.editComponent(c.entity, 'visibility', {
+                    range: c.range
+                });
+            } else {
+                //let pos = this.ecs.getComponent(c.entity, 'position') as PositionComponent;
+                let vis = this.ecs.getComponent(c.entity, 'visibility') as VisibilityComponent;
+                if (vis.polygon !== undefined) {
+                    let pos = this.ecs.getComponent(comp.entity, 'position') as PositionComponent;
+                    this.spreadPlayerVisibility(comp.entity, pos, vis, c.nightVision);
+                }
             }
         } else if (comp.type === 'visibility') {
             let vis = comp as VisibilityComponent;
@@ -339,8 +411,28 @@ export class PlayerSystem implements System {
         }
     }
 
-    private onComponentRemove(comp: Component) {
+    private onComponentRemove(comp: Component): void {
+        if (comp.type === 'player') {
+            let pv = this.visibleStorage.getComponent(comp.entity);
+            pv._playerNightVisionCount--;// Gotta undo those hacks
+            this.onPlayerVisibleCountersUpdate(pv);
+        }
     }
+
+    private onResourceEdited(res: Resource, changes: any): void {
+        if (res.type === 'light_settings' && 'needsLight' in changes) {
+            let light = res as LightSettings;
+            this.ambientIlluminated = !light.needsLight;
+            for (let comp of this.visibleStorage.allComponents()) {
+                this.onPlayerVisibleCountersUpdate(comp);
+            }
+
+            if (!light.needsLight) {
+                this.spreadAfterLightNotNeeded();
+            }
+        }
+    }
+
 
     enable(): void {
         PointLightRender.setup();

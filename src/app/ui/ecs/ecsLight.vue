@@ -6,7 +6,7 @@
         </div>
         <div style="display: flex; align-items: center;">
             Visibility Range: <span v-if="!isAdmin" style="margin-left: 0.5rem;">{{ range }}</span>
-            <b-input v-if="isAdmin" type="number" step="1" min="0" max="100" v-model="range" size="sm" @change="onChange"></b-input>
+            <b-input v-if="isAdmin" type="number" step="1" min="0" v-model="range" size="sm" @change="onChange"></b-input>
         </div>
     </div>
 </template>
@@ -18,11 +18,11 @@
 
     export default {
         name: "ecs-light",
-        props: ["component", "isAdmin", "allComps"],
+        props: ["component", "isAdmin"],
         data: function () {
             return {
                 color: hex2string(this.component.color),
-                range: this.allComps.visibility.range,
+                range: this.component.range,
             }
         },
         methods: {
@@ -33,7 +33,7 @@
                 }
                 if (this.component.range !== this.range && this.range !== '') {
                     let c = parseInt(this.range);
-                    this.$emit('ecs-property-change', 'visibility', 'range', c);
+                    this.$emit('ecs-property-change', 'light', 'range', c);
                 }
             }
         },
@@ -41,7 +41,7 @@
             'component.color': function (newColor: number) {
                 this.color = hex2string(newColor);
             },
-            'allComps.visibility.range': function (range: number) {
+            'component.range': function (range: number) {
                 this.range = range;
             }
         }

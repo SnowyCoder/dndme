@@ -7,11 +7,11 @@ import {EditMapDisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {SingleEcsStorage} from "../storage";
 import {Component, PositionComponent} from "../component";
 import {app} from "../../index";
-import {Point} from "../../util/geometry";
 import {TextSystem} from "./textSystem";
-import {GeomertyQueryType, QueryHitEvent} from "../interaction";
 import {InteractionComponent, shapePoint} from "./interactionSystem";
 import {PlayerVisibleComponent} from "./playerSystem";
+import {Resource} from "../resource";
+import {LocalLightSettings} from "./lightSystem";
 
 export interface PinComponent extends Component {
     type: 'pin';
@@ -41,7 +41,6 @@ export class PinSystem implements System {
     textSystem: TextSystem;
 
     displayPins: PIXI.ParticleContainer;
-    displayLabels: PIXI.Container;
 
     layerPin: PIXI.display.Layer;
 
@@ -49,6 +48,7 @@ export class PinSystem implements System {
 
     // Sprite of the pin to be created
     createPin?: PIXI.Sprite;
+    useVisibility: boolean;
 
 
     constructor(tracker: EcsTracker, phase: EditMapPhase) {
@@ -57,12 +57,30 @@ export class PinSystem implements System {
 
         this.textSystem = phase.textSystem;
 
+        this.useVisibility = !this.ecs.isMaster;
+
         tracker.addStorage(this.storage);
         tracker.events.on('component_add', this.onComponentAdd, this);
         tracker.events.on('component_edited', this.onComponentEdited, this);
         tracker.events.on('component_remove', this.onComponentRemove, this);
         tracker.events.on('selection_begin', this.onSelectionBegin, this);
         tracker.events.on('selection_end', this.onSelectionEnd, this);
+        tracker.events.on('resource_edited', this.onResourceEdited, this);
+    }
+
+    private setVisible(pin: PinComponent, visible: boolean): void {
+        if (visible) {
+            if (!pin._display.visible) {
+                pin._display.visible = true;
+                this.displayPins.addChild(pin._display);
+            }
+            this.redrawComponent(pin, undefined);
+        } else {
+            if (pin._display.visible) {
+                pin._display.visible = false;
+                this.displayPins.removeChild(pin._display);
+            }
+        }
     }
 
     private onComponentAdd(c: Component): void {
@@ -70,7 +88,6 @@ export class PinSystem implements System {
         let pin = c as PinComponent;
         let pos = this.ecs.getComponent(c.entity, "position") as PositionComponent;
         if (pos === undefined) return;
-
 
         this.addPin(pos, pin);
 
@@ -103,25 +120,11 @@ export class PinSystem implements System {
 
             this.redrawComponent(pin, position);
         } else if (comp.type === 'player_visible') {
-            if (this.ecs.isMaster) return;// The DM always sees everything
+            if (!this.useVisibility) return;// The DM always sees everything
             let pv = comp as PlayerVisibleComponent;
 
             let pin = this.storage.getComponent(pv.entity);
-            if (pin === undefined) return;
-            if (pv.visible) {
-                if (!pin._display.visible) {
-                    pin._display.visible = true;
-                    this.displayPins.addChild(pin._display);
-                }
-                if (pin._labelDisplay !== undefined) pin._labelDisplay.visible = true;
-                this.redrawComponent(pin, undefined);
-            } else {
-                if (pin._display.visible) {
-                    pin._display.visible = false;
-                    this.displayPins.removeChild(pin._display);
-                }
-                if (pin._labelDisplay !== undefined) pin._labelDisplay.visible = false;
-            }
+            if (pin !== undefined) this.setVisible(pin, pv.visible)
         }
     }
 
@@ -148,17 +151,35 @@ export class PinSystem implements System {
         this.redrawComponent(pin, undefined);
     }
 
+    private onResourceEdited(res: Resource, changes: any): void {
+        if (res.type !== 'local_light_settings') return;
+        let set = res as LocalLightSettings;
+        if (!('visionType' in changes)) return;
+
+        if (set.visionType === 'dm') {
+            this.useVisibility = false;
+            for (let c of this.storage.allComponents()) {
+                this.setVisible(c, true);
+            }
+        } else if (set.visionType === 'rp') {
+            this.useVisibility = true;
+            for (let c of this.storage.allComponents()) {
+                let pv = this.ecs.getComponent(c.entity, 'player_visible') as PlayerVisibleComponent;
+                this.setVisible(c, pv.visible);
+            }
+        } else {
+            throw 'Unknown vision type';
+        }
+    }
+
     addPin(pos: PositionComponent, p: PinComponent) {
         if (p._display === undefined) {
             let g = new PIXI.Sprite(this.circleTex);
 
-            if (!this.ecs.isMaster) {
-                g.visible = false;
-            } else {
-                this.displayPins.addChild(g);
-            }
+            g.visible = false;
             p._display = g;
         }
+        this.setVisible(p, !this.useVisibility);
         this.redrawComponent(p, pos);
     }
 
@@ -188,9 +209,9 @@ export class PinSystem implements System {
                 pin._labelDisplay = new PIXI.Text("");
                 pin._labelDisplay.parentLayer = this.textSystem.textLayer;
                 pin._labelDisplay.anchor.set(0.5, 1);
-                this.displayLabels.addChild(pin._labelDisplay);
+                pin._labelDisplay.position.set(0, -RADIUS);
+                pin._display.addChild(pin._labelDisplay);
             }
-            pin._labelDisplay.position.set(pos.x, pos.y - RADIUS);
             pin._labelDisplay.text = pin.label;
         }
     }
@@ -243,6 +264,8 @@ export class PinSystem implements System {
     }
 
     enable() {
+        this.useVisibility = this.phase.lightSystem.localLightSettings.visionType !== 'dm';
+
         this.layerPin = new PIXI.display.Layer();
         this.layerPin.zIndex = EditMapDisplayPrecedence.PINS;
         app.stage.addChild(this.layerPin);
@@ -257,11 +280,10 @@ export class PinSystem implements System {
             tint: true,
         });
         cnt.parentLayer = this.layerPin;
-        this.displayLabels = new PIXI.Container();
 
         cnt.addChild(this.displayPins);
 
-        this.phase.board.addChild(cnt, this.displayLabels);
+        this.phase.board.addChild(cnt);
 
         let g = new PIXI.Graphics();
         g.beginFill(0xFFFFFF);
@@ -272,7 +294,6 @@ export class PinSystem implements System {
     }
 
     destroy(): void {
-        this.displayLabels.destroy(DESTROY_ALL);
         this.circleTex.destroy(true);
         this.displayPins.destroy(DESTROY_ALL);
         this.layerPin.destroy(DESTROY_ALL);

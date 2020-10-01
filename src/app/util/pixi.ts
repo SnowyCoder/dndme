@@ -1,4 +1,5 @@
 import PIXI from "../PIXI";
+import {app} from "../index";
 
 export const DESTROY_ALL = {
     children: true,
@@ -35,4 +36,16 @@ export function loadTexture(data: ArrayBuffer, dataType: string): Promise<[PIXI.
         image.onerror = reject;
         image.src = b64;
     });
+}
+
+export enum CUSTOM_BLEND_MODES {
+    MULTIPLY_COLOR_ONLY = 30,
+    ADD_WHERE_ALPHA_1,
+}
+
+export function addCustomBlendModes() {
+    let gl = app.renderer.gl;
+    let array = (app.renderer.state as any).blendModes;
+    array[CUSTOM_BLEND_MODES.MULTIPLY_COLOR_ONLY] = [gl.DST_COLOR, gl.ZERO, gl.ONE, gl.ZERO];
+    array[CUSTOM_BLEND_MODES.ADD_WHERE_ALPHA_1] = [gl.DST_ALPHA, gl.ONE, gl.ZERO, gl.ONE];
 }

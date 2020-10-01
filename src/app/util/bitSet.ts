@@ -7,8 +7,11 @@ export class BitSet {
     constructor(data: number | Uint32Array) {
         if (typeof data === 'number') {
             this.data = new Uint32Array(Math.ceil(length / 32));
-        } else {
+        } else if (data.BYTES_PER_ELEMENT === 4) {
             this.data = data;
+        } else {
+            let len = Math.floor(data.byteLength / Uint32Array.BYTES_PER_ELEMENT);
+            this.data = new Uint32Array(data.buffer, data.byteOffset, len);
         }
     }
 

@@ -295,12 +295,14 @@ export class SelectionGroup {
                             comp = {
                                 type: 'light',
                                 color: 0xFFFFFF,
+                                range: 5,
                             } as LightComponent;
                             break;
                         case 'player':
                             comp = {
                                 type: 'player',
                                 nightVision: false,
+                                range: 50,
                             } as PlayerComponent;
                             break;
                         default: throw 'Cannot add unknown component: ' + propertyValue;

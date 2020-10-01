@@ -60,8 +60,8 @@ export class EditMapPhase extends BirdEyePhase {
         this.visibilitySystem = new VisibilitySystem(this.ecs, this);
         this.visibilityAwareSystem = new VisibilityAwareSystem(this.ecs, this);
         this.pinSystem = new PinSystem(this.ecs, this);
-        this.playerSystem = new PlayerSystem(this.ecs, this);
         this.lightSystem = new LightSystem(this.ecs, this);
+        this.playerSystem = new PlayerSystem(this.ecs, this);
 
         this.ecs.events.on('selection_update', (group: SelectionGroup) => {
             this.vue.selectedEntityOpts = group.getCommonEntityOpts();
@@ -284,13 +284,13 @@ export class EditMapPhase extends BirdEyePhase {
         this.visibilitySystem.enable();
         this.visibilityAwareSystem.enable();
         this.pinSystem.enable();
-        this.playerSystem.enable();
         this.lightSystem.enable();
+        this.playerSystem.enable();
     }
 
     disable() {
-        this.lightSystem.destroy();
         this.playerSystem.destroy();
+        this.lightSystem.destroy();
         this.pinSystem.destroy();
         this.visibilityAwareSystem.destroy();
         this.visibilitySystem.destroy();

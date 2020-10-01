@@ -51,22 +51,48 @@ const CONST_LIGHT_FRAGMENT_SHADER = `
     }
 `;
 
+const PLAYER_VIS_FRAGMENT_SHADER = `
+    precision mediump float;
+
+    varying vec2 vecPos;
+    
+    uniform vec2 center;
+    uniform float radSquared;
+    uniform vec3 color;
+
+    void main() {
+        vec2 diff = center - vecPos;
+        float distSq = diff.x * diff.x + diff.y * diff.y;
+        float intensity = 1.0 - smoothstep(0.9, 1.0, clamp(distSq / radSquared, 0., 1.));
+        gl_FragColor = vec4(color, 1) * intensity;// Pre multiplied alpha
+    }
+`;
+
 let lightProgram: PIXI.Program = undefined;
 let constLightProgram: PIXI.Program = undefined;
+let playerVisProgram: PIXI.Program = undefined;
+
+type LightProgramType = 'normal' | 'const' | 'player';
 
 export function setup() {
     if (lightProgram === undefined) {
         lightProgram = PIXI.Program.from(LIGHT_VERTEX_SHADER, LIGHT_FRAGMENT_SHADER);
         constLightProgram = PIXI.Program.from(LIGHT_VERTEX_SHADER, CONST_LIGHT_FRAGMENT_SHADER);
+        playerVisProgram = PIXI.Program.from(LIGHT_VERTEX_SHADER, PLAYER_VIS_FRAGMENT_SHADER);
     }
 }
 
-export function createMesh(constLight: boolean = false): PIXI.Mesh {
+export function createMesh(lightType: LightProgramType = 'normal'): PIXI.Mesh {
     let geometry = new PIXI.Geometry();
     let buff = new PIXI.Buffer(new Float32Array(1));
     geometry.addAttribute('aVertexPosition', buff, 2, false, PIXI.TYPES.FLOAT);
 
-    let program = constLight ? constLightProgram : lightProgram;
+    let program;
+    switch (lightType) {
+        case 'normal': program = lightProgram; break;
+        case 'const': program = constLightProgram; break;
+        case 'player': program = playerVisProgram; break;
+    }
     // We'll change them all, in due time
     let shaders = new PIXI.Shader(program, {
         'center': new Float32Array([0.5, 0.5]),

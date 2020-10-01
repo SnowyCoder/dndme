@@ -19,10 +19,12 @@ import {
 export interface VisibilityComponent extends Component {
     type: "visibility";
     range: number;// In grids (by default 1 grid = 50 pixels)
+    trackWalls: boolean;
     polygon?: number[];
     aabb?: Aabb;
     _aabbTreeId?: number;
     _canSee: number[];// Visibility aware components
+    _canSeeWalls?: number[];
 }
 
 export interface VisibilityBlocker extends Component {
@@ -62,7 +64,7 @@ export class VisibilitySystem implements System {
         ecs.addStorage(this.blockerStorage);
         ecs.events.on('component_add', this.onComponentAdd, this);
         ecs.events.on('component_edited', this.onComponentEdited, this);
-        ecs.events.on('component_remove', this.onComponentRemove, this);
+        ecs.events.on('component_removed', this.onComponentRemoved, this);
     }
 
     private removeTreePolygon(c: VisibilityComponent): void {
@@ -93,6 +95,7 @@ export class VisibilitySystem implements System {
         let viewport = new Aabb(pos.x - range, pos.y - range, pos.x + range, pos.y + range);
 
         let lines = new Array<Line>();
+        let blockerIds = new Array<number>();
 
         let query = this.interactionSystem.query(shapeAabb(viewport), c => {
             return this.blockerStorage.getComponent(c.entity) !== undefined;
@@ -102,15 +105,29 @@ export class VisibilitySystem implements System {
             let s = entry.shape;
             if (s.type !== ShapeType.LINE) throw 'Only line is supported as light blocker shape'
             lines.push((s as LineShape).data);
+            blockerIds.push(entry.entity);
         }
-        let polygon = computeViewport(lines, viewport, pos);
+        let usedBlockers;
+        if (c.trackWalls === true) {
+            usedBlockers = new Array<number>();
+        } else {
+            usedBlockers = undefined;
+        }
+        let polygon = computeViewport(lines, viewport, pos, usedBlockers);
 
         // Recycle the unused viewport object
         viewport.wrapPolygon(polygon);
 
+        if (usedBlockers !== undefined) {
+            for (let i = 0; i < usedBlockers.length; i++) {
+                usedBlockers[i] = blockerIds[usedBlockers[i]];
+            }
+        }
+
         this.ecs.editComponent(c.entity, c.type, {
             polygon,
             aabb: viewport,
+            _canSeeWalls: usedBlockers,
         });
 
         c._aabbTreeId = this.aabbTree.createProxy(viewport, c);
@@ -155,7 +172,7 @@ export class VisibilitySystem implements System {
         }
     }
 
-    private onComponentRemove(c: Component): void {
+    private onComponentRemoved(c: Component): void {
         if (c.type === 'visibility') {
             this.removeTreePolygon(c as VisibilityComponent);
         } else if (c.type === 'visibility_blocker') {

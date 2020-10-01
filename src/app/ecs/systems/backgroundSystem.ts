@@ -13,6 +13,8 @@ import {VisibilitySpreadData} from "./playerSystem";
 import {InteractionComponent, ObbShape, shapeAabb, shapeObb} from "./interactionSystem";
 import {Obb} from "../../geometry/obb";
 import {BLEND_MODES, RenderTexturePool} from "pixi.js";
+import {Resource} from "../resource";
+import {LocalLightSettings} from "./lightSystem";
 
 type BACKGROUND_TYPE = 'background_image';
 const BACKGROUND_TYPE = 'background_image';
@@ -52,6 +54,7 @@ export class BackgroundSystem implements System {
         this.ecs.events.on('entity_spawned', this.onEntitySpawned, this);
         this.ecs.events.on('component_edited', this.onComponentEdit, this);
         this.ecs.events.on('component_remove', this.onComponentRemove, this);
+        this.ecs.events.on('resource_edited', this.onResourceEdited, this);
         this.ecs.events.on('selection_begin', this.onSelectionBegin, this);
         this.ecs.events.on('selection_end', this.onSelectionEnd, this);
         this.ecs.events.on('visibility_spread', this.onVisibilitySpread, this);
@@ -59,19 +62,19 @@ export class BackgroundSystem implements System {
         this.ecs.events.on('serialize_entity', this.onSerializeEntity, this);
     }
 
-    onSelectionBegin(entity: number): void {
+    private onSelectionBegin(entity: number): void {
         let img = this.storage.getComponent(entity);
         if (img === undefined) return;
         img._display.tint = 0x7986CB;
     }
 
-    onSelectionEnd(entity: number): void {
+    private onSelectionEnd(entity: number): void {
         let img = this.storage.getComponent(entity);
         if (img === undefined) return;
         img._display.tint = 0xFFFFFF;
     }
 
-    async onEntitySpawned(entity: number): Promise<void> {
+    private async onEntitySpawned(entity: number): Promise<void> {
         let bkgImg = this.storage.getComponent(entity);
         if (bkgImg === undefined) return;
         let pos = this.ecs.getComponent(entity, 'position') as PositionComponent;
@@ -93,13 +96,17 @@ export class BackgroundSystem implements System {
             // https://github.com/peers/peerjs/issues/715
             bkgImg.image = new Uint8Array(bkgImg.image);
         }
+        if (bkgImg.visibilityMap !== undefined) {
+            let res = new Uint8Array(bkgImg.visibilityMap);// Copy buffer (adjusts alignment)
+            bkgImg.visibilityMap = new Uint32Array(res.buffer);
+        }
 
         let [tex, img] = await loadTexture(bkgImg.image, bkgImg.imageType);
 
         bkgImg._texture = tex;
         this.loadVisibility(bkgImg);
 
-        let backingTex = this.ecs.isMaster ? bkgImg._texture : bkgImg._renTex;
+        let backingTex = this.phase.lightSystem.localLightSettings.visionType === 'dm' ? bkgImg._texture : bkgImg._renTex;
         let sprite = new PIXI.Sprite(backingTex);
         sprite.anchor.set(0.5);
         sprite.position.set(pos.x, pos.y);
@@ -137,7 +144,7 @@ export class BackgroundSystem implements System {
         console.log("Sprite added");
     }
 
-    onComponentEdit(newCmp: Component) {
+    private onComponentEdit(newCmp: Component): void {
         let spreadVis = false;
 
 
@@ -163,10 +170,33 @@ export class BackgroundSystem implements System {
         }
     }
 
-    onComponentRemove(cmp: Component) {
-        if (cmp.type !== BACKGROUND_TYPE) return;
-        let c = cmp as BackgroundImageComponent;
-        c._display.destroy(DESTROY_ALL);
+    private onComponentRemove(cmp: Component): void {
+        if (cmp.type === BACKGROUND_TYPE) {
+            let c = cmp as BackgroundImageComponent;
+            c._display.destroy(DESTROY_ALL);
+        } else if (cmp.type === 'host_hidden') {
+            let c = this.storage.getComponent(cmp.entity);
+            if (c === undefined) return;
+            // Now you're visible! say hello
+            let pos = this.ecs.getComponent(cmp.entity, 'position') as PositionComponent;
+            let tex = c._texture;
+            this.phase.playerSystem.getSpreadDataForAabb(new Aabb(
+                pos.x - tex.width / 2, pos.y - tex.height / 2,
+                pos.x + tex.width / 2, pos.y + tex.height / 2
+            ), data => this.updateVisibility(data, c))
+        }
+    }
+
+    private onResourceEdited(res: Resource, edited: any): void {
+        if (res.type === 'local_light_settings' && 'visionType' in edited) {
+            let lls = res as LocalLightSettings;
+
+            // Switch between real texture or "discovered" texture
+            let realTex = lls.visionType === 'dm';
+            for (let c of this.storage.allComponents()) {
+                c._display.texture = realTex ? c._texture : c._renTex;
+            }
+        }
     }
 
     private onSerialize(): void {
@@ -243,7 +273,7 @@ export class BackgroundSystem implements System {
         }
 
         if (c.visibilityMap === undefined) return;
-        let data = new Uint32Array(c.visibilityMap as ArrayBuffer);
+        console.log(c.visibilityMap);
 
         let texOpts = {
             width, height,
@@ -252,7 +282,7 @@ export class BackgroundSystem implements System {
 
         let texData = new Uint32Array(c._texture.width * c._texture.height);
 
-        let set = new BitSet(data);
+        let set = new BitSet(c.visibilityMap);
         let len = texData.length;
         for (let i = 0; i < len; i++) {
             texData[i] = set.get(i) ? 0xFFFFFFFF : 0;

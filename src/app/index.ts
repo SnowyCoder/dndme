@@ -17,6 +17,7 @@ Vue.use(BootstrapVue)
 
 import "Public/style.css";
 import {ClientEditMapPhase} from "./phase/editMap/clientEditMapPhase";
+import {addCustomBlendModes} from "./util/pixi";
 
 export const windowEventEmitter = new EventEmitterWrapper((event, emitter) => {
     window.addEventListener(event, data => {
@@ -48,6 +49,7 @@ function onHashCahnge() {
 
 (async function () {
     app = new PIXI.Application();
+    addCustomBlendModes();
     app.renderer.backgroundColor = 0x6e472c;
     // The app.view (canvas) is only appended when the game-phase starts.
 

@@ -17,6 +17,7 @@ class EndPoint extends PIXI.Point {
 class Segment {
     from: EndPoint;
     to: EndPoint;
+    used: boolean;
 
     constructor(f: EndPoint, t: EndPoint) {
         this.from = f;
@@ -159,6 +160,7 @@ function compute0(pos: StupidPoint, segments: Segment[]): Array<number> {
             if (i === points.length) break;
         } while (points[i].angle < points[orig].angle + EPSILON);
 
+        segmentPriorityQueue.peek().used = true;
         if (extend) {
             // Vertex is the first point of the old segment, we need to push this right away
             polygon.push(vertex.x, vertex.y);
@@ -284,13 +286,17 @@ function clipSegment(line: Line, aabb: Aabb, light: StupidPoint): Segment | unde
     }
 }
 
-export function computeViewport(lines: Line[], aabb: Aabb, light: StupidPoint): Array<number> {
+export function computeViewport(lines: Line[], aabb: Aabb, light: StupidPoint, usedLines?: number[]): Array<number> {
     //console.log("Lines: " + lines.length);
     let segments = new Array<Segment>();
 
-    for (let line of lines) {
-        let segment = clipSegment(line, aabb, light);
-        if (segment !== undefined) segments.push(segment);
+    let lineLen = lines.length;
+    for (let i = 0; i < lineLen; i++) {
+        let segment = clipSegment(lines[i], aabb, light);
+        if (segment !== undefined) {
+            (segment as any).index = i;
+            segments.push(segment);
+        }
     }
     //console.log("Done");
     // Push viewport segments:
@@ -303,5 +309,16 @@ export function computeViewport(lines: Line[], aabb: Aabb, light: StupidPoint): 
 
     //console.log("SEGMENTS: ", segments);
 
-    return compute0(light, segments);
+    let poly = compute0(light, segments);
+
+    if (usedLines !== undefined) {
+        // Compute what lines have been used
+        let segLen = segments.length - 4;
+        for (let i = 0; i < segLen; i++) {
+            let s = segments[i];
+            if (s.used) usedLines.push((s as any).index);
+        }
+    }
+
+    return poly;
 }
