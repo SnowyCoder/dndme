@@ -235,7 +235,6 @@ export class EcsTracker {
         } as SerializedEcs;
 
         this.events.emit('serialized', res);
-        console.log("SERIALIZED " + JSON.stringify(res, null, '\t'));
 
         return res;
     }
@@ -277,7 +276,6 @@ export class EcsTracker {
     }
 
     deserialize(data: SerializedEcs) {
-        console.log("DESERIALIZE " + JSON.stringify(data, null, '\t'));
         this.clear();
         this.isDeserializing = true;
         this.events.emit('deserialize', data);

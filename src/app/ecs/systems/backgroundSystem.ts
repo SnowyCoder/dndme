@@ -273,7 +273,6 @@ export class BackgroundSystem implements System {
         }
 
         if (c.visibilityMap === undefined) return;
-        console.log(c.visibilityMap);
 
         let texOpts = {
             width, height,
