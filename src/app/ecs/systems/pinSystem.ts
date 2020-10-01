@@ -41,6 +41,7 @@ export class PinSystem implements System {
     textSystem: TextSystem;
 
     displayPins: PIXI.ParticleContainer;
+    displayLabels: PIXI.Container;
 
     layerPin: PIXI.display.Layer;
 
@@ -74,12 +75,14 @@ export class PinSystem implements System {
                 pin._display.visible = true;
                 this.displayPins.addChild(pin._display);
             }
+            if (pin._labelDisplay !== undefined) pin._labelDisplay.visible = true;
             this.redrawComponent(pin, undefined);
         } else {
             if (pin._display.visible) {
                 pin._display.visible = false;
                 this.displayPins.removeChild(pin._display);
             }
+            if (pin._labelDisplay !== undefined) pin._labelDisplay.visible = false;
         }
     }
 
@@ -206,12 +209,13 @@ export class PinSystem implements System {
             }
         } else {
             if (pin._labelDisplay === undefined) {
-                pin._labelDisplay = new PIXI.Text("");
+                pin._labelDisplay = new PIXI.Text("TEST");
                 pin._labelDisplay.parentLayer = this.textSystem.textLayer;
                 pin._labelDisplay.anchor.set(0.5, 1);
-                pin._labelDisplay.position.set(0, -RADIUS);
-                pin._display.addChild(pin._labelDisplay);
+                pin._labelDisplay.visible = pin._display.visible;
+                this.displayLabels.addChild(pin._labelDisplay);
             }
+            pin._labelDisplay.position.set(pos.x, pos.y - RADIUS);
             pin._labelDisplay.text = pin.label;
         }
     }
@@ -283,7 +287,9 @@ export class PinSystem implements System {
 
         cnt.addChild(this.displayPins);
 
-        this.phase.board.addChild(cnt);
+        this.displayLabels = new PIXI.Container();
+
+        this.phase.board.addChild(cnt, this.displayLabels);
 
         let g = new PIXI.Graphics();
         g.beginFill(0xFFFFFF);
@@ -295,6 +301,7 @@ export class PinSystem implements System {
 
     destroy(): void {
         this.circleTex.destroy(true);
+        this.displayLabels.destroy(DESTROY_ALL);
         this.displayPins.destroy(DESTROY_ALL);
         this.layerPin.destroy(DESTROY_ALL);
     }
