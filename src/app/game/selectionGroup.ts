@@ -357,13 +357,13 @@ export class SelectionGroup {
         return data;
     }
 
-    private hasComponentType(type: string): boolean {
+    hasComponentType(type: string): boolean {
         let data = this.dataByType.get(type);
         if (data === undefined) return false;
         return data.entities.size > 0;
     }
 
-    private hasEveryoneType(type: string): boolean {
+    hasEveryoneType(type: string): boolean {
         let data = this.dataByType.get(type);
         if (data === undefined) return false;
         return data.entities.size === this.selectedEntities.size;

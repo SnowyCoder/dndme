@@ -122,6 +122,11 @@ export class EditMapPhase extends BirdEyePhase {
     getMapPointFromMouseInteraction(event: PIXI.InteractionEvent, orig?: PIXI.Point): PIXI.Point {
         let point = event.data.getLocalPosition(this.board, orig);
 
+        if ((this.tool === Tool.MOVE && this.selection.hasComponentType('pin')) || this.tool == Tool.CREATE_PIN) {
+            // Disable snaps and wall follow.
+            return point;
+        }
+
         let nearest = this.interactionSystem.snapDb.findNearest([point.x, point.y]);
         if (nearest !== undefined && nearest[1] < 100) {
             point.set(nearest[0][0], nearest[0][1]);
