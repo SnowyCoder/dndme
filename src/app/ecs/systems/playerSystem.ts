@@ -1,5 +1,5 @@
 import {System} from "../system";
-import {EcsTracker} from "../ecs";
+import {World} from "../ecs";
 import {SingleEcsStorage} from "../storage";
 import {EditMapPhase} from "../../phase/editMap/editMapPhase";
 import {Component, PositionComponent} from "../component";
@@ -43,7 +43,7 @@ export interface VisibilitySpreadEntryData {
 }
 
 export class PlayerSystem implements System {
-    readonly ecs: EcsTracker;
+    readonly ecs: World;
 
     storage = new SingleEcsStorage<PlayerComponent>('player', true, true);
     visibleStorage = new SingleEcsStorage<PlayerVisibleComponent>('player_visible', false, false);
@@ -52,7 +52,7 @@ export class PlayerSystem implements System {
     // If false a player can see a thing only if it's illuminated by artificial light
     ambientIlluminated: boolean;
 
-    constructor(ecs: EcsTracker, phase: EditMapPhase) {
+    constructor(ecs: World, phase: EditMapPhase) {
         this.ecs = ecs;
         this.phase = phase;
 

@@ -1,6 +1,6 @@
 import JSZip from "jszip";
 import {GridOptions, GridType} from "../game/grid";
-import {EcsTracker, SerializedEcs} from "../ecs/ecs";
+import {World, SerializedEcs} from "../ecs/ecs";
 
 export class MapLevel {
     id: number;
@@ -11,14 +11,14 @@ export class MapLevel {
         this.id = id;
     }
 
-    loadInto(ecs: EcsTracker): void {
+    loadInto(ecs: World): void {
         ecs.clear();
         if (this.ecs !== undefined) {
             ecs.deserialize(this.ecs);
         }
     }
 
-    saveFrom(ecs: EcsTracker): void {
+    saveFrom(ecs: World): void {
         this.ecs = undefined;
         this.ecs = ecs.serialize();
     }

@@ -4,7 +4,7 @@ import {Point} from "../../util/geometry";
 import {DESTROY_ALL} from "../../util/pixi";
 import {GridGraphicalOptions, GridType} from "../../game/grid";
 import {GridResource, Resource} from "../resource";
-import {EcsTracker} from "../ecs";
+import {World} from "../ecs";
 import {System} from "../system";
 import {EditMapDisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 
@@ -14,7 +14,7 @@ const SQRT3 = Math.sqrt(3);
 
 export class GridSystem implements System {
     readonly type = 'grid';
-    ecs: EcsTracker;
+    ecs: World;
     sprite: PIXI.TilingSprite;
 
     private gridRes?: GridResource;
@@ -25,7 +25,7 @@ export class GridSystem implements System {
     scaleX: number = 1;
     scaleY: number = 1;
 
-    constructor(ecs: EcsTracker) {
+    constructor(ecs: World) {
         this.ecs = ecs;
         this.sprite = new PIXI.TilingSprite(PIXI.Texture.EMPTY, app.screen.width, app.screen.height);
         this.sprite.zIndex = EditMapDisplayPrecedence.GRID;

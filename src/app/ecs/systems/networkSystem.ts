@@ -1,5 +1,5 @@
 import {System} from "../system";
-import {EcsTracker} from "../ecs";
+import {World} from "../ecs";
 import {Channel} from "../../network/channel";
 import {Component, HideableComponent, MultiComponent} from "../component";
 import * as P from "../../protocol/game";
@@ -7,7 +7,7 @@ import {Resource} from "../resource";
 import {PacketContainer} from "../../protocol/packet";
 
 export class HostNetworkSystem implements System {
-    readonly ecs: EcsTracker;
+    readonly ecs: World;
     private channel: Channel;
 
     private entitySpawning?: number;
@@ -17,7 +17,7 @@ export class HostNetworkSystem implements System {
 
     isEnabled = false;
 
-    constructor(ecs: EcsTracker, ch: Channel) {
+    constructor(ecs: World, ch: Channel) {
         this.ecs = ecs;
         this.channel = ch;
 
@@ -221,10 +221,10 @@ export class HostNetworkSystem implements System {
 }
 
 export class ClientNetworkSystem implements System {
-    readonly ecs: EcsTracker;
+    readonly ecs: World;
     private channel: Channel;
 
-    constructor(ecs: EcsTracker, channel: Channel) {
+    constructor(ecs: World, channel: Channel) {
         this.ecs = ecs;
         this.channel = channel;
 

@@ -22,7 +22,7 @@ export interface EcsEntityLinked {
     _ecs_entity?: number;
 }
 
-export class EcsTracker {
+export class World {
     storages = new Map<string, EcsStorage<any>>();
     storageList = new Array<EcsStorage<any>>();
     entities = new Set<number>();

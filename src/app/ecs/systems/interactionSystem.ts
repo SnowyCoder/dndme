@@ -14,7 +14,7 @@ import {
 import {Aabb} from "../../geometry/aabb";
 import {polygonPointIntersect} from "../../util/geometry";
 import {Obb} from "../../geometry/obb";
-import {EcsTracker} from "../ecs";
+import {World} from "../ecs";
 import {DynamicTree} from "../../geometry/dynamicTree";
 import {SingleEcsStorage} from "../storage";
 import {System} from "../system";
@@ -293,7 +293,7 @@ export interface InteractionComponent extends Component {
 }
 
 export class InteractionSystem implements System {
-    ecs: EcsTracker;
+    ecs: World;
     phase: EditMapPhase;
 
     storage = new SingleEcsStorage<InteractionComponent>('interaction', false, false);
@@ -302,7 +302,7 @@ export class InteractionSystem implements System {
     snapDb: PointDB;
     aabbTree = new DynamicTree<InteractionComponent>();
 
-    constructor(ecs: EcsTracker, phase: EditMapPhase) {
+    constructor(ecs: World, phase: EditMapPhase) {
         this.ecs = ecs;
         this.phase = phase;
         this.snapDb = new PointDB(phase.gridSystem);

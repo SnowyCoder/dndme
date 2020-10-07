@@ -1,17 +1,17 @@
 import {System} from "../system";
-import {EcsTracker} from "../ecs";
+import {World} from "../ecs";
 import PIXI from "../../PIXI";
 import {DESTROY_ALL} from "../../util/pixi";
 import {EditMapDisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {app} from "../../index";
 
 export class TextSystem implements System {
-    readonly ecs: EcsTracker;
+    readonly ecs: World;
 
     textLayer: PIXI.display.Layer;
 
-    constructor(tracker: EcsTracker) {
-        this.ecs = tracker;
+    constructor(world: World) {
+        this.ecs = world;
     }
 
     enable() {

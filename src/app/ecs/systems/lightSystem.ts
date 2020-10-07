@@ -1,6 +1,6 @@
 import {Component, PositionComponent} from "../component";
 import {System} from "../system";
-import {EcsTracker} from "../ecs";
+import {World} from "../ecs";
 import {CUSTOM_BLEND_MODES, DESTROY_ALL} from "../../util/pixi";
 import {SingleEcsStorage} from "../storage";
 import {EditMapPhase} from "../../phase/editMap/editMapPhase";
@@ -66,7 +66,7 @@ export interface LocalLightSettings extends Resource {
  * So yeah, no batched uniforms in WebGL it seems. (TODO: explore more possibilities)
  */
 export class LightSystem implements System {
-    readonly ecs: EcsTracker;
+    readonly ecs: World;
     storage = new SingleEcsStorage<LightComponent>('light');
     phase: EditMapPhase;
 
@@ -77,7 +77,7 @@ export class LightSystem implements System {
     lightSettings: LightSettings;
     localLightSettings: LocalLightSettings;
 
-    constructor(ecs: EcsTracker, phase: EditMapPhase) {
+    constructor(ecs: World, phase: EditMapPhase) {
         this.ecs = ecs;
         this.phase = phase;
 

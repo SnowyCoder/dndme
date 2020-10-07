@@ -1,4 +1,4 @@
-import {EcsTracker} from "../ecs/ecs";
+import {World} from "../ecs/ecs";
 import {Component, NameComponent, NoteComponent, PositionComponent} from "../ecs/component";
 import {LightComponent} from "../ecs/systems/lightSystem";
 import {PlayerComponent} from "../ecs/systems/playerSystem";
@@ -28,7 +28,7 @@ export interface AddComponent {
 }
 
 export class SelectionGroup {
-    private ecs: EcsTracker;
+    private ecs: World;
 
     selectedEntities = new Set<number>();
     dataByType = new Map<string, TypeData>();
@@ -36,7 +36,7 @@ export class SelectionGroup {
     private isTranslating: boolean = false;
     private translateDirty: boolean = false;
 
-    constructor(ecs: EcsTracker) {
+    constructor(ecs: World) {
         this.ecs = ecs;
         this.ecs.events.on('tool_move_begin', () => this.isTranslating = true);
         this.ecs.events.on('tool_move_end', () => {

@@ -1,6 +1,6 @@
 import PIXI from "../../PIXI";
 import {System} from "../system";
-import {EcsTracker} from "../ecs";
+import {World} from "../ecs";
 import {EditMapPhase, Tool} from "../../phase/editMap/editMapPhase";
 import {DESTROY_ALL} from "../../util/pixi";
 import {EditMapDisplayPrecedence} from "../../phase/editMap/displayPrecedence";
@@ -33,7 +33,7 @@ function lerpColor(a: number, b: number, t: number): number {
 const RADIUS = 12;
 
 export class PinSystem implements System {
-    readonly ecs: EcsTracker;
+    readonly ecs: World;
     readonly phase: EditMapPhase;
 
     readonly storage = new SingleEcsStorage<PinComponent>('pin', true, true);
@@ -52,21 +52,21 @@ export class PinSystem implements System {
     useVisibility: boolean;
 
 
-    constructor(tracker: EcsTracker, phase: EditMapPhase) {
-        this.ecs = tracker;
+    constructor(world: World, phase: EditMapPhase) {
+        this.ecs = world;
         this.phase = phase;
 
         this.textSystem = phase.textSystem;
 
         this.useVisibility = !this.ecs.isMaster;
 
-        tracker.addStorage(this.storage);
-        tracker.events.on('component_add', this.onComponentAdd, this);
-        tracker.events.on('component_edited', this.onComponentEdited, this);
-        tracker.events.on('component_remove', this.onComponentRemove, this);
-        tracker.events.on('selection_begin', this.onSelectionBegin, this);
-        tracker.events.on('selection_end', this.onSelectionEnd, this);
-        tracker.events.on('resource_edited', this.onResourceEdited, this);
+        world.addStorage(this.storage);
+        world.events.on('component_add', this.onComponentAdd, this);
+        world.events.on('component_edited', this.onComponentEdited, this);
+        world.events.on('component_remove', this.onComponentRemove, this);
+        world.events.on('selection_begin', this.onSelectionBegin, this);
+        world.events.on('selection_end', this.onSelectionEnd, this);
+        world.events.on('resource_edited', this.onResourceEdited, this);
     }
 
     private setVisible(pin: PinComponent, visible: boolean): void {

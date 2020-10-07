@@ -2,7 +2,7 @@ import {Component, PositionComponent} from "../component";
 import {Aabb} from "../../geometry/aabb";
 import {SingleEcsStorage} from "../storage";
 import {DynamicTree} from "../../geometry/dynamicTree";
-import {EcsTracker} from "../ecs";
+import {World} from "../ecs";
 import {Line} from "../../geometry/line";
 import {computeViewport} from "../../geometry/visibilityPolygon";
 import {System} from "../system";
@@ -49,14 +49,14 @@ export interface VisibilityBlocker extends Component {
  * Cut off all those ear cutting algorithms, just make triangles starting from the center!
  */
 export class VisibilitySystem implements System {
-    ecs: EcsTracker;
+    ecs: World;
     storage = new SingleEcsStorage<VisibilityComponent>("visibility", false, false);
     blockerStorage = new SingleEcsStorage<VisibilityBlocker>("visibility_blocker", false, false);
 
     interactionSystem: InteractionSystem;
     aabbTree = new DynamicTree<VisibilityComponent>();
 
-    constructor(ecs: EcsTracker, phase: EditMapPhase) {
+    constructor(ecs: World, phase: EditMapPhase) {
         this.ecs = ecs;
         this.interactionSystem = phase.interactionSystem;
 

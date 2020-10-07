@@ -1,4 +1,4 @@
-import {EcsTracker} from "./ecs";
+import {World} from "./ecs";
 import {MultiEcsStorage, SingleEcsStorage} from "./storage";
 
 export interface Component {
@@ -41,7 +41,7 @@ export interface NoteComponent extends HideableComponent, MultiComponent {
     note: string;
 }
 
-export function registerCommonStorage(ecs: EcsTracker) {
+export function registerCommonStorage(ecs: World) {
     ecs.addStorage(new SingleEcsStorage("position"));
     ecs.addStorage(new SingleEcsStorage("transform"));
     ecs.addStorage(new MultiEcsStorage("name"));

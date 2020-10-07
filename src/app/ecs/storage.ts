@@ -1,5 +1,5 @@
 import {Component, HideableComponent, MultiComponent} from "./component";
-import {EcsTracker} from "./ecs";
+import {World} from "./ecs";
 
 
 export function serializeObj(obj: Component): any {
@@ -30,7 +30,7 @@ export interface EcsStorage<C extends Component> {
 
     serializeClient(shouldIgnore: (entity: number) => boolean): any;
 
-    deserialize(ecs: EcsTracker, raw: any): void;
+    deserialize(ecs: World, raw: any): void;
 }
 
 export class MultiEcsStorage<C extends MultiComponent> implements EcsStorage<C> {
@@ -161,7 +161,7 @@ export class MultiEcsStorage<C extends MultiComponent> implements EcsStorage<C> 
         return res;
     }
 
-    deserialize(ecs: EcsTracker, data: {[entity: number]: any[]}): void {
+    deserialize(ecs: World, data: {[entity: number]: any[]}): void {
         for (let entity in data) {
             let e = parseInt(entity);
             for (let comp of data[entity]) {
@@ -249,7 +249,7 @@ export class SingleEcsStorage<C extends Component> implements EcsStorage<C> {
         return res;
     }
 
-    deserialize(ecs: EcsTracker, data: { [entity: number]: any}): void {
+    deserialize(ecs: World, data: { [entity: number]: any}): void {
         for (let entity in data) {
             let obj = Object.assign({}, data[entity], {
                 type: this.type
@@ -315,7 +315,7 @@ export class FlagEcsStorage implements EcsStorage<Component> {
         return [...this.data.keys()].filter((e) => !shouldIgnore(e));
     }
 
-    deserialize(ecs: EcsTracker, data: number[]): void {
+    deserialize(ecs: World, data: number[]): void {
         for (let entity of data) {
             ecs.addComponent(entity, {
                 type: this.type,

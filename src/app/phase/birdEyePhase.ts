@@ -1,7 +1,7 @@
 import {Phase} from "./phase";
 import PIXI from "../PIXI";
 import {app} from "../index";
-import {EcsTracker} from "../ecs/ecs";
+import {World} from "../ecs/ecs";
 import {registerCommonStorage} from "../ecs/component";
 import {GridSystem} from "../ecs/systems/gridSystem";
 import {IHitArea} from "pixi.js";
@@ -14,7 +14,7 @@ interface PointerData {
 }
 
 export class BirdEyePhase extends Phase {
-    ecs: EcsTracker;
+    ecs: World;
     board: PIXI.Container;
 
     lastMouseDownTime?: number;
@@ -29,7 +29,7 @@ export class BirdEyePhase extends Phase {
     constructor(name: string, isMaster: boolean) {
         super(name);
 
-        this.ecs = new EcsTracker(isMaster);
+        this.ecs = new World(isMaster);
 
         // TODO: we should create render phases, one for the world (using the projection matrix to move the camera)
         //       and the other for the GUI (or other things that do not depend on camera position, as the GridSystem(?)).

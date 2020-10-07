@@ -1,6 +1,6 @@
 import {Component, PositionComponent} from "../component";
 import {System} from "../system";
-import {EcsTracker} from "../ecs";
+import {World} from "../ecs";
 import {EditMapPhase} from "../../phase/editMap/editMapPhase";
 import {VisibilityComponent, VisibilitySystem} from "./visibilitySystem";
 import {SingleEcsStorage} from "../storage";
@@ -28,7 +28,7 @@ export function newVisibilityAwareComponent(isWall: boolean = false): Visibility
 
 
 export class VisibilityAwareSystem implements System {
-    private ecs: EcsTracker;
+    private ecs: World;
     private phase: EditMapPhase;
     private visSys: VisibilitySystem;
 
@@ -44,7 +44,7 @@ export class VisibilityAwareSystem implements System {
      */
     events = new EventEmitter();
 
-    constructor(ecs: EcsTracker, phase: EditMapPhase) {
+    constructor(ecs: World, phase: EditMapPhase) {
         this.ecs = ecs;
         this.phase = phase;
         this.visSys = phase.visibilitySystem;

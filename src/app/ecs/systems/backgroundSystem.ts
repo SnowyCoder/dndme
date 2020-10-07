@@ -1,5 +1,5 @@
 import {System} from "../system";
-import {EcsTracker} from "../ecs";
+import {World} from "../ecs";
 import PIXI from "../../PIXI";
 import {DESTROY_ALL, DESTROY_MIN, loadTexture} from "../../util/pixi";
 import {EditMapPhase} from "../../phase/editMap/editMapPhase";
@@ -36,7 +36,7 @@ export interface BackgroundImageComponent extends Component {
 
 
 export class BackgroundSystem implements System {
-    readonly ecs: EcsTracker;
+    readonly ecs: World;
     readonly phase: EditMapPhase;
     readonly storage: SingleEcsStorage<BackgroundImageComponent>;
 
@@ -45,8 +45,8 @@ export class BackgroundSystem implements System {
 
     renderTexturePool = new RenderTexturePool();
 
-    constructor(tracker: EcsTracker, phase: EditMapPhase) {
-        this.ecs = tracker;
+    constructor(world: World, phase: EditMapPhase) {
+        this.ecs = world;
         this.phase = phase;
         this.storage = new SingleEcsStorage<BackgroundImageComponent>(BACKGROUND_TYPE, true, true);
 
