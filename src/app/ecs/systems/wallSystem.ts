@@ -23,6 +23,7 @@ export interface WallComponent extends Component {
     visible: boolean,
     _display: PIXI.Graphics;
     _selected?: boolean;
+    _dontMerge?: number;
 }
 
 const SELECTION_COLOR = 0x7986CB;
@@ -68,6 +69,7 @@ export class WallSystem implements System {
             console.warn("Found wall without position, please add first the position, then the wall");
             return;
         }
+        wall._dontMerge = 0;
 
         if (wall.visible === undefined) wall.visible = false;
         this.addWallDisplay(pos, wall);
@@ -118,6 +120,7 @@ export class WallSystem implements System {
         };
 
         for (let wall of walls) {
+            if (wall._dontMerge !== 0) continue;
             let pos = posStorage.getComponent(wall.entity);
 
             let p1 = pos.x + "@" + pos.y;
@@ -184,10 +187,6 @@ export class WallSystem implements System {
             insertInIndex(p1, wall);
             insertInIndex(p2, wall);
         }
-
-
-        // TODO: we need to remove the intersection breaks from the selected walls and also to
-        // remove them from the unselected walls (?).
     }
 
     fixWallPostTranslation(walls: WallComponent[]) {
@@ -265,6 +264,14 @@ export class WallSystem implements System {
         if (!this.isTranslating) {
             this.fixWallPreTranslation([wall]);
             this.fixWallPostTranslation([wall]);
+        }
+        if (comp.type === 'wall' && 'vec' in changed) {
+            this.ecs.editComponent(wall.entity, 'interaction', {
+                shape: shapeLine(new Line(
+                    position.x, position.y,
+                    position.x + wall.vec[0], position.y + wall.vec[1],
+                )),
+            });
         }
 
         if (comp.type === 'position') {

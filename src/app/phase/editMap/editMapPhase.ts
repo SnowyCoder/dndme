@@ -3,7 +3,6 @@ import {BirdEyePhase} from "../birdEyePhase";
 import PIXI from "../../PIXI";
 import {app, stage} from "../../index";
 import {BackgroundSystem} from "../../ecs/systems/backgroundSystem";
-import {PointDB} from "../../game/pointDB";
 import {SelectionGroup} from "../../game/selectionGroup";
 import {NetworkManager} from "../../network/networkManager";
 import {HostEditMapPhase} from "./hostEditMapPhase";
@@ -17,6 +16,7 @@ import {VisibilitySystem} from "../../ecs/systems/visibilitySystem";
 import {InteractionSystem} from "../../ecs/systems/interactionSystem";
 import {PlayerSystem} from "../../ecs/systems/playerSystem";
 import {VisibilityAwareSystem} from "../../ecs/systems/visibilityAwareSystem";
+import {DoorSystem} from "../../ecs/systems/doorSystem";
 
 
 export class EditMapPhase extends BirdEyePhase {
@@ -29,6 +29,7 @@ export class EditMapPhase extends BirdEyePhase {
     backgroundSystem: BackgroundSystem;
     textSystem: TextSystem;
     wallSystem: WallSystem;
+    doorSystem: DoorSystem;
     visibilitySystem: VisibilitySystem;
     visibilityAwareSystem: VisibilityAwareSystem;
     pinSystem: PinSystem;
@@ -57,6 +58,7 @@ export class EditMapPhase extends BirdEyePhase {
         this.backgroundSystem = new BackgroundSystem(this.ecs, this);
         this.textSystem = new TextSystem(this.ecs);
         this.wallSystem = new WallSystem(this.ecs, this);
+        this.doorSystem = new DoorSystem(this.ecs, this);
         this.visibilitySystem = new VisibilitySystem(this.ecs, this);
         this.visibilityAwareSystem = new VisibilityAwareSystem(this.ecs, this);
         this.pinSystem = new PinSystem(this.ecs, this);
@@ -284,6 +286,7 @@ export class EditMapPhase extends BirdEyePhase {
         this.backgroundSystem.enable();
         this.textSystem.enable();
         this.wallSystem.enable();
+        this.doorSystem.enable();
         this.visibilitySystem.enable();
         this.visibilityAwareSystem.enable();
         this.pinSystem.enable();
@@ -297,6 +300,7 @@ export class EditMapPhase extends BirdEyePhase {
         this.pinSystem.destroy();
         this.visibilityAwareSystem.destroy();
         this.visibilitySystem.destroy();
+        this.doorSystem.destroy();
         this.wallSystem.destroy();
         this.textSystem.destroy();
         this.backgroundSystem.destroy();

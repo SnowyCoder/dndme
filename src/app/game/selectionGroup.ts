@@ -2,6 +2,7 @@ import {World} from "../ecs/ecs";
 import {Component, NameComponent, NoteComponent, PositionComponent} from "../ecs/component";
 import {LightComponent} from "../ecs/systems/lightSystem";
 import {PlayerComponent} from "../ecs/systems/playerSystem";
+import {DoorComponent, DoorType} from "../ecs/systems/doorSystem";
 
 const MULTI_TYPES = ['name', 'note'];
 const ELIMINABLE_TYPES = ['name', 'note', 'player', 'light'];
@@ -253,6 +254,11 @@ export class SelectionGroup {
                 type: 'player',
                 name: 'Player',
             });
+        } else if (this.hasEveryoneType('wall') && !this.hasComponentType('door')) {
+            res.push({
+                type: "door",
+                name: "Door"
+            });
         }
 
         return res;
@@ -312,6 +318,15 @@ export class SelectionGroup {
                                 nightVision: false,
                                 range: 50,
                             } as PlayerComponent;
+                            break;
+                        case 'door':
+                            comp = {
+                                type: 'door',
+                                doorType: DoorType.NORMAL_LEFT,
+                                locked: false,
+                                open: false,
+                                clientVisible: true,
+                            } as DoorComponent;
                             break;
                         default: throw 'Cannot add unknown component: ' + propertyValue;
                     }
