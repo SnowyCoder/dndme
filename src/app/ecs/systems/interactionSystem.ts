@@ -289,7 +289,8 @@ export interface InteractionComponent extends Component {
     queryCheck?: (shape: Shape) => boolean;
 
     _treeId?: number;
-    _snaps?: number[]
+    _snaps?: number[];
+    _translateStartLoc?: [number, number];
 }
 
 export class InteractionSystem implements System {
@@ -351,14 +352,17 @@ export class InteractionSystem implements System {
         }
     }
 
-    private worldToLocal(comp: InteractionComponent): void {
+    private savePosPreTranslate(comp: InteractionComponent): void {
         let pos = this.ecs.getComponent(comp.entity, 'position') as PositionComponent;
-        shapeTranslate(comp.shape, -pos.x, -pos.y)
+        comp._translateStartLoc = [pos.x, pos.y];
     }
 
-    private localToWorld(comp: InteractionComponent): void {
+    private updatePosPostTranslate(comp: InteractionComponent): void {
         let pos = this.ecs.getComponent(comp.entity, 'position') as PositionComponent;
-        shapeTranslate(comp.shape, pos.x, pos.y)
+
+        let oldPos = comp._translateStartLoc;
+        shapeTranslate(comp.shape, pos.x - oldPos[0], pos.y - oldPos[1]);
+        comp._translateStartLoc = undefined;
     }
 
     private onComponentAdd(comp: Component): void {
@@ -415,7 +419,7 @@ export class InteractionSystem implements System {
         for (let comp of this.phase.selection.getSelectedByType("interaction")) {
             let c = comp as InteractionComponent;
             this.unregisterComponent(c);
-            this.worldToLocal(c);
+            this.savePosPreTranslate(c);
         }
         this.isTranslating = true;
     }
@@ -424,7 +428,7 @@ export class InteractionSystem implements System {
         this.isTranslating = false;
         for (let comp of this.phase.selection.getSelectedByType("interaction")) {
             let c = comp as InteractionComponent;
-            this.localToWorld(c);
+            this.updatePosPostTranslate(c);
             this.updateComponent(c);
         }
     }

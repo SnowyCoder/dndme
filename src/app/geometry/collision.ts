@@ -191,3 +191,9 @@ export function triangleContainsPoint(p: StupidPoint, p0: StupidPoint, p1: Stupi
     return s - EPSILON > 0 && t - EPSILON > 0 && (s + t) < 2 * A * sign - EPSILON;
 }
 
+export function lineSameSlope(ax: number, ay: number, bx: number, by: number): boolean {
+    // We need to remove divisions, (this is not real code)
+    // ay / ax == by / bx  ==> ay * bx == by * ax
+    return Math.abs(ay * bx - by * ax) < EPSILON;
+}
+

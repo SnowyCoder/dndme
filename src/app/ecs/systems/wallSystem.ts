@@ -9,7 +9,7 @@ import {Component, PositionComponent} from "../component";
 import {distSquared2d, Point} from "../../util/geometry";
 import {Aabb} from "../../geometry/aabb";
 import {Line} from "../../geometry/line";
-import {intersectSegmentVsSegment, SegmentVsSegmentRes} from "../../geometry/collision";
+import {intersectSegmentVsSegment, lineSameSlope, SegmentVsSegmentRes} from "../../geometry/collision";
 import {app} from "../../index";
 import {InteractionComponent, LineShape, shapeAabb, shapeLine} from "./interactionSystem";
 import {VisibilityBlocker} from "./visibilitySystem";
@@ -96,8 +96,96 @@ export class WallSystem implements System {
     }
 
     fixWallPreTranslation(walls: WallComponent[]) {
+        for (let wall of walls) {
+            let visBlock = this.ecs.getComponent(wall.entity, 'visibility_blocker');
+            if (visBlock !== undefined) this.ecs.removeComponent(visBlock);
+        }
+
+
         // what changes here? a little bittle thing:
         // we need to unfix the wall (remove the intersection breaks).
+
+        let wall_index = new Map<string, WallComponent[]>();
+        let posStorage = this.ecs.storages.get('position') as SingleEcsStorage<PositionComponent>;
+
+        let insertInIndex = (index: string, wall: WallComponent) => {
+            let list = wall_index.get(index);
+            if (list === undefined) {
+                list = [];
+                wall_index.set(index, list);
+            }
+            list.push(wall);
+        };
+
+        for (let wall of walls) {
+            let pos = posStorage.getComponent(wall.entity);
+
+            let p1 = pos.x + "@" + pos.y;
+            let p2 = (pos.x + wall.vec[0]) + "@" + (pos.y + wall.vec[1]);
+
+            let tryMerge = (index: string): boolean => {
+                let mergeWithIndex = undefined;
+
+                let walls = wall_index.get(index);
+
+                if (walls === undefined) return;
+
+                let wlen = walls.length;
+                for (let i = 0; i < wlen; i++) {
+                    let owall = walls[i];
+                    if (lineSameSlope(wall.vec[0], wall.vec[1], owall.vec[0], owall.vec[1])) {
+                        mergeWithIndex = i;
+                        break;
+                    }
+                }
+
+                if (mergeWithIndex === undefined) return false;
+
+                let mwall = walls[mergeWithIndex];
+                let mpos = posStorage.getComponent(mwall.entity);
+                let minChanged = false;
+                let x = pos.x;
+                let y = pos.y;
+                let dx = wall.vec[0];
+                let dy = wall.vec[1];
+
+                if (p2 === index) {
+                    x += dx;
+                    y += dy;
+                    dx = -dx;
+                    dy = -dy;
+                }
+
+                if (mpos.x === x && mpos.y === y) {
+                    mpos.x += dx;
+                    mpos.y += dy;
+                    minChanged = true;
+                } else {
+                    mwall.vec[0] += wall.vec[0];
+                    mwall.vec[1] += wall.vec[1];
+                }
+
+                walls.splice(mergeWithIndex, 1);
+                let p;
+                if (minChanged) {
+                    p = mpos.x + "@" + mpos.y;
+                } else {
+                    p = (mpos.x + mwall.vec[0]) + "@" + (mpos.y + mwall.vec[1]);
+                }
+                insertInIndex(p, mwall);
+                this.ecs.despawnEntity(wall.entity);
+                this.redrawWall(mpos, mwall);
+
+                return true;
+            };
+
+            if (tryMerge(p1) || tryMerge(p2)) continue;
+
+            insertInIndex(p1, wall);
+            insertInIndex(p2, wall);
+        }
+
+
         // TODO: we need to remove the intersection breaks from the selected walls and also to
         // remove them from the unselected walls (?).
     }
@@ -105,8 +193,48 @@ export class WallSystem implements System {
     fixWallPostTranslation(walls: WallComponent[]) {
         // Recompute intersections with other walls.
         // Why not all everything directly? we want to compute also the self-intersections
-        // TODO
+
+        let posStorage = this.ecs.storages.get('position') as SingleEcsStorage<PositionComponent>;
+
+        for (let wall of walls) {
+            let pos = posStorage.getComponent(wall.entity);
+            let points = [pos.x, pos.y, pos.x + wall.vec[0], pos.y + wall.vec[1]];
+            this.fixIntersections(points, 0);
+
+            this.ecs.editComponent(pos.entity, "interaction", {
+                shape: shapeLine(new Line(points[0], points[1], points[2], points[3])),
+            });
+
+            if (points.length > 4) {
+                pos.x = points[0];
+                pos.y = points[1];
+                wall.vec[0] = points[2] - pos.x;
+                wall.vec[1] = points[3] - pos.y;
+            }
+
+            this.redrawWall(pos, wall);
+
+            let plen = points.length;
+            let cIds = [];
+            for (let i = 4; i < plen; i += 2) {
+                cIds.push(this.createWall(
+                    points[i - 2], points[i - 1],
+                    points[i], points[i + 1]
+                ));
+            }
+            if (cIds.length > 0) {
+                this.phase.selection.addEntities(cIds);
+                // TODO: optimization, update the selection only once!
+            }
+        }
+        for (let wall of walls) {
+            this.ecs.addComponent(wall.entity, {
+                type: "visibility_blocker",
+                entity: -1
+            } as VisibilityBlocker);
+        }
     }
+
 
     private onComponentEdited(comp: Component, changed: any): void {
         if (comp.type === 'player_visible') {
@@ -134,10 +262,10 @@ export class WallSystem implements System {
 
         if (wall === undefined || position === undefined) return;
 
-        /*if (!this.isTranslating) {
-            this.fixWallPreTranslation(wall);
-            this.fixWallPostTranslation(wall);
-        }*/
+        if (!this.isTranslating) {
+            this.fixWallPreTranslation([wall]);
+            this.fixWallPostTranslation([wall]);
+        }
 
         if (comp.type === 'position') {
             wall._display.position.set(position.x, position.y);
@@ -191,7 +319,6 @@ export class WallSystem implements System {
             let lls = res as LocalLightSettings;
             let visAll = lls.visionType === 'dm';
             for (let c of this.storage.allComponents()) {
-                console.log("Setting visibility: " + visAll + ", " + c.visible + " to " + c.entity);
                 c._display.visible = visAll || c.visible;
             }
         }
@@ -264,8 +391,8 @@ export class WallSystem implements System {
         return end;
     }
 
-    private createWall(minX: number, minY: number, maxX: number, maxY: number): void {
-        let id = this.ecs.spawnEntity(
+    private createWall(minX: number, minY: number, maxX: number, maxY: number): number {
+        return this.ecs.spawnEntity(
             {
                 type: 'position',
                 entity: -1,
@@ -279,7 +406,6 @@ export class WallSystem implements System {
                 _selected: true,
             } as WallComponent,
         );
-        this.createdIds.push(id);
     }
 
     addVertex(point: PIXI.Point): void {
@@ -295,10 +421,10 @@ export class WallSystem implements System {
             let plen = points.length;
 
             for (let i = 2; i < plen; i += 2) {
-                this.createWall(
+                this.createdIds.push(this.createWall(
                     points[i - 2], points[i - 1],
                     points[i    ], points[i + 1]
-                );
+                ));
             }
             this.createdLastPos = [point.x, point.y];
         }

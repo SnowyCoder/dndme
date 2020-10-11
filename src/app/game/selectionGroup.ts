@@ -77,8 +77,7 @@ export class SelectionGroup {
 
     onEntityDespawn(entity: number) {
         if (!this.selectedEntities.has(entity)) return;
-        this.removeEntity(entity);
-        this.update();
+        this.removeEntities([entity]);
     }
 
     clear(callListeners: boolean = true, update: boolean = true) {
@@ -96,7 +95,7 @@ export class SelectionGroup {
 
     setOnlyEntity(id: number): void {
         this.clear(true, false);
-        this.addEntity(id);
+        this.addEntities([id]);
     }
 
     setOnlyEntities(ids: number[]): void {
@@ -106,44 +105,53 @@ export class SelectionGroup {
         for (let id of this.selectedEntities) {
             if (!idSet.has(id)) removeIds.push(id);
         }
-        for (let id of removeIds) {
-            this.removeEntity(id);
+        this.removeEntities(removeIds, false);
+        this.addEntities(ids, false);
+        this.update();
+    }
+
+    toggleEntities(ids: number[], update: boolean=true): void {
+        for (let id of ids) {
+            if (this.selectedEntities.has(id)) {
+                this.removeEntities([id], false);
+            } else {
+                this.addEntities([id], false);
+            }
         }
+        if (update) this.update();
+    }
+
+    addEntities(ids: number[], update: boolean=true): void {
+        let count = 0;
         for (let id of ids) {
             if (this.selectedEntities.has(id)) continue;
-            this.addEntity(id);
+            count++;
+            this.selectedEntities.add(id);
+
+            let comps = this.ecs.getAllComponents(id);
+            for (let c of comps) {
+                this.getOrCreateData(c.type).entities.add(c);
+            }
+            this.ecs.events.emit('selection_begin', id);
         }
+        if (update && count !== 0) this.update();
     }
 
-    toggleEntity(id: number): void {
-        if (this.selectedEntities.has(id)) {
-            this.removeEntity(id);
-        } else {
-            this.addEntity(id);
+    removeEntities(ids: number[], update: boolean=true): void {
+        let count = 0;
+        for (let id of ids) {
+            if (!this.selectedEntities.has(id)) continue;
+            count++;
+            this.selectedEntities.delete(id)
+            let comps = this.ecs.getAllComponents(id);
+            for (let c of comps) {
+                let data = this.dataByType.get(c.type);
+                data.entities.delete(c);
+                if (data.entities.size === 0) this.dataByType.delete(c.type);
+            }
+            this.ecs.events.emit('selection_end', id);
         }
-    }
-
-    addEntity(id: number): void {
-        this.selectedEntities.add(id);
-
-        let comps = this.ecs.getAllComponents(id);
-        for (let c of comps) {
-            this.getOrCreateData(c.type).entities.add(c);
-        }
-        this.ecs.events.emit('selection_begin', id);
-        this.update();
-    }
-
-    removeEntity(id: number): void {
-        this.selectedEntities.delete(id)
-        let comps = this.ecs.getAllComponents(id);
-        for (let c of comps) {
-            let data = this.dataByType.get(c.type);
-            data.entities.delete(c);
-            if (data.entities.size === 0) this.dataByType.delete(c.type);
-        }
-        this.ecs.events.emit('selection_end', id);
-        this.update();
+        if (update && count !== 0) this.update();
     }
 
     getSelectedByType(type: string): Iterable<Component> {

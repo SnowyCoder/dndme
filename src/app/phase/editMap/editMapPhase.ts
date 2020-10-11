@@ -221,9 +221,7 @@ export class EditMapPhase extends BirdEyePhase {
                     this.selection.clear();
                 }
             } else {
-                for (let id of entities) {
-                    this.selection.toggleEntity(id);
-                }
+                this.selection.toggleEntities(entities);
             }
         }
     }

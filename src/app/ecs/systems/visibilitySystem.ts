@@ -164,6 +164,11 @@ export class VisibilitySystem implements System {
             if (vis !== undefined) {
                 this.updatePolygon(vis);
             }
+            let blk = this.blockerStorage.getComponent(c.entity);
+            if (blk !== undefined) {
+                let inter = this.ecs.getComponent(blk.entity,'interaction') as InteractionComponent;
+                this.recomputeArea(shapeToAabb(inter.shape));
+            }
         }
          else if (c.type === 'interaction' && 'shape' in changes && this.blockerStorage.getComponent(c.entity) !== undefined) {
             let i = c as InteractionComponent;
