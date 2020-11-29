@@ -2,7 +2,7 @@ export const STANDARD_GRID_OPTIONS = {
     color: 0,
     width: 10,
     opacity: 0.75,
-    size: 100,
+    size: 64,
     offX: 0,
     offY: 0,
 } as GridOptions;

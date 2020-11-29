@@ -40,6 +40,7 @@
     import ecsLight from "./ecsLight.vue";
     import ecsPlayer from "./ecsPlayer.vue";
     import ecsDoor from "./ecsDoor.vue";
+    import ecsPropTeleport from "./ecsPropTeleport.vue";
 
     export default {
         name: "ecs-component-wrapper",
@@ -55,7 +56,8 @@
             }
         },
         components: {
-            ecsName, ecsNote, ecsPosition, ecsWall, ecsBackgroundImage, ecsPin, ecsTransform, ecsLight, ecsPlayer, ecsDoor
+            ecsName, ecsNote, ecsPosition, ecsWall, ecsBackgroundImage, ecsPin, ecsTransform, ecsLight, ecsPlayer,
+            ecsDoor, ecsPropTeleport
         }
     }
 </script>

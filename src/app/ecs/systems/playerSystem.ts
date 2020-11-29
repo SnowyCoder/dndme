@@ -414,6 +414,7 @@ export class PlayerSystem implements System {
     private onComponentRemove(comp: Component): void {
         if (comp.type === 'player') {
             let pv = this.visibleStorage.getComponent(comp.entity);
+            if (pv === undefined) return;
             pv._playerNightVisionCount--;// Gotta undo those hacks
             this.onPlayerVisibleCountersUpdate(pv);
         }

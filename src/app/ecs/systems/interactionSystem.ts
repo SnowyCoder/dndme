@@ -1,15 +1,18 @@
 import {Component, PositionComponent, TransformComponent} from "../component";
 import {
-    overlapAabbVsAabb,
+    intersectSegmentVsSegment,
+    overlapAabbVsAabb, overlapAabbVsLine,
     overlapAabbVsPoint,
     overlapCircleVsAabb,
     overlapCircleVsCircle,
     overlapCircleVsPolygon,
-    overlapLineVsCircle,
+    overlapLineVsCircle, overlapLineVsPolygon,
+    overlapObbVsPolygon,
     overlapPointVsCircle,
     overlapRotatedRectVsAabb,
-    overlapRotatedRectVsCircle,
-    overlapRotatedRectVsPoint
+    overlapRotatedRectVsCircle, overlapRotatedRectVsLine,
+    overlapRotatedRectVsPoint, overlapRotatedRectVsRotatedRect,
+    SegmentVsSegmentRes
 } from "../../geometry/collision";
 import {Aabb} from "../../geometry/aabb";
 import {polygonPointIntersect} from "../../util/geometry";
@@ -111,7 +114,7 @@ export function shapeIntersect(shape1: Shape, shape2: Shape): boolean {
     let s1t = shape1.type;
     let s2t = shape2.type;
 
-    // TODO: aabb vs polygon, polygon vs polygon, and a fuckton of OBB (needs a lot of SAT algorithms I think)
+    // TODO: polygon vs polygon
     if (s1t === ShapeType.POINT) {
         let s1 = shape1 as PointShape;
         switch (s2t) {
@@ -127,8 +130,8 @@ export function shapeIntersect(shape1: Shape, shape2: Shape): boolean {
         switch (s2t) {
             case ShapeType.AABB: return overlapAabbVsAabb((shape2 as AabbShape).data, s1.data);
             case ShapeType.CIRCLE: return overlapCircleVsAabb((shape2 as CircleShape).pos, (shape2 as CircleShape).radius, s1.data);
-            case ShapeType.LINE: return true;
-            case ShapeType.POLYGON: break;
+            case ShapeType.LINE: return overlapAabbVsLine(s1.data, (shape2 as LineShape).data);
+            case ShapeType.POLYGON: return overlapObbVsPolygon(Obb.fromAabb(s1.data), (shape2 as PolygonShape).polygon);
             case ShapeType.OBB: return overlapRotatedRectVsAabb((shape2 as ObbShape).data, s1.data);
         }
     } else if (s1t === ShapeType.CIRCLE) {
@@ -139,6 +142,21 @@ export function shapeIntersect(shape1: Shape, shape2: Shape): boolean {
             case ShapeType.POLYGON: return overlapCircleVsPolygon(s1.pos, s1.radius, (shape2 as PolygonShape).polygon);
             case ShapeType.OBB: return overlapRotatedRectVsCircle((shape2 as ObbShape).data, s1.pos, s1.radius);
         }
+    } else if (s1t === ShapeType.LINE) {
+        let s1 = shape1 as LineShape;
+        switch (s2t) {
+            case ShapeType.LINE: return intersectSegmentVsSegment(s1.data, (shape2 as LineShape).data) == SegmentVsSegmentRes.INTERN;
+            case ShapeType.POLYGON: return overlapLineVsPolygon(s1.data, (shape2 as PolygonShape).polygon);
+            case ShapeType.OBB: return overlapRotatedRectVsLine((shape2 as ObbShape).data, s1.data);
+        }
+    } else if (s1t === ShapeType.POLYGON) {
+        let s1 = shape1 as PolygonShape;
+        switch (s2t) {
+            case ShapeType.POLYGON: break;
+            case ShapeType.OBB: return overlapObbVsPolygon((shape2 as ObbShape).data, s1.polygon);
+        }
+    } else if (s1t === ShapeType.OBB) {
+        return overlapRotatedRectVsRotatedRect((shape1 as ObbShape).data, (shape2 as ObbShape).data);
     }
     // Polygon vs RotatedRect & co.
     throw 'Query not implemented: ' + s1t + ' vs ' + s2t;
@@ -387,7 +405,7 @@ export class InteractionSystem implements System {
             let diffX = pos.x - oldX;
             let diffY = pos.y - oldY;
 
-            if (diffX !== 0 && diffY !== 0) {
+            if (diffX !== 0 || diffY !== 0) {
                 // TODO: trigger component change(?)
                 shapeTranslate(inter.shape, diffX, diffY);
                 this.updateComponent(inter);
@@ -399,6 +417,7 @@ export class InteractionSystem implements System {
             let inter = this.storage.getComponent(trans.entity);
             if (inter === undefined || inter.shape === undefined) return;
             let shape = inter.shape;
+            if (shape.type === ShapeType.POINT || shape.type == ShapeType.CIRCLE) return;
             if (shape.type !== ShapeType.OBB) {
                 console.warn("Unable to auto-rotate other shapes than OBB, watch your components!");
                 return;

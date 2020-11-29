@@ -18,6 +18,8 @@ Vue.use(BootstrapVue)
 import "Public/style.css";
 import {ClientEditMapPhase} from "./phase/editMap/clientEditMapPhase";
 import {addCustomBlendModes} from "./util/pixi";
+import {loadAssets} from "./assetsLoader";
+import {LoadingPhase} from "./phase/loadingPhase";
 
 export const windowEventEmitter = new EventEmitterWrapper((event, emitter) => {
     window.addEventListener(event, data => {
@@ -56,6 +58,10 @@ function onHashCahnge() {
     app.view.addEventListener('contextmenu', (e) => {
         e.preventDefault();
     });
+
+    stage.setPhase(new LoadingPhase());
+
+    await loadAssets();
 
     onHashCahnge();
 

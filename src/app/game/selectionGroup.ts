@@ -3,6 +3,7 @@ import {Component, NameComponent, NoteComponent, PositionComponent} from "../ecs
 import {LightComponent} from "../ecs/systems/lightSystem";
 import {PlayerComponent} from "../ecs/systems/playerSystem";
 import {DoorComponent, DoorType} from "../ecs/systems/doorSystem";
+import {PropTeleport} from "../ecs/systems/propSystem";
 
 const MULTI_TYPES = ['name', 'note'];
 const ELIMINABLE_TYPES = ['name', 'note', 'player', 'light'];
@@ -15,9 +16,10 @@ const FULLSCREENABLE_TYPES = ['note'];
 // bkg_img => bkg_img, position
 
 // Possible configurations: (? = 0/1, * = 0+, like regex)
-// (bkg_img, pos, name*, notes*)
-// (room, pos, name*, notes*)
-// (reminder, pos, name*, notes*)
+// (bkg_img, pos, transform, name*, notes*)
+// (pin, pos, light|player, name*, notes*)
+// (prop, pos, transform, teleport?, name*, notes*)
+// (wall, pos, door?)
 
 interface TypeData {
     entities: Set<Component>;
@@ -259,6 +261,11 @@ export class SelectionGroup {
                 type: "door",
                 name: "Door"
             });
+        } else if (this.hasEveryoneType('prop') && !this.hasComponentType('prop_teleport')) {
+            res.push({
+                type: 'prop_teleport',
+                name: "Teleporter",
+            });
         }
 
         return res;
@@ -328,6 +335,11 @@ export class SelectionGroup {
                                 clientVisible: true,
                             } as DoorComponent;
                             break;
+                        case 'prop_teleport':
+                            comp = {
+                                type: 'prop_teleport',
+                            } as PropTeleport;
+                            break;
                         default: throw 'Cannot add unknown component: ' + propertyValue;
                     }
                     for (let entity of [...this.selectedEntities]) {
@@ -344,6 +356,10 @@ export class SelectionGroup {
                 default:
                     console.warn("Unknown special event: " + propertyName);
             }
+            return;
+        } else if (type === '@') {
+            // Event call (yeah I know this is ugly) TODO please next me clean it up
+            this.ecs.events.emit(propertyName, propertyValue, multiId);
             return;
         }
 

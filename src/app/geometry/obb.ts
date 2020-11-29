@@ -21,7 +21,18 @@ export class Obb {
     }
 
 
-    static rotateAabb(aabb: Aabb, rot: number) {
+    static rotateAabb(aabb: Aabb, rot: number): Obb {
+        if (rot === 0) return this.fromAabb(aabb);
         return new Obb(aabb, rot, computeObbPoints(aabb, rot));
+    }
+
+    static fromAabb(aabb: Aabb): Obb {
+        let points = [
+            aabb.minX, aabb.minY,
+            aabb.minX, aabb.maxY,
+            aabb.maxX, aabb.maxY,
+            aabb.maxX, aabb.minY
+        ];
+        return new Obb(aabb, 0, points);
     }
 }

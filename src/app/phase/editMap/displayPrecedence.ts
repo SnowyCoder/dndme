@@ -4,8 +4,9 @@ export enum EditMapDisplayPrecedence {
     GRID = 10,
     LIGHT = 100,
     WALL = 210,
-    PINS = 220,
-    WALL_CREATOR = 230,
+    PROP = 220,
+    PINS = 230,
+    WALL_CREATOR = 260,
     TEXT = 300,
 }
 

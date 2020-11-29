@@ -5,9 +5,7 @@ import {EditMapPhase} from "../../phase/editMap/editMapPhase";
 import {VisibilityComponent, VisibilitySystem} from "./visibilitySystem";
 import {SingleEcsStorage} from "../storage";
 import {arrayRemoveElem} from "../../util/array";
-import {polygonPointIntersect} from "../../util/geometry";
-import {overlapPointVsCircle} from "../../geometry/collision";
-import {shapePolygon} from "./interactionSystem";
+import {InteractionComponent, shapeCircle, shapeIntersect, shapePolygon} from "./interactionSystem";
 import {Aabb} from "../../geometry/aabb";
 import EventEmitter = PIXI.utils.EventEmitter;
 
@@ -74,13 +72,17 @@ export class VisibilityAwareSystem implements System {
         let oldCanSee = viewer._canSee;
         viewer._canSee = [];
         let posStorage = this.ecs.storages.get('position') as SingleEcsStorage<PositionComponent>;
+        let interStorage = this.ecs.storages.get('interaction') as SingleEcsStorage<InteractionComponent>;
         let viewerPos = posStorage.getComponent(viewer.entity);
+
+        let viewerPoly = shapePolygon(polygon);
+        let viewerCircle = shapeCircle(viewerPos, range);
 
         // Check if old awares can still be seen
         for (let i of oldCanSee) {
-            let pos = posStorage.getComponent(i);
+            let shape = interStorage.getComponent(i).shape;
 
-            if (polygonPointIntersect(pos, polygon) && overlapPointVsCircle(pos, viewerPos, range)) {
+            if (shapeIntersect(viewerPoly, shape) && shapeIntersect(viewerCircle, shape)) {
                 viewer._canSee.push(i);
             } else {
                 let target = this.storage.getComponent(i);
@@ -90,13 +92,13 @@ export class VisibilityAwareSystem implements System {
             }
         }
 
-        let iter = this.phase.interactionSystem.query(shapePolygon(polygon), c => {
+        let iter = this.phase.interactionSystem.query(viewerPoly, c => {
             let target = this.storage.getComponent(c.entity);
             return  target !== undefined && target.isWall !== true && oldCanSee.indexOf(c.entity) === -1;
         });
         for (let e of iter) {
-            let pos = posStorage.getComponent(e.entity);
-            if (!overlapPointVsCircle(pos, viewerPos, range)) continue;
+            let shape = interStorage.getComponent(e.entity).shape;
+            if (!shapeIntersect(viewerCircle, shape)) continue;
 
             let target = this.storage.getComponent(e.entity);
             viewer._canSee.push(e.entity);
@@ -111,6 +113,7 @@ export class VisibilityAwareSystem implements System {
         let visStorage = this.ecs.storages.get('visibility') as SingleEcsStorage<VisibilityComponent>;
 
         let pos = posStorage.getComponent(aware.entity);
+        let shape = (this.ecs.getComponent(aware.entity, 'interaction') as InteractionComponent).shape;
 
         let oldVisibleBy = aware.visibleBy;
         aware.visibleBy = [];
@@ -128,7 +131,7 @@ export class VisibilityAwareSystem implements System {
             let pvis = visStorage.getComponent(entity);
 
             let range = pvis.range * 50;
-            if (!overlapPointVsCircle(pos, ppos, range) || !polygonPointIntersect(pos, p.tag.polygon)) continue;
+            if (!shapeIntersect(shapeCircle(ppos, range), shape) || !shapeIntersect(shape, shapePolygon(p.tag.polygon))) continue;
 
             vis._canSee.push(aware.entity);
             aware.visibleBy.push(vis.entity);
@@ -142,7 +145,7 @@ export class VisibilityAwareSystem implements System {
             let pvis = visStorage.getComponent(p);
 
             let range = pvis.range * 50;
-            if (overlapPointVsCircle(pos, ppos, range) && polygonPointIntersect(pos, pvis.polygon)) {
+            if (shapeIntersect(shapeCircle(ppos, range), shape) && shapeIntersect(shape, shapePolygon(pvis.polygon))) {
                 aware.visibleBy.push(p);
                 continue;
             }

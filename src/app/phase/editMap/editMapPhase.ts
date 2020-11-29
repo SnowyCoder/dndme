@@ -13,10 +13,11 @@ import {LightSystem} from "../../ecs/systems/lightSystem";
 import {TextSystem} from "../../ecs/systems/textSystem";
 import {QueryHitEvent} from "../../ecs/interaction";
 import {VisibilitySystem} from "../../ecs/systems/visibilitySystem";
-import {InteractionSystem} from "../../ecs/systems/interactionSystem";
+import {InteractionSystem, shapePoint} from "../../ecs/systems/interactionSystem";
 import {PlayerSystem} from "../../ecs/systems/playerSystem";
 import {VisibilityAwareSystem} from "../../ecs/systems/visibilityAwareSystem";
 import {DoorSystem} from "../../ecs/systems/doorSystem";
+import {PropSystem} from "../../ecs/systems/propSystem";
 
 
 export class EditMapPhase extends BirdEyePhase {
@@ -33,6 +34,7 @@ export class EditMapPhase extends BirdEyePhase {
     visibilitySystem: VisibilitySystem;
     visibilityAwareSystem: VisibilityAwareSystem;
     pinSystem: PinSystem;
+    propSystem: PropSystem;
     playerSystem: PlayerSystem;
     lightSystem: LightSystem;
 
@@ -62,6 +64,7 @@ export class EditMapPhase extends BirdEyePhase {
         this.visibilitySystem = new VisibilitySystem(this.ecs, this);
         this.visibilityAwareSystem = new VisibilityAwareSystem(this.ecs, this);
         this.pinSystem = new PinSystem(this.ecs, this);
+        this.propSystem = new PropSystem(this.ecs, this);
         this.lightSystem = new LightSystem(this.ecs, this);
         this.playerSystem = new PlayerSystem(this.ecs, this);
 
@@ -101,6 +104,10 @@ export class EditMapPhase extends BirdEyePhase {
             this.wallSystem.endCreation();
         } else if (oldTool === Tool.CREATE_PIN) {
             this.pinSystem.cancelCreation();
+        } else if (oldTool === Tool.CREATE_PROP) {
+            this.propSystem.cancelCreation();
+        } else if (oldTool === Tool.PROP_TELEPORT_LINK) {
+            document.body.style.cursor = 'auto';
         }
 
         if (tool !== Tool.MOVE && tool !== Tool.INSPECT) {
@@ -110,6 +117,10 @@ export class EditMapPhase extends BirdEyePhase {
             this.wallSystem.initCreation();
         } else if (tool === Tool.CREATE_PIN) {
             this.pinSystem.initCreation();
+        } else if (tool === Tool.CREATE_PROP) {
+            this.propSystem.initCreation();
+        } else if (tool === Tool.PROP_TELEPORT_LINK) {
+            document.body.style.cursor = 'crosshair';
         }
 
         this.tool = tool;
@@ -177,6 +188,10 @@ export class EditMapPhase extends BirdEyePhase {
             let point = this.getMapPointFromMouseInteraction(event);
 
             this.pinSystem.redrawCreation(point);
+        } else if (this.tool === Tool.CREATE_PROP) {
+            let point = this.getMapPointFromMouseInteraction(event);
+
+            this.propSystem.redrawCreation(point);
         }
     }
 
@@ -206,10 +221,23 @@ export class EditMapPhase extends BirdEyePhase {
         if (this.tool === Tool.CREATE_WALL) {
            this.wallSystem.addVertex(point);
            return;
-        }
-        if (this.tool === Tool.CREATE_PIN) {
+        } else if (this.tool === Tool.CREATE_PIN) {
             this.pinSystem.confirmCreation(point);
             return;
+        } else if (this.tool === Tool.CREATE_PROP) {
+            this.propSystem.confirmCreation(point);
+            return;
+        } else if (this.tool === Tool.PROP_TELEPORT_LINK) {
+            let query = this.interactionSystem.query(shapePoint(point), x => {
+                return this.ecs.getComponent(x.entity, 'prop') !== undefined;
+            });
+            for (let found of query) {
+                let oldTper = this.propSystem.currentLinkTarget;
+                this.propSystem.teleportLinkTo(found.entity);
+                this.selection.setOnlyEntity(oldTper);
+                this.changeTool(Tool.INSPECT);
+                return;
+            }
         }
         let ctrlPressed = !!event.data.originalEvent.ctrlKey;
 
@@ -290,6 +318,7 @@ export class EditMapPhase extends BirdEyePhase {
         this.visibilitySystem.enable();
         this.visibilityAwareSystem.enable();
         this.pinSystem.enable();
+        this.propSystem.enable();
         this.lightSystem.enable();
         this.playerSystem.enable();
     }
@@ -297,6 +326,7 @@ export class EditMapPhase extends BirdEyePhase {
     disable() {
         this.playerSystem.destroy();
         this.lightSystem.destroy();
+        this.propSystem.destroy();
         this.pinSystem.destroy();
         this.visibilityAwareSystem.destroy();
         this.visibilitySystem.destroy();
@@ -315,8 +345,10 @@ export enum Tool {
     MOVE = 'move',
     CREATE_WALL = 'create_wall',
     CREATE_PIN = 'create_pin',
+    CREATE_PROP = 'create_prop',
     GRID = 'grid',
     LIGHT = 'light',
+    PROP_TELEPORT_LINK = 'prop_teleport_link',
 }
 
 
