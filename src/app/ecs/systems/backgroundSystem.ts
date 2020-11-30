@@ -12,9 +12,10 @@ import {Aabb} from "../../geometry/aabb";
 import {VisibilitySpreadData} from "./playerSystem";
 import {InteractionComponent, ObbShape, shapeAabb, shapeObb} from "./interactionSystem";
 import {Obb} from "../../geometry/obb";
-import {BLEND_MODES, RenderTexturePool} from "pixi.js";
+import {BLEND_MODES, Matrix, RenderTexturePool, Transform} from "pixi.js";
 import {Resource} from "../resource";
 import {LocalLightSettings} from "./lightSystem";
+import inv = PIXI.groupD8.inv;
 
 type BACKGROUND_TYPE = 'background_image';
 const BACKGROUND_TYPE = 'background_image';
@@ -86,8 +87,12 @@ export class BackgroundSystem implements System {
                 type: "transform",
                 entity: -1,
                 rotation: 0,
+                scale: 1,
             } as TransformComponent;
             this.ecs.addComponent(entity, transform);
+        }
+        if (transform.scale === undefined) {
+            transform.scale = 1;
         }
 
 
@@ -111,6 +116,7 @@ export class BackgroundSystem implements System {
         sprite.anchor.set(0.5);
         sprite.position.set(pos.x, pos.y);
         sprite.rotation = transform.rotation;
+        sprite.scale.set(transform.scale);
         sprite.interactive = false;
         sprite.interactiveChildren = false;
         sprite.parentLayer = this.displayLayer;
@@ -125,6 +131,7 @@ export class BackgroundSystem implements System {
             pos.x - hw, pos.y - hh,
             pos.x + hw, pos.y + hh,
         );
+        aabb.scale(transform.scale, transform.scale, aabb);
         let obb = Obb.rotateAabb(aabb.copy(), transform.rotation);
 
         aabb.wrapPolygon(obb.rotVertex);
@@ -159,6 +166,7 @@ export class BackgroundSystem implements System {
             spreadVis = true;
             let pos = newCmp as TransformComponent;
             mapCmp._display.rotation = pos.rotation;
+            mapCmp._display.scale.set(pos.scale);
         }
 
         if (spreadVis) {
@@ -339,12 +347,16 @@ export class BackgroundSystem implements System {
 
         let localCnt = new PIXI.Container();
         // Setup local transform
-        localCnt.position.copyFrom(bkg._display.position);
-        localCnt.position.set(
-            -(localCnt.position.x - bkg._texture.width / 2),
-            -(localCnt.position.y - bkg._texture.height / 2)
+        let m = new Matrix();
+        m.translate(
+            -bkg._display.position.x,
+            -bkg._display.position.y
         );
-        localCnt.rotation = -bkg._display.rotation;
+        m.rotate(-bkg._display.rotation);
+        let invScale = 1/bkg._display.scale.x;
+        m.scale(invScale, invScale);
+        m.translate(bkg._texture.width / 2, bkg._texture.height / 2);
+        localCnt.transform.setFromMatrix(m);
 
         let worldCnt = new PIXI.Container();
 

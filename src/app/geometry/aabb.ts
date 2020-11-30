@@ -60,6 +60,17 @@ export class Aabb {
         target.maxY = this.maxY - amount;
     }
 
+    scale(dx: number, dy: number, target: Aabb): void {
+        let cx = (this.minX + this.maxX) / 2;
+        let cy = (this.minY + this.maxY) / 2;
+        let hw = (this.maxX - this.minX) / 2;
+        let hh = (this.maxY - this.minY) / 2;
+        target.minX = cx - hw * dx;
+        target.minY = cy - hh * dy;
+        target.maxX = cx + hw * dx;
+        target.maxY = cy + hh * dy;
+    }
+
     copyFrom(other: Aabb): void {
         this.minX = other.minX;
         this.minY = other.minY;

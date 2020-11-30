@@ -1,8 +1,8 @@
 import PIXI from "../../PIXI";
 import {app} from "../../index";
-import {Point} from "../../util/geometry";
+import {distSquared2d, Point} from "../../util/geometry";
 import {DESTROY_ALL} from "../../util/pixi";
-import {GridGraphicalOptions, GridType} from "../../game/grid";
+import {GridGraphicalOptions, GridType, STANDARD_GRID_OPTIONS} from "../../game/grid";
 import {GridResource, Resource} from "../resource";
 import {World} from "../ecs";
 import {System} from "../system";
@@ -17,7 +17,7 @@ export class GridSystem implements System {
     ecs: World;
     sprite: PIXI.TilingSprite;
 
-    private gridRes?: GridResource;
+    private readonly gridRes: GridResource;
     private internalScale: number;
 
     posX: number = 0;
@@ -30,29 +30,32 @@ export class GridSystem implements System {
         this.sprite = new PIXI.TilingSprite(PIXI.Texture.EMPTY, app.screen.width, app.screen.height);
         this.sprite.zIndex = EditMapDisplayPrecedence.GRID;
 
-        ecs.events.on('resource_add', this.onResourceAdd, this);
         ecs.events.on('resource_edited', this.onResourceEdited, this);
         ecs.events.on('resource_remove', this.onResourceRemove, this);
         app.renderer.on('resize', this.onResize, this);
-    }
 
-    onResourceAdd(res: Resource) {
-        if (res.type !== 'grid') return;
-        this.gridRes = res as GridResource;
+        this.gridRes = Object.assign({
+            type: 'grid',
+            _save: true,
+            _sync: true,
+        }, STANDARD_GRID_OPTIONS)  as GridResource;
+        ecs.addResource(this.gridRes);
+
         this.updateTex();
         this.updatePos();
     }
 
     onResourceEdited(res: Resource, changed: any) {
         if (res.type !== 'grid') return;
+
+        // Redraw
         this.updateTex();
         this.updatePos();
     }
 
     onResourceRemove(res: Resource) {
         if (res.type !== 'grid') return;
-        this.gridRes = undefined;
-        this.disable();
+        throw 'Fool! Thou shall not remove thy grid!'
     }
 
     onResize(width: number, height: number) {
@@ -60,23 +63,20 @@ export class GridSystem implements System {
         this.sprite.height = height;
     }
 
-    private disable() {
-        this.sprite.texture.destroy(true);
-        this.sprite.texture = PIXI.Texture.EMPTY;
-    }
-
     private updateTex() {
-        if (this.gridRes === undefined) return;
-
         this.sprite.texture.destroy(true);
+
+        if (!this.gridRes.visible) {
+            this.sprite.texture = PIXI.Texture.WHITE;
+            return;
+        }
+
         let tex = drawGridTexture(512, this.gridRes.gridType, this.gridRes);
         this.internalScale = this.gridRes.size / 512;
         this.sprite.texture = new PIXI.Texture(tex);
     }
 
     updatePos() {
-        if (this.gridRes === undefined) return;
-
         this.sprite.tileScale.set(this.scaleX * this.internalScale, this.scaleY * this.internalScale);
         this.sprite.tilePosition.set(this.posX + this.scaleX * this.gridRes.offX  * this.gridRes.size , this.posY + this.scaleY * this.gridRes.offY * this.gridRes.size);
     }
@@ -104,6 +104,12 @@ export class GridSystem implements System {
                 }
                 if (pointY > fy + 0.5) {
                     resY += 1;
+                }
+
+                // Also check grid center
+                if (distSquared2d(pointX, pointY, fx + 0.5, fy + 0.5) < distSquared2d(pointX, pointY, resX, resY)) {
+                    resX = fx + 0.5;
+                    resY = fy + 0.5;
                 }
             } break;
             case GridType.HEXAGON: {
@@ -200,7 +206,7 @@ function drawSquare(size: number, opt: GridGraphicalOptions): ImageData {
     canvas.height = size;
     let ctx = canvas.getContext("2d");
 
-    ctx.lineWidth = opt.width;
+    ctx.lineWidth = opt.thick;
     ctx.strokeStyle = colorToHex(opt.color, opt.opacity);
 
     ctx.strokeRect(0, 0, size + 1, size + 1);
@@ -219,7 +225,7 @@ function drawHex(size: number, opt: GridGraphicalOptions): ImageData {
 
     let d = size;
 
-    ctx.lineWidth = opt.width;
+    ctx.lineWidth = opt.thick;
     ctx.strokeStyle =  colorToHex(opt.color, opt.opacity);
 
 

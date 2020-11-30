@@ -417,15 +417,26 @@ export class InteractionSystem implements System {
             let inter = this.storage.getComponent(trans.entity);
             if (inter === undefined || inter.shape === undefined) return;
             let shape = inter.shape;
-            if (shape.type === ShapeType.POINT || shape.type == ShapeType.CIRCLE) return;
-            if (shape.type !== ShapeType.OBB) {
+            if (shape.type === ShapeType.POINT) return;
+            if (shape.type === ShapeType.CIRCLE) {
+                let s = shape as CircleShape;
+                if ('scale' in changed) {
+                    s.radius = s.radius * trans.scale / changed.scale;
+                    this.updateComponent(inter);
+                }
+            } else if (shape.type === ShapeType.OBB) {
+                let s = shape as ObbShape;
+                if ('scale' in changed) {
+                    let diffScale = trans.scale / changed.scale;
+                    s.data.unrotated.scale(diffScale, diffScale, s.data.unrotated);
+                }
+                s.data.rotation = trans.rotation;
+                s.data.recompute();
+                this.updateComponent(inter);
+            } else {
                 console.warn("Unable to auto-rotate other shapes than OBB, watch your components!");
                 return;
             }
-            let s = shape as ObbShape;
-            s.data.rotation = trans.rotation;
-            s.data.recompute();
-            this.updateComponent(inter);
         }
     }
 

@@ -107,6 +107,7 @@ export class EditMapPhase extends BirdEyePhase {
         } else if (oldTool === Tool.CREATE_PROP) {
             this.propSystem.cancelCreation();
         } else if (oldTool === Tool.PROP_TELEPORT_LINK) {
+            this.propSystem.teleportLinkCancel();
             document.body.style.cursor = 'auto';
         }
 

@@ -24,7 +24,7 @@ export interface PositionComponent extends Component {
 export interface TransformComponent extends Component {
     type: "transform";
 
-    //scale: number;
+    scale: number;
     rotation: number;
 }
 

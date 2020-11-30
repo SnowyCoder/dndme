@@ -8,14 +8,15 @@ import {SingleEcsStorage} from "../storage";
 import {Component, PositionComponent, TransformComponent} from "../component";
 import {app} from "../../index";
 import {TextSystem} from "./textSystem";
-import {InteractionComponent, Shape, shapeAabb, shapeObb, shapePoint} from "./interactionSystem";
+import {InteractionComponent, ObbShape, Shape, shapeAabb, shapeObb, shapePoint} from "./interactionSystem";
 import {PlayerVisibleComponent} from "./playerSystem";
-import {Resource} from "../resource";
+import {GridResource, Resource} from "../resource";
 import {LocalLightSettings} from "./lightSystem";
 import {Sprite, Texture, Transform} from "pixi.js";
 import {Aabb} from "../../geometry/aabb";
 import {Obb} from "../../geometry/obb";
 import {PinComponent} from "./pinSystem";
+import {GridOptions, STANDARD_GRID_OPTIONS} from "../../game/grid";
 
 export interface PropComponent extends Component {
     type: 'prop';
@@ -29,6 +30,7 @@ export interface PropType {
     id: string,
     name: string,
     texture: Texture,
+    gridSize: PIXI.IPointData,
 }
 
 export interface PropTeleport extends Component {
@@ -80,11 +82,20 @@ export class PropSystem implements System {
         world.events.on('prop_teleport_link', this.onPropTeleportLink, this);
     }
 
-    registerPropType(propType: PropType) {
+    private getGridDimensions(len: number): number {
+        return Math.ceil(len / STANDARD_GRID_OPTIONS.size);
+    }
+
+    registerPropType(propType: PropType): void {
+        let x = this.getGridDimensions(propType.texture.width);
+        let y = this.getGridDimensions(propType.texture.height);
+
+        propType.gridSize = { x, y };
+
         this.propTypes.set(propType.id, propType);
     }
 
-    loadPropTypes() {
+    loadPropTypes(): void {
         const atlas = PIXI.Loader.shared.resources["props"].spritesheet;
         const props = [
             {
@@ -101,32 +112,44 @@ export class PropSystem implements System {
         for (let prop of props) this.registerPropType(prop);
     }
 
+    private computeShape(type: PropType, pos: PositionComponent, tran: TransformComponent): ObbShape {
+        let grid = this.ecs.getResource('grid') as GridResource;
+        let hw = type.gridSize.x * grid.size / 2;
+        let hh = type.gridSize.y * grid.size / 2;
+        let aabb = new Aabb(
+            pos.x - hw, pos.y - hh,
+            pos.x + hw, pos.y + hh,
+        );
+        return shapeObb(Obb.rotateAabb(aabb, tran.rotation));
+    }
+
+    private createSprite(): PIXI.Sprite {
+        let sprite = new Sprite();
+        sprite.anchor.set(0.5);
+        sprite.interactive = false;
+        sprite.interactiveChildren = false;
+        this.display.addChild(sprite);
+        return sprite;
+    }
+
     private onComponentAdd(c: Component): void {
         if (c.type !== 'prop') return;
         let prop = c as PropComponent;
 
         if (prop._display === undefined) {
-            let sprite = new Sprite();
-            sprite.anchor.set(0.5);
-            sprite.interactive = false;
-            sprite.interactiveChildren = false;
-            this.display.addChild(sprite);
-            prop._display = sprite;
+            prop._display = this.createSprite();
             this.redrawComponent(prop, undefined, undefined);
         }
 
         let pos = this.ecs.getComponent(c.entity, 'position') as PositionComponent;
         let trans = this.ecs.getComponent(c.entity, 'transform') as TransformComponent;
+        let propType = this.propTypes.get(prop.propType);
 
-        let tex = this.propTypes.get(prop.propType).texture;
         this.ecs.addComponent(c.entity, {
             type: 'interaction',
             entity: -1,
             selectPriority: EditMapDisplayPrecedence.PROP,
-            shape: shapeObb(Obb.rotateAabb(new Aabb(
-                pos.x, pos.y,
-                pos.x + tex.width, pos.y + tex.height
-            ), trans.rotation)),
+            shape: this.computeShape(propType, pos, trans)
         } as InteractionComponent);
         if (!prop.known) {
             this.ecs.addComponent(c.entity, {
@@ -205,29 +228,44 @@ export class PropSystem implements System {
     }
 
     private onResourceEdited(res: Resource, changes: any): void {
-        if (res.type !== 'local_light_settings') return;
-        let set = res as LocalLightSettings;
-        if (!('visionType' in changes)) return;
+        if (res.type === 'local_light_settings') {
+            let set = res as LocalLightSettings;
+            if (!('visionType' in changes)) return;
 
-        if (set.visionType === 'dm') {
-            this.useVisibility = false;
-            for (let c of this.storage.allComponents()) {
-                c._display.visible = true;
+            if (set.visionType === 'dm') {
+                this.useVisibility = false;
+                for (let c of this.storage.allComponents()) {
+                    c._display.visible = true;
+                }
+            } else if (set.visionType === 'rp') {
+                this.useVisibility = true;
+                for (let c of this.storage.allComponents()) {
+                    if (c.known) continue;
+                    let pv = this.ecs.getComponent(c.entity, 'player_visible') as PlayerVisibleComponent;
+                    c._display.visible = pv.visible;
+                }
+            } else {
+                throw 'Unknown vision type';
             }
-        } else if (set.visionType === 'rp') {
-            this.useVisibility = true;
+        } else if (res.type === 'grid') {
+            if (!('width' in changes)) return;
+            // You are literally satan, I hate you.
+
+            let posSto = this.ecs.storages.get('position') as SingleEcsStorage<PositionComponent>;
+            let tranSto = this.ecs.storages.get('transform') as SingleEcsStorage<TransformComponent>;
+
             for (let c of this.storage.allComponents()) {
-                if (c.known) continue;
-                let pv = this.ecs.getComponent(c.entity, 'player_visible') as PlayerVisibleComponent;
-                c._display.visible = pv.visible;
+                let pos = posSto.getComponent(c.entity);
+                let tran = tranSto.getComponent(c.entity);
+                this.ecs.editComponent(c.entity, 'interaction', {
+                    shape: this.computeShape(this.propTypes.get(c.propType), pos, tran),
+                });
+                this.redrawComponent(c, pos, tran);
             }
-        } else {
-            throw 'Unknown vision type';
         }
     }
 
     private onPropUse(entity: number): void {
-        console.log("USE!");
         let prop = this.storage.getComponent(entity);
         let teleport = this.teleportStorage.getComponent(entity);
         if (prop === undefined || teleport === undefined) return;
@@ -251,7 +289,6 @@ export class PropSystem implements System {
 
 
         for (let q of query) {
-            console.log("Found: " + q.entity);
             let pos = positions.getComponent(q.entity);
             this.ecs.editComponent(
                 q.entity, pos.type, {
@@ -263,7 +300,6 @@ export class PropSystem implements System {
     }
 
     private onPropTeleportLink(entity: number): void {
-        console.log("Link");
         let tp = this.teleportStorage.getComponent(entity);
         if (tp === undefined) {
             console.warn("Called teleport link on a non-teleport prop, ignoring");
@@ -301,13 +337,24 @@ export class PropSystem implements System {
         }
 
         let d = prop._display;
-
-        d.visible = !this.useVisibility || prop.known;
         let propType = this.propTypes.get(prop.propType);
         if (propType === undefined) throw 'Illegal prop type: ' + prop.propType;
-        d.texture = propType.texture;
+
+        this.redrawComponent0(d, propType, prop.known, pos, trans);
+    }
+
+    redrawComponent0(d: PIXI.Sprite, ptype: PropType, known: boolean, pos: PositionComponent, tran: TransformComponent) {
+        d.visible = !this.useVisibility || known;
+
+        d.texture = ptype.texture;
         d.position.set(pos.x, pos.y);
-        d.rotation = trans.rotation;
+        d.rotation = tran.rotation;
+
+        let grid = this.ecs.getResource('grid') as GridResource;
+        d.scale.set(
+            ptype.gridSize.x * grid.size * tran.scale / d.texture.width,
+            ptype.gridSize.y * grid.size * tran.scale / d.texture.height
+        );
     }
 
     initCreation() {
@@ -316,12 +363,16 @@ export class PropSystem implements System {
         this.createPropType = this.defaultPropType;
         let propType = this.propTypes.get(this.createPropType);
         if (propType === undefined) throw 'Illegal prop type: ' + this.createPropType;
-        let tex = propType.texture;
-        this.createProp = new PIXI.Sprite(tex);
-        this.createProp.anchor.set(0.5);
-        this.createProp.position.set(Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY);
-        this.createProp.interactive = false;
-        this.createProp.interactiveChildren = false;
+
+        this.createProp = this.createSprite();
+        // TODO: find a better preview strategy (RenderSystem?)
+        this.redrawComponent0(this.createProp, propType, true, {
+            x: Number.NEGATIVE_INFINITY,
+            y: Number.NEGATIVE_INFINITY,
+        } as any, {
+            scale: 1,
+            rotation: 0,
+        } as any);
         this.display.addChild(this.createProp);
     }
 
@@ -354,6 +405,7 @@ export class PropSystem implements System {
             {
                 type: 'transform',
                 rotation: 0,
+                scale: 1,
             } as TransformComponent,
             {
                 type: 'prop',

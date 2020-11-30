@@ -109,10 +109,10 @@
                     <b-input type="range" min="0" max="1" step="0.001" v-model="grid.opacity"></b-input>
 
                     <div class="d-flex flex-row align-items-center">
-                        <div class="">Width:</div>
-                        <div class="p-2"><b-input type="number" v-model="grid.width" min="1" max="200" size="sm"></b-input></div>
+                        <div class="">Thickness:</div>
+                        <div class="p-2"><b-input type="number" v-model="grid.thick" min="1" max="200" size="sm"></b-input></div>
                     </div>
-                    <b-input type="range" min="1" max="200" v-model="grid.width"></b-input>
+                    <b-input type="range" min="1" max="200" v-model="grid.thick"></b-input>
                 </div>
             </div>
             <!----------------------------------      ENTITY INSPECTOR      ---------------------------------->
@@ -185,7 +185,7 @@
                     offY: 0,
                     color: '#000000',
                     opacity: 0.5,
-                    width: 2,
+                    thick: 2,
                 },
                 light: {
                     ambientLight: '#000000',
@@ -228,20 +228,20 @@
                         case 'square': type = GridType.SQUARE; break;
                     }
                     if (type !== undefined) {
-                        this.phase.ecs.addResource({
-                            type: 'grid',
-                            _save: true,
-                            _sync: true,
+                        this.phase.ecs.editResource('grid', {
+                            visible: true,
                             gridType: type,
                             size: newGrid.size,
                             offX: newGrid.offX,
                             offY: newGrid.offY,
                             color: string2hex(newGrid.color),
                             opacity: parseFloat(newGrid.opacity),
-                            width: newGrid.width,
-                        } as GridResource, 'update');
+                            thick: newGrid.thick,
+                        } as GridResource);
                     } else {
-                        this.phase.ecs.removeResource('grid', false);
+                        this.phase.ecs.editResource('grid', {
+                            visible: false,
+                        });
                     }
                 },
                 deep: true,
@@ -273,7 +273,7 @@
             this.grid.offY = opts.offY;
             this.grid.color = hex2string(opts.color);
             this.grid.opacity = opts.opacity;
-            this.grid.width = opts.width;
+            this.grid.thick = opts.thick;
 
             let light: LightSettings = this.phase.ecs.getResource('light_settings');
             this.light.ambientLight = hex2string(light.ambientLight);

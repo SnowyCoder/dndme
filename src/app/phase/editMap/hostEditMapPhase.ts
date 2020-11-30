@@ -89,6 +89,7 @@ export class HostEditMapPhase extends EditMapPhase {
                 {
                     type: "transform",
                     rotation: 0,
+                    scale: 1,
                 } as TransformComponent,
                 {
                     type: "background_image",
