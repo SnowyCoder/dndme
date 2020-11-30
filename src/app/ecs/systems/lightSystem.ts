@@ -15,6 +15,14 @@ import * as PointLightRender from "../../game/pointLightRenderer";
 import {PlayerComponent} from "./playerSystem";
 import {Mesh} from "pixi.js";
 
+export const DEFAULT_BACKGROUND = 0x6e472c;
+
+export const DEFAULT_LIGHT_SETTINGS = {
+    ambientLight: 0x555555,
+    background: DEFAULT_BACKGROUND,
+    needsLight: true,
+};
+
 export interface LightComponent extends Component {
     type: 'light';
     color: number;
@@ -31,6 +39,7 @@ export interface LightSettings extends Resource {
     type: 'light_settings',
     ambientLight: number,
     needsLight: boolean,
+    background: number,
     _save: true,
     _sync: true,
 }
@@ -82,12 +91,10 @@ export class LightSystem implements System {
         this.phase = phase;
 
         ecs.addStorage(this.storage);
-        this.lightSettings = {
+        this.lightSettings = Object.assign({
             type: 'light_settings',
-            ambientLight: 0x555555,
-            needsLight: true,
             _save: true, _sync: true,
-        } as LightSettings;
+        }, DEFAULT_LIGHT_SETTINGS) as LightSettings;
         ecs.addResource(this.lightSettings);
         this.localLightSettings = {
             type: 'local_light_settings',
@@ -240,6 +247,8 @@ export class LightSystem implements System {
         this.lightLayer.clearColor = arr;
 
         this.playerContainer.visible = this.localLightSettings.visionType !== 'dm';
+
+        app.renderer.backgroundColor = this.lightSettings.background;
     }
 
 
@@ -291,5 +300,6 @@ export class LightSystem implements System {
         this.lightContainer.destroy(DESTROY_ALL);
         this.playerContainer.destroy(DESTROY_ALL);
         this.lightLayer.destroy(DESTROY_ALL);
+        app.renderer.backgroundColor = DEFAULT_BACKGROUND;
     }
 }

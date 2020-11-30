@@ -140,6 +140,13 @@
                         {{ light.roleplayVision ? "Roleplayer" : "Master" }}
                     </b-button>
                 </div>
+                <div class="d-flex flex-row align-items-center">
+                    <div class="">Background:</div>
+                    <b-input type="color" v-model="light.background" :readonly="!isAdmin" @change="onAmbientLightChange"></b-input>
+                </div>
+                <div>
+                  <b-button @click="onLightSettingsReset">Reset</b-button>
+                </div>
             </div>
 
             <template v-slot:footer>
@@ -165,7 +172,7 @@
     import {Component} from "../../ecs/component";
     import {GridResource} from "../../ecs/resource";
     import {AddComponent} from "../../game/selectionGroup";
-    import {LightSettings, LocalLightSettings} from "../../ecs/systems/lightSystem";
+    import {DEFAULT_LIGHT_SETTINGS, LightSettings, LocalLightSettings} from "../../ecs/systems/lightSystem";
     import PIXI from "../../PIXI";
     import hex2string = PIXI.utils.hex2string;
     import string2hex = PIXI.utils.string2hex;
@@ -191,6 +198,7 @@
                     ambientLight: '#000000',
                     needsLight: true,
                     roleplayVision: false,
+                    background: '#000000'
                 },
                 selectedComponents: new Array<Component>(),
                 selectedEntityOpts: {},
@@ -212,7 +220,22 @@
                 type: 'light_settings',
                 ambientLight: string2hex(this.light.ambientLight),
                 needsLight: this.light.needsLight,
-              } as LightSettings, 'update')
+                background: string2hex(this.light.background),
+              } as LightSettings, 'update');
+            },
+            onLightSettingsReset() {
+                this.phase.ecs.addResource(Object.assign({
+                  type: 'light_settings',
+                }, DEFAULT_LIGHT_SETTINGS) as LightSettings, 'update');
+                this.reloadLight();
+            },
+            reloadLight() {
+                let light: LightSettings = this.phase.ecs.getResource('light_settings');
+                this.light.ambientLight = hex2string(light.ambientLight);
+                this.light.needsLight = light.needsLight;
+                this.light.background = hex2string(light.background);
+                let llight: LocalLightSettings = this.phase.ecs.getResource('local_light_settings');
+                this.light.roleplayVision = llight.visionType === 'rp';
             }
         },
         watch: {
@@ -275,12 +298,7 @@
             this.grid.opacity = opts.opacity;
             this.grid.thick = opts.thick;
 
-            let light: LightSettings = this.phase.ecs.getResource('light_settings');
-            this.light.ambientLight = hex2string(light.ambientLight);
-            this.light.needsLight = light.needsLight;
-            let llight: LocalLightSettings = this.phase.ecs.getResource('local_light_settings');
-            this.light.roleplayVision = llight.visionType === 'rp';
-
+            this.reloadLight();
 
             this.eventEmitter.on('changeTool', (t: Tool) => { this.tool = t; });
         },

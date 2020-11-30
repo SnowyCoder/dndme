@@ -20,6 +20,7 @@ import {ClientEditMapPhase} from "./phase/editMap/clientEditMapPhase";
 import {addCustomBlendModes} from "./util/pixi";
 import {loadAssets} from "./assetsLoader";
 import {LoadingPhase} from "./phase/loadingPhase";
+import {DEFAULT_BACKGROUND} from "./ecs/systems/lightSystem";
 
 export const windowEventEmitter = new EventEmitterWrapper((event, emitter) => {
     window.addEventListener(event, data => {
@@ -52,7 +53,7 @@ function onHashCahnge() {
 (async function () {
     app = new PIXI.Application();
     addCustomBlendModes();
-    app.renderer.backgroundColor = 0x6e472c;
+    app.renderer.backgroundColor = DEFAULT_BACKGROUND;
     // The app.view (canvas) is only appended when the game-phase starts.
 
     app.view.addEventListener('contextmenu', (e) => {
