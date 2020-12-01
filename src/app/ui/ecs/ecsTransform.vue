@@ -3,6 +3,8 @@
         <div style="display: flex; align-items: center;">
             Angle: <span v-if="!isAdmin" style="margin-left: 0.5rem;">{{ rotation }}</span>
             <b-input v-if="isAdmin" type="number" step="0.001" v-model="rotation" size="sm" @change="onChange"></b-input>
+        </div>
+        <div style="display: flex; align-items: center;">
             Scale: <span v-if="!isAdmin" style="margin-left: 0.5rem;">{{ scale }}</span>
             <b-input v-if="isAdmin" type="number" step="0.001" v-model="scale" size="sm" @change="onChange"></b-input>
         </div>
