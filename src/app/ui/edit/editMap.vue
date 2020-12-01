@@ -170,7 +170,7 @@
     import {EditMapPhase, Tool} from "../../phase/editMap/editMapPhase";
     import EntityInspect from "../ecs/entityInspect.vue";
     import {Component} from "../../ecs/component";
-    import {GridResource} from "../../ecs/resource";
+    import {GridResource, Resource} from "../../ecs/resource";
     import {AddComponent} from "../../game/selectionGroup";
     import {DEFAULT_LIGHT_SETTINGS, LightSettings, LocalLightSettings} from "../../ecs/systems/lightSystem";
     import PIXI from "../../PIXI";
@@ -185,6 +185,7 @@
                 isAdmin: false,
                 connectionCount: 0,
                 connectionBuffering: false,
+                disableWatchSave: false,
                 grid: {
                     type: "none",
                     size: 1,
@@ -236,11 +237,42 @@
                 this.light.background = hex2string(light.background);
                 let llight: LocalLightSettings = this.phase.ecs.getResource('local_light_settings');
                 this.light.roleplayVision = llight.visionType === 'rp';
+            },
+            reloadGrid() {
+                this.disableWatchSave = true;
+
+                let grid: GridResource = this.phase.ecs.getResource('grid');
+                switch (grid.gridType) {
+                    case GridType.HEXAGON:
+                        this.grid.type = 'hex'
+                        break;
+                    case GridType.SQUARE:
+                        this.grid.type = 'square'
+                        break;
+                }
+
+                if (!grid.visible) {
+                    this.grid.type = 'none';
+                }
+                let opts = grid;
+                this.grid.size = opts.size;
+                this.grid.offX = opts.offX;
+                this.grid.offY = opts.offY;
+                this.grid.color = hex2string(opts.color);
+                this.grid.opacity = opts.opacity;
+                this.grid.thick = opts.thick;
+
+                this.disableWatchSave = false;
+            },
+            onResourceEdited(res: Resource) {
+                if (res.type === 'grid') this.reloadGrid();
+                else if (res.type === 'light_settings' || res.type === 'local_light_settings') this.reloadLight();
             }
         },
         watch: {
             grid: {
                 handler: function(newGrid) {
+                    if (this.disableWatchSave) return;
                     newGrid.offX = Math.min(newGrid.offX, newGrid.size);
                     newGrid.offY = Math.min(newGrid.offY, newGrid.size);
 
@@ -276,30 +308,10 @@
             }
         },
         mounted() {
-            // TODO: Make these responsive (ex: something changes the resource in the background: the UI changes too).
-            // How you may ask? I think that a subscription to 'resource_edit' will be necessary
-            let grid: GridResource = this.phase.ecs.getResource('grid');
-            switch (grid !== undefined ? grid.gridType : undefined) {
-                case undefined:
-                    this.grid.type = 'none';
-                    break;
-                case GridType.HEXAGON:
-                    this.grid.type = 'hex'
-                    break;
-                case GridType.SQUARE:
-                    this.grid.type = 'square'
-                    break;
-            }
-            let opts = grid || STANDARD_GRID_OPTIONS;
-            this.grid.size = opts.size;
-            this.grid.offX = opts.offX;
-            this.grid.offY = opts.offY;
-            this.grid.color = hex2string(opts.color);
-            this.grid.opacity = opts.opacity;
-            this.grid.thick = opts.thick;
-
+            this.reloadGrid();
             this.reloadLight();
 
+            this.phase.ecs.events.on('resource_edited', this.onResourceEdited);
             this.eventEmitter.on('changeTool', (t: Tool) => { this.tool = t; });
         },
     });
