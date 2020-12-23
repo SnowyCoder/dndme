@@ -1,5 +1,5 @@
 
-export enum EditMapDisplayPrecedence {
+export enum DisplayPrecedence {
     BACKGROUND = 0,
     GRID = 10,
     LIGHT = 100,

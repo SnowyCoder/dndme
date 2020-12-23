@@ -7,7 +7,7 @@ import {Resource} from "../resource";
 import {PacketContainer} from "../../protocol/packet";
 
 export class HostNetworkSystem implements System {
-    readonly ecs: World;
+    readonly world: World;
     private channel: Channel;
 
     private entitySpawning?: number;
@@ -17,22 +17,22 @@ export class HostNetworkSystem implements System {
 
     isEnabled = false;
 
-    constructor(ecs: World, ch: Channel) {
-        this.ecs = ecs;
+    constructor(world: World, ch: Channel) {
+        this.world = world;
         this.channel = ch;
 
         this.channel.eventEmitter.on('_device_join', this.onDeviceJoin, this);
         this.channel.eventEmitter.on('_device_left', this.onDeviceLeft, this);
-        this.ecs.events.on('entity_spawn', this.onEntitySpawn, this);
-        this.ecs.events.on('entity_spawned', this.onEntitySpawned, this);
-        this.ecs.events.on('entity_despawn', this.onEntityDespawn, this);
-        this.ecs.events.on('entity_despawned', this.onEntityDespawned, this);
-        this.ecs.events.on('component_add', this.onComponentAdd, this);
-        this.ecs.events.on('component_edit', this.onComponentEdit, this);
-        this.ecs.events.on('component_removed', this.onComponentRemoved, this);
-        this.ecs.events.on('resource_add', this.onResourceAdd, this);
-        this.ecs.events.on('resource_edit', this.onResourceEdit, this);
-        this.ecs.events.on('resource_remove', this.onResourceRemove, this);
+        this.world.events.on('entity_spawn', this.onEntitySpawn, this);
+        this.world.events.on('entity_spawned', this.onEntitySpawned, this);
+        this.world.events.on('entity_despawn', this.onEntityDespawn, this);
+        this.world.events.on('entity_despawned', this.onEntityDespawned, this);
+        this.world.events.on('component_add', this.onComponentAdd, this);
+        this.world.events.on('component_edit', this.onComponentEdit, this);
+        this.world.events.on('component_removed', this.onComponentRemoved, this);
+        this.world.events.on('resource_add', this.onResourceAdd, this);
+        this.world.events.on('resource_edit', this.onResourceEdit, this);
+        this.world.events.on('resource_remove', this.onResourceRemove, this);
     }
 
     // ---------------------------------- EVENT LISTENERS ----------------------------------
@@ -42,7 +42,7 @@ export class HostNetworkSystem implements System {
         this.isEnabled = true;
         this.channel.send({
             type: "ecs_bootstrap",
-            payload: this.ecs.serializeClient(),
+            payload: this.world.serializeClient(),
         } as P.EcsBootrstrap, chId);
     }
 
@@ -56,7 +56,7 @@ export class HostNetworkSystem implements System {
     }
 
     private onEntitySpawned(entity: number): void {
-        if (entity !== this.entitySpawning && !this.ecs.isDeserializing) {
+        if (entity !== this.entitySpawning && !this.world.isDeserializing) {
             this.entitySpawning = undefined;
             throw 'Invalid entity spawn';
         }
@@ -188,16 +188,16 @@ export class HostNetworkSystem implements System {
     }
 
     private shouldIgnoreComponent0(component: Component): boolean {
-        return ((component as HideableComponent).clientVisible === false) || !this.ecs.storages.get(component.type).sync;
+        return ((component as HideableComponent).clientVisible === false) || !this.world.storages.get(component.type).sync;
     }
 
     private shouldIgnoreEntity(entity: number): boolean {
-        return this.ecs.hasAllComponents(entity, 'host_hidden');
+        return this.world.hasAllComponents(entity, 'host_hidden');
     }
 
     private createEntitySpawnPacket(entity: number): P.EntitySpawn {
-        this.ecs.events.emit('serialize_entity', entity);
-        let components = this.ecs.getAllComponents(entity);
+        this.world.events.emit('serialize_entity', entity);
+        let components = this.world.getAllComponents(entity);
 
         let comps = [];
 

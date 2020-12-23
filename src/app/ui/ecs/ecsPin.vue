@@ -26,6 +26,7 @@
                     this.$emit('ecs-property-change', 'pin', 'color', c);
                 }
                 if (this.label !== this.component.label) {
+                    if (!this.label) this.label = undefined;
                     this.$emit('ecs-property-change', 'pin', 'label', this.label);
                 }
             }

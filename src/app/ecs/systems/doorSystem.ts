@@ -3,19 +3,14 @@ import {World} from "../ecs";
 import {SingleEcsStorage} from "../storage";
 import {EditMapPhase} from "../../phase/editMap/editMapPhase";
 import {Component, HideableComponent, PositionComponent} from "../component";
-import {VisibilityComponent} from "./visibilitySystem";
-import * as PointLightRender from "../../game/pointLightRenderer";
 import {DESTROY_ALL} from "../../util/pixi";
-import {newVisibilityAwareComponent, VisibilityAwareComponent} from "./visibilityAwareSystem";
-import {LightComponent, LightSettings} from "./lightSystem";
-import {Aabb} from "../../geometry/aabb";
 import PIXI from "../../PIXI";
-import {Resource} from "../resource";
 import {Line} from "../../geometry/line";
 import {WallComponent} from "./wallSystem";
 import {rotatePointByOrig} from "../../geometry/collision";
-import {EditMapDisplayPrecedence} from "../../phase/editMap/displayPrecedence";
+import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {app} from "../../index";
+import {REMEMBER_TYPE} from "./pixiSystem";
 
 
 export enum DoorType {
@@ -35,7 +30,7 @@ export interface DoorComponent extends Component, HideableComponent {
 
 
 export class DoorSystem implements System {
-    readonly ecs: World;
+    readonly world: World;
 
     storage = new SingleEcsStorage<DoorComponent>('door', true, true);
     phase: EditMapPhase;
@@ -44,20 +39,21 @@ export class DoorSystem implements System {
     displayContainer: PIXI.Container;
 
     constructor(ecs: World, phase: EditMapPhase) {
-        this.ecs = ecs;
+        this.world = ecs;
         this.phase = phase;
 
-        this.ecs.addStorage(this.storage);
-        this.ecs.events.on('component_add', this.onComponentAdd, this);
-        this.ecs.events.on('component_edited', this.onComponentEdited, this);
-        this.ecs.events.on('component_remove', this.onComponentRemove, this);
+        this.world.addStorage(this.storage);
+        this.world.events.on('component_add', this.onComponentAdd, this);
+        this.world.events.on('component_edited', this.onComponentEdited, this);
+        this.world.events.on('component_remove', this.onComponentRemove, this);
     }
 
     redrawComponent(door: DoorComponent): void {
-        let wall = this.ecs.getComponent(door.entity, 'wall') as WallComponent;
-        let pos = this.ecs.getComponent(door.entity, 'position') as PositionComponent;
+        let wall = this.world.getComponent(door.entity, 'wall') as WallComponent;
+        let pos = this.world.getComponent(door.entity, 'position') as PositionComponent;
 
-        let visible = wall.visible || this.phase.lightSystem.localLightSettings.visionType === 'dm';
+        let visible = this.phase.lightSystem.localLightSettings.visionType === 'dm' ||
+            this.world.getComponent(door.entity, REMEMBER_TYPE) !== undefined;
         if (!visible) {
             door._display.clear();
             return;
@@ -104,9 +100,9 @@ export class DoorSystem implements System {
     }
 
     private openDoor(door: DoorComponent, doorType: DoorType, open: boolean): void {
-        if (!this.ecs.isMaster) return;// This operation should only be done once!
-        let wall = this.ecs.getComponent(door.entity, 'wall') as WallComponent;
-        let pos = this.ecs.getComponent(door.entity, 'position') as PositionComponent;
+        if (!this.world.isMaster) return;// This operation should only be done once!
+        let wall = this.world.getComponent(door.entity, 'wall') as WallComponent;
+        let pos = this.world.getComponent(door.entity, 'position') as PositionComponent;
 
         let newPos = undefined;
         let newVec = undefined;
@@ -160,13 +156,13 @@ export class DoorSystem implements System {
         }
 
         if (newPos !== undefined) {
-            this.ecs.editComponent(door.entity, 'position', {
+            this.world.editComponent(door.entity, 'position', {
                 x: newPos.x,
                 y: newPos.y,
             });
         }
         if (newVec !== undefined) {
-            this.ecs.editComponent(door.entity, 'wall', {
+            this.world.editComponent(door.entity, 'wall', {
                 vec: [newVec.x, newVec.y],
             });
         }
@@ -183,7 +179,7 @@ export class DoorSystem implements System {
             }
             this.redrawComponent(d);
 
-            let wall = this.ecs.getComponent(comp.entity, 'wall') as WallComponent;
+            let wall = this.world.getComponent(comp.entity, 'wall') as WallComponent;
             wall._dontMerge++;
         }
     }
@@ -221,7 +217,7 @@ export class DoorSystem implements System {
 
             d._display.destroy(DESTROY_ALL);
 
-            let wall = this.ecs.getComponent(comp.entity, 'wall') as WallComponent;
+            let wall = this.world.getComponent(comp.entity, 'wall') as WallComponent;
             wall._dontMerge--;
         }
     }
@@ -229,7 +225,7 @@ export class DoorSystem implements System {
 
     enable(): void {
         this.layer = new PIXI.display.Layer();
-        this.layer.zIndex = EditMapDisplayPrecedence.WALL + 1;
+        this.layer.zIndex = DisplayPrecedence.WALL + 1;
         this.layer.interactive = false;
         app.stage.addChild(this.layer);
 

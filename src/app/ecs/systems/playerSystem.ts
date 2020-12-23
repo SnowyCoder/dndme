@@ -2,27 +2,31 @@ import {System} from "../system";
 import {World} from "../ecs";
 import {SingleEcsStorage} from "../storage";
 import {EditMapPhase} from "../../phase/editMap/editMapPhase";
-import {Component, PositionComponent} from "../component";
-import {VisibilityComponent} from "./visibilitySystem";
+import {Component, HOST_HIDDEN_TYPE, POSITION_TYPE, PositionComponent} from "../component";
+import {VISIBILITY_TYPE, VisibilityComponent} from "./visibilitySystem";
 import * as PointLightRender from "../../game/pointLightRenderer";
 import {DESTROY_ALL} from "../../util/pixi";
 import {newVisibilityAwareComponent, VisibilityAwareComponent} from "./visibilityAwareSystem";
-import {LightComponent, LightSettings} from "./lightSystem";
+import {LIGHT_SETTINGS_TYPE, LIGHT_TYPE, LightComponent, LightSettings} from "./lightSystem";
 import {Aabb} from "../../geometry/aabb";
 import PIXI from "../../PIXI";
 import {Resource} from "../resource";
 
-
+export const PLAYER_TYPE = 'player';
+export type PLAYER_TYPE = 'player';
 export interface PlayerComponent extends Component {
-    type: "player";
+    type: PLAYER_TYPE;
     nightVision: boolean;
     range: number;
 }
 
+export const PLAYER_VISIBLE_TYPE = 'player_visible';
+export type PLAYER_VISIBLE_TYPE = 'player_visible';
 export interface PlayerVisibleComponent extends Component {
-    type: "player_visible";
+    type: PLAYER_VISIBLE_TYPE;
     visible: boolean;
     isWall?: boolean;// Non modifiable
+    _refCount: number;
     _lightCount: number;
     _playerCount: number;
     _playerNightVisionCount: number;
@@ -42,26 +46,29 @@ export interface VisibilitySpreadEntryData {
     vis: VisibilityComponent,
 }
 
-export class PlayerSystem implements System {
-    readonly ecs: World;
+export const EVENT_VISIBILITY_SPREAD = 'visibility_spread';
+export type EVENT_VISIBILITY_SPREAD = 'visibility_spread';
 
-    storage = new SingleEcsStorage<PlayerComponent>('player', true, true);
-    visibleStorage = new SingleEcsStorage<PlayerVisibleComponent>('player_visible', false, false);
+export class PlayerSystem implements System {
+    readonly world: World;
+
+    storage = new SingleEcsStorage<PlayerComponent>(PLAYER_TYPE, true, true);
+    visibleStorage = new SingleEcsStorage<PlayerVisibleComponent>(PLAYER_VISIBLE_TYPE, false, false);
     phase: EditMapPhase;
 
     // If false a player can see a thing only if it's illuminated by artificial light
     ambientIlluminated: boolean;
 
-    constructor(ecs: World, phase: EditMapPhase) {
-        this.ecs = ecs;
+    constructor(world: World, phase: EditMapPhase) {
+        this.world = world;
         this.phase = phase;
 
-        this.ecs.addStorage(this.storage);
-        this.ecs.addStorage(this.visibleStorage);
-        this.ecs.events.on('component_add', this.onComponentAdd, this);
-        this.ecs.events.on('component_edited', this.onComponentEdited, this);
-        this.ecs.events.on('component_remove', this.onComponentRemove, this);
-        this.ecs.events.on('resource_edited', this.onResourceEdited, this);
+        this.world.addStorage(this.storage);
+        this.world.addStorage(this.visibleStorage);
+        this.world.events.on('component_add', this.onComponentAdd, this);
+        this.world.events.on('component_edited', this.onComponentEdited, this);
+        this.world.events.on('component_remove', this.onComponentRemove, this);
+        this.world.events.on('resource_edited', this.onResourceEdited, this);
 
         let visAware = phase.visibilityAwareSystem;
         visAware.events.on('aware_update', this.onVisibilityAwareUpdate, this);
@@ -71,7 +78,7 @@ export class PlayerSystem implements System {
         let newVisible = t._playerNightVisionCount > 0 ||
             ((this.ambientIlluminated || t._lightCount > 0 || t.isWall) && t._playerCount > 0);
         if (newVisible !== t.visible) {
-            this.ecs.editComponent(t.entity, t.type, {
+            this.world.editComponent(t.entity, t.type, {
                 visible: newVisible,
             });
         }
@@ -88,7 +95,7 @@ export class PlayerSystem implements System {
                 if (player.nightVision) playerVisible._playerNightVisionCount += 1;
                 continue
             }
-            let light = this.ecs.getComponent(e, 'light') as LightComponent;
+            let light = this.world.getComponent(e, LIGHT_TYPE) as LightComponent;
             if (light !== undefined) {
                 playerVisible._lightCount += 1;
             }
@@ -101,7 +108,7 @@ export class PlayerSystem implements System {
                 if (player.nightVision) playerVisible._playerNightVisionCount -= 1;
                 continue
             }
-            let light = this.ecs.getComponent(e, 'light') as LightComponent;
+            let light = this.world.getComponent(e, LIGHT_TYPE) as LightComponent;
             if (light !== undefined) {
                 playerVisible._lightCount -= 1;
             }
@@ -111,7 +118,7 @@ export class PlayerSystem implements System {
     }
 
     private onNightVisionUpdate(player: PlayerComponent) {
-        let vis = this.ecs.getComponent(player.entity, 'visibility') as VisibilityComponent;
+        let vis = this.world.getComponent(player.entity, VISIBILITY_TYPE) as VisibilityComponent;
 
         let diff = player.nightVision ? +1 : -1;
 
@@ -134,13 +141,14 @@ export class PlayerSystem implements System {
     }
 
     private spreadPlayerVisibility(player: number, pos: PIXI.IPointData, vis: VisibilityComponent, nightVision: boolean): void {
+        if (this.world.getComponent(player, HOST_HIDDEN_TYPE)) return;// Ignore hidden players
         let playerVis = PointLightRender.createMesh('const');
         PointLightRender.updateMeshPolygons(playerVis, pos, vis.polygon);
         let r = vis.range * 50;
         PointLightRender.updateMeshUniforms(playerVis, pos, r * r, 0xFFFFFF);
 
-        let lightStorage = this.ecs.storages.get('light') as SingleEcsStorage<LightComponent>;
-        let posStorage = this.ecs.storages.get('position') as SingleEcsStorage<PositionComponent>;
+        let lightStorage = this.world.storages.get(LIGHT_TYPE) as SingleEcsStorage<LightComponent>;
+        let posStorage = this.world.storages.get(POSITION_TYPE) as SingleEcsStorage<PositionComponent>;
 
         let playerData = {
             mesh: playerVis,
@@ -189,7 +197,7 @@ export class PlayerSystem implements System {
             nightVisPlayers,
         } as VisibilitySpreadData;
 
-        this.ecs.events.emit('visibility_spread', data);
+        this.world.events.emit(EVENT_VISIBILITY_SPREAD, data);
 
         playerData.mesh.destroy(DESTROY_ALL);
         for (let light of data.lights) light.mesh.destroy(DESTROY_ALL);
@@ -202,10 +210,10 @@ export class PlayerSystem implements System {
 
         if (!this.phase.lightSystem.lightSettings.needsLight) return;// Who needs lights?
 
-        let visStorage = this.ecs.storages.get('visibility') as SingleEcsStorage<VisibilityComponent>;
-        let posStorage = this.ecs.storages.get('position') as SingleEcsStorage<PositionComponent>;
+        let visStorage = this.world.storages.get(VISIBILITY_TYPE) as SingleEcsStorage<VisibilityComponent>;
+        let posStorage = this.world.storages.get(POSITION_TYPE) as SingleEcsStorage<PositionComponent>;
 
-        let lightPos = this.ecs.getComponent(lightVis.entity, 'position') as PositionComponent;
+        let lightPos = posStorage.getComponent(lightVis.entity);
         let lightMesh = this.createVisMeshFrom(lightPos, lightVis);
 
         let lightData = [{
@@ -222,7 +230,7 @@ export class PlayerSystem implements System {
             let player = this.storage.getComponent(visComponent.entity);
             if (player === undefined || visComponent.range <= 0 || player.nightVision) continue;
 
-            if (aabb === undefined) aabb = visComponent.aabb;
+            if (aabb === undefined) aabb = visComponent.aabb.copy();
             else aabb.combine(visComponent.aabb, aabb);
 
             let vis = visStorage.getComponent(player.entity);
@@ -248,7 +256,7 @@ export class PlayerSystem implements System {
             nightVisPlayers: [],
         } as VisibilitySpreadData;
 
-        this.ecs.events.emit('visibility_spread', data);
+        this.world.events.emit(EVENT_VISIBILITY_SPREAD, data);
         lightData[0].mesh.destroy(DESTROY_ALL);
         for (let player of players) player.mesh.destroy(DESTROY_ALL);
     }
@@ -259,8 +267,8 @@ export class PlayerSystem implements System {
         // but what? and where? this is the questions i will answer today
         let players = [];
 
-        let visStorage = this.ecs.storages.get('visibility') as SingleEcsStorage<VisibilityComponent>;
-        let posStorage = this.ecs.storages.get('position') as SingleEcsStorage<PositionComponent>;
+        let visStorage = this.world.storages.get(VISIBILITY_TYPE) as SingleEcsStorage<VisibilityComponent>;
+        let posStorage = this.world.storages.get(POSITION_TYPE) as SingleEcsStorage<PositionComponent>;
 
         let aabb = undefined;
         for (let player of this.storage.allComponents()) {
@@ -285,7 +293,7 @@ export class PlayerSystem implements System {
             players: [],
             nightVisPlayers: players,
         } as VisibilitySpreadData;
-        this.ecs.events.emit('visibility_spread', data);
+        this.world.events.emit(EVENT_VISIBILITY_SPREAD, data);
 
         for (let x of players) x.mesh.destroy(DESTROY_ALL);
     }
@@ -296,8 +304,8 @@ export class PlayerSystem implements System {
         let lights = [];
 
         let lightsNeeded = this.phase.lightSystem.lightSettings.needsLight;
-        let lightStorage = this.ecs.storages.get('light') as SingleEcsStorage<LightComponent>;
-        let posStorage = this.ecs.storages.get('position') as SingleEcsStorage<PositionComponent>;
+        let lightStorage = this.world.storages.get(LIGHT_TYPE) as SingleEcsStorage<LightComponent>;
+        let posStorage = this.world.storages.get(POSITION_TYPE) as SingleEcsStorage<PositionComponent>;
 
         for (let c of this.phase.visibilitySystem.aabbTree.query(aabb)) {
             let vis = c.tag;
@@ -347,34 +355,34 @@ export class PlayerSystem implements System {
 
 
     private onComponentAdd(comp: Component): void {
-        if (comp.type === 'player') {
+        if (comp.type === PLAYER_TYPE) {
             let player = comp as PlayerComponent;
             let pv = this.visibleStorage.getComponent(comp.entity);
             pv._playerNightVisionCount++;// A bit hackish, but it works ;)
             this.onPlayerVisibleCountersUpdate(pv);
 
-            let vis = this.ecs.getComponent(player.entity, 'visibility') as VisibilityComponent;
+            let vis = this.world.getComponent(player.entity, VISIBILITY_TYPE) as VisibilityComponent;
             if (vis === undefined) {
                 // We need a visibility component, create one if it does not already exist
                 vis = {
-                    type: "visibility",
+                    type: VISIBILITY_TYPE,
                     range: player.range,
                     trackWalls: true,
                 } as VisibilityComponent;
-                this.ecs.addComponent(comp.entity, vis);
+                this.world.addComponent(comp.entity, vis);
             }
-        } else if (comp.type === 'player_visible') {
+        } else if (comp.type === PLAYER_VISIBLE_TYPE) {
             let c = comp as PlayerVisibleComponent;
             c._lightCount = 0;
             c._playerCount = 0;
             c._playerNightVisionCount = 0;
-            this.ecs.addComponent(c.entity, newVisibilityAwareComponent(c.isWall === true));
+            this.world.addComponent(c.entity, newVisibilityAwareComponent(c.isWall === true));
         }
     }
 
 
     private onComponentEdited(comp: Component, changed: any): void {
-        if (comp.type === 'player') {
+        if (comp.type === PLAYER_TYPE) {
             let c = comp as PlayerComponent
 
             if ('nightVision' in changed) {
@@ -382,29 +390,28 @@ export class PlayerSystem implements System {
             }
 
             if ('range' in changed) {
-                this.ecs.editComponent(c.entity, 'visibility', {
+                this.world.editComponent(c.entity, VISIBILITY_TYPE, {
                     range: c.range
                 });
             } else {
-                //let pos = this.ecs.getComponent(c.entity, 'position') as PositionComponent;
-                let vis = this.ecs.getComponent(c.entity, 'visibility') as VisibilityComponent;
+                let vis = this.world.getComponent(c.entity, VISIBILITY_TYPE) as VisibilityComponent;
                 if (vis.polygon !== undefined) {
-                    let pos = this.ecs.getComponent(comp.entity, 'position') as PositionComponent;
+                    let pos = this.world.getComponent(comp.entity, POSITION_TYPE) as PositionComponent;
                     this.spreadPlayerVisibility(comp.entity, pos, vis, c.nightVision);
                 }
             }
-        } else if (comp.type === 'visibility') {
+        } else if (comp.type === VISIBILITY_TYPE) {
             let vis = comp as VisibilityComponent;
             if (!('polygon' in changed)) return;
             let player = this.storage.getComponent(vis.entity);
             if (player !== undefined) {
                 if (vis.polygon !== undefined) {
-                    let pos = this.ecs.getComponent(comp.entity, 'position') as PositionComponent;
+                    let pos = this.world.getComponent(comp.entity, POSITION_TYPE) as PositionComponent;
                     this.spreadPlayerVisibility(comp.entity, pos, vis, player.nightVision);
                 }
                 return;
             }
-            let light = this.ecs.getComponent(vis.entity, 'light');
+            let light = this.world.getComponent(vis.entity, LIGHT_TYPE);
             if (light !== undefined) {
                 this.spreadLightVisibility(vis);
             }
@@ -412,7 +419,7 @@ export class PlayerSystem implements System {
     }
 
     private onComponentRemove(comp: Component): void {
-        if (comp.type === 'player') {
+        if (comp.type === PLAYER_TYPE) {
             let pv = this.visibleStorage.getComponent(comp.entity);
             if (pv === undefined) return;
             pv._playerNightVisionCount--;// Gotta undo those hacks
@@ -421,7 +428,7 @@ export class PlayerSystem implements System {
     }
 
     private onResourceEdited(res: Resource, changes: any): void {
-        if (res.type === 'light_settings' && 'needsLight' in changes) {
+        if (res.type === LIGHT_SETTINGS_TYPE && 'needsLight' in changes) {
             let light = res as LightSettings;
             this.ambientIlluminated = !light.needsLight;
             for (let comp of this.visibleStorage.allComponents()) {
@@ -431,6 +438,37 @@ export class PlayerSystem implements System {
             if (!light.needsLight) {
                 this.spreadAfterLightNotNeeded();
             }
+        }
+    }
+
+    // PUBLIC INTERFACE
+    addPlayerVisListener(entity: number, isWall: boolean = false): PlayerVisibleComponent {
+        let c = this.visibleStorage.getComponent(entity);
+        if (c === undefined) {
+            c = {
+                type: PLAYER_VISIBLE_TYPE,
+                entity,
+                visible: false,
+                isWall,
+                _refCount: 1,
+                _lightCount: 0,
+                _playerCount: 0,
+                _playerNightVisionCount: 0,
+            } as PlayerVisibleComponent;
+            this.world.addComponent(entity, c);
+            return c;
+        } else {
+            c._refCount++;
+        }
+        return c;
+    }
+
+    removePlayerVisListener(entity: number): void {
+        let c = this.visibleStorage.getComponent(entity);
+        if (c === undefined) return;
+        c._refCount--;
+        if (c._refCount === 0) {
+            this.world.removeComponent(c);
         }
     }
 

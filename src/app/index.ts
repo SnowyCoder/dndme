@@ -51,6 +51,8 @@ function onHashCahnge() {
 }
 
 (async function () {
+    // We cannot work without webgl
+    PIXI.settings.FAIL_IF_MAJOR_PERFORMANCE_CAVEAT = false;
     app = new PIXI.Application();
     addCustomBlendModes();
     app.renderer.backgroundColor = DEFAULT_BACKGROUND;

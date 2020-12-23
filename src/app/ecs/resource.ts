@@ -1,4 +1,5 @@
 import {GridOptions} from "../game/grid";
+import {GRID_TYPE} from "./systems/gridSystem";
 
 export interface Resource {
     type: string;
@@ -8,7 +9,7 @@ export interface Resource {
 
 
 export interface GridResource extends Resource, GridOptions {
-    type: 'grid';
+    type: GRID_TYPE;
     _save: true;
     _sync: true;
 }

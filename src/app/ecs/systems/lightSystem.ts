@@ -1,18 +1,18 @@
-import {Component, PositionComponent} from "../component";
+import {Component, POSITION_TYPE, PositionComponent} from "../component";
 import {System} from "../system";
 import {World} from "../ecs";
 import {CUSTOM_BLEND_MODES, DESTROY_ALL} from "../../util/pixi";
 import {SingleEcsStorage} from "../storage";
 import {EditMapPhase} from "../../phase/editMap/editMapPhase";
-import {EditMapDisplayPrecedence} from "../../phase/editMap/displayPrecedence";
+import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {StupidPoint} from "../../geometry/point";
 import {Resource} from "../resource";
 import PIXI from "../../PIXI";
 import {app} from "../../index";
-import {VisibilityComponent} from "./visibilitySystem";
+import {VISIBILITY_TYPE, VisibilityComponent} from "./visibilitySystem";
 import hex2rgb = PIXI.utils.hex2rgb;
 import * as PointLightRender from "../../game/pointLightRenderer";
-import {PlayerComponent} from "./playerSystem";
+import {PLAYER_TYPE, PlayerComponent} from "./playerSystem";
 import {Mesh} from "pixi.js";
 
 export const DEFAULT_BACKGROUND = 0x6e472c;
@@ -23,8 +23,10 @@ export const DEFAULT_LIGHT_SETTINGS = {
     needsLight: true,
 };
 
+export const LIGHT_TYPE = 'light';
+export type LIGHT_TYPE = 'light';
 export interface LightComponent extends Component {
-    type: 'light';
+    type: LIGHT_TYPE;
     color: number;
     range: number;
 
@@ -35,8 +37,10 @@ export interface CustomPlayerComponent extends PlayerComponent {
     _lightVisionDisplay?: PIXI.Mesh;
 }
 
+export const LIGHT_SETTINGS_TYPE = 'light_settings';
+export type LIGHT_SETTINGS_TYPE = 'light_settings';
 export interface LightSettings extends Resource {
-    type: 'light_settings',
+    type: LIGHT_SETTINGS_TYPE,
     ambientLight: number,
     needsLight: boolean,
     background: number,
@@ -46,8 +50,10 @@ export interface LightSettings extends Resource {
 
 type VisionType = 'dm' | 'rp';
 
+export const LOCAL_LIGHT_SETTINGS_TYPE = 'local_light_settings';
+export type LOCAL_LIGHT_SETTINGS_TYPE = 'local_light_settings';
 export interface LocalLightSettings extends Resource {
-    type: 'local_light_settings',
+    type: LOCAL_LIGHT_SETTINGS_TYPE,
     visionType: VisionType,
     _save: true,
     _sync: false,
@@ -75,8 +81,8 @@ export interface LocalLightSettings extends Resource {
  * So yeah, no batched uniforms in WebGL it seems. (TODO: explore more possibilities)
  */
 export class LightSystem implements System {
-    readonly ecs: World;
-    storage = new SingleEcsStorage<LightComponent>('light');
+    readonly world: World;
+    storage = new SingleEcsStorage<LightComponent>(LIGHT_TYPE);
     phase: EditMapPhase;
 
     playerContainer: PIXI.Container;
@@ -87,18 +93,18 @@ export class LightSystem implements System {
     localLightSettings: LocalLightSettings;
 
     constructor(ecs: World, phase: EditMapPhase) {
-        this.ecs = ecs;
+        this.world = ecs;
         this.phase = phase;
 
         ecs.addStorage(this.storage);
         this.lightSettings = Object.assign({
-            type: 'light_settings',
+            type: LIGHT_SETTINGS_TYPE,
             _save: true, _sync: true,
         }, DEFAULT_LIGHT_SETTINGS) as LightSettings;
         ecs.addResource(this.lightSettings);
         this.localLightSettings = {
-            type: 'local_light_settings',
-            visionType: this.ecs.isMaster ? 'dm' : 'rp',
+            type: LOCAL_LIGHT_SETTINGS_TYPE,
+            visionType: this.world.isMaster ? 'dm' : 'rp',
             _save: true, _sync: false,
         } as LocalLightSettings;
         ecs.addResource(this.localLightSettings);
@@ -142,12 +148,12 @@ export class LightSystem implements System {
 
     updateVisPolygon(entity: number, target: Mesh, color: number, pos?: PositionComponent, vis?: VisibilityComponent): void {
         if (pos === undefined) {
-            pos = this.ecs.getComponent(entity, "position") as PositionComponent;
+            pos = this.world.getComponent(entity, POSITION_TYPE) as PositionComponent;
             if (pos === undefined) return;
         }
 
         if (vis === undefined) {
-            vis = this.ecs.getComponent(entity, "visibility") as VisibilityComponent;
+            vis = this.world.getComponent(entity, VISIBILITY_TYPE) as VisibilityComponent;
             if (vis === undefined) {
                 this.disableVisMesh(target);
                 return;
@@ -172,35 +178,35 @@ export class LightSystem implements System {
     }
 
     private onComponentAdd(comp: Component): void {
-        if (comp.type === 'light') {
+        if (comp.type === LIGHT_TYPE) {
             let light = comp as LightComponent;
             light._lightDisplay = this.createLightVisMesh();
 
-            let vis = this.ecs.getComponent(light.entity, 'visibility') as VisibilityComponent;
+            let vis = this.world.getComponent(light.entity, VISIBILITY_TYPE) as VisibilityComponent;
             if (vis === undefined) {
                 // We need a visibility component, create one if it does not already exist
                 vis = {
-                    type: "visibility",
+                    type: VISIBILITY_TYPE,
                     range: light.range,
                     trackWalls: true,
                 } as VisibilityComponent;
-                this.ecs.addComponent(comp.entity, vis);
+                this.world.addComponent(comp.entity, vis);
             } else {
                 this.updateLightVisPolygon(light, undefined, vis);
             }
-        } else if (comp.type === 'player') {
+        } else if (comp.type === PLAYER_TYPE) {
             let player = comp as CustomPlayerComponent;
             player._lightVisionDisplay = this.createPlayerVisMesh();
 
-            let vis = this.ecs.getComponent(player.entity, 'visibility') as VisibilityComponent;
+            let vis = this.world.getComponent(player.entity, VISIBILITY_TYPE) as VisibilityComponent;
             if (vis === undefined) {
                 // We need a visibility component, create one if it does not already exist
                 vis = {
-                    type: "visibility",
+                    type: VISIBILITY_TYPE,
                     range: player.range,
                     trackWalls: true,
                 } as VisibilityComponent;
-                this.ecs.addComponent(comp.entity, vis);
+                this.world.addComponent(comp.entity, vis);
             } else {
                 this.updatePlayerVisPolygon(player, undefined, vis);
             }
@@ -208,28 +214,28 @@ export class LightSystem implements System {
     }
 
     private onComponentEdited(comp: Component, changes: any): void {
-        if (comp.type === 'light') {
+        if (comp.type === LIGHT_TYPE) {
             let c = comp as LightComponent;
             if ('range' in changes) {
-                this.ecs.editComponent(c.entity, 'visibility', {
+                this.world.editComponent(c.entity, VISIBILITY_TYPE, {
                     range: c.range
                 });
             } else {
-                let pos = this.ecs.getComponent(c.entity, 'position') as PositionComponent;
-                let vis = this.ecs.getComponent(c.entity, 'visibility') as VisibilityComponent;
+                let pos = this.world.getComponent(c.entity, POSITION_TYPE) as PositionComponent;
+                let vis = this.world.getComponent(c.entity, VISIBILITY_TYPE) as VisibilityComponent;
                 if (vis.polygon !== undefined) {
                     let range = vis.range * 50;
                     this.updateVisUniforms(c._lightDisplay, pos, range * range, c.color);
                 }
             }
-        } else if (comp.type === 'visibility') {
+        } else if (comp.type === VISIBILITY_TYPE) {
             let vis = comp as VisibilityComponent;
             if (!('polygon' in changes)) return;
             let light = this.storage.getComponent(vis.entity);
             if (light !== undefined)  {
                 this.updateLightVisPolygon(light, undefined, vis);
             } else {
-                let player = this.ecs.getComponent(vis.entity, 'player') as CustomPlayerComponent;
+                let player = this.world.getComponent(vis.entity, PLAYER_TYPE) as CustomPlayerComponent;
                 if (player !== undefined) {
                     this.updatePlayerVisPolygon(player, undefined, vis);
                 }
@@ -238,7 +244,7 @@ export class LightSystem implements System {
     }
 
     private onResourceEdited(comp: Resource) {
-        if (comp.type !== 'light_settings' && comp.type !== 'local_light_settings') {
+        if (comp.type !== LIGHT_SETTINGS_TYPE && comp.type !== LOCAL_LIGHT_SETTINGS_TYPE) {
             return;
         }
         let arr = [0.0, 0.0, 0.0, 0.0];
@@ -253,10 +259,10 @@ export class LightSystem implements System {
 
 
     private onComponentRemove(comp: Component) {
-        if (comp.type === 'light') {
+        if (comp.type === LIGHT_TYPE) {
             let light = comp as LightComponent;
             light._lightDisplay.destroy(DESTROY_ALL);
-        } else if (comp.type === 'player') {
+        } else if (comp.type === PLAYER_TYPE) {
             let player = comp as CustomPlayerComponent;
             player._lightVisionDisplay.destroy(DESTROY_ALL);
         }
@@ -271,15 +277,15 @@ export class LightSystem implements System {
         this.lightLayer.interactiveChildren = false;
 
         this.playerContainer = new PIXI.Container();
-        this.playerContainer.zOrder = EditMapDisplayPrecedence.LIGHT - 1;
-        this.playerContainer.zIndex = EditMapDisplayPrecedence.LIGHT - 1;
+        this.playerContainer.zOrder = DisplayPrecedence.LIGHT - 1;
+        this.playerContainer.zIndex = DisplayPrecedence.LIGHT - 1;
         this.playerContainer.interactive = false;
         this.playerContainer.interactiveChildren = false;
         this.playerContainer.parentLayer = this.phase.lightSystem.lightLayer;
 
         this.lightContainer = new PIXI.Container();
-        this.lightContainer.zOrder = EditMapDisplayPrecedence.LIGHT;
-        this.lightContainer.zIndex = EditMapDisplayPrecedence.LIGHT;
+        this.lightContainer.zOrder = DisplayPrecedence.LIGHT;
+        this.lightContainer.zIndex = DisplayPrecedence.LIGHT;
         this.lightContainer.interactive = false;
         this.lightContainer.interactiveChildren = false;
         this.lightContainer.parentLayer = this.lightLayer
@@ -288,7 +294,7 @@ export class LightSystem implements System {
 
         let lightingSprite = new PIXI.Sprite(this.lightLayer.getRenderTexture());
         lightingSprite.blendMode = CUSTOM_BLEND_MODES.MULTIPLY_COLOR_ONLY;
-        lightingSprite.zIndex = EditMapDisplayPrecedence.LIGHT;
+        lightingSprite.zIndex = DisplayPrecedence.LIGHT;
         lightingSprite.interactive = false;
         lightingSprite.interactiveChildren = false;
 

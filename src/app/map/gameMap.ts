@@ -27,7 +27,12 @@ export class GameMap {
         let data = this.createDataJson();
         let zip = new JSZip();
         zip.file("data.msgpack", data);
-        return zip.generateAsync({type: "blob"})
+        return zip.generateAsync({
+            type: "blob",
+            compression: 'DEFLATE',
+            // Prevent the browser from renaming the extension
+            mimeType: 'application/octet-stream',
+        })
     }
 
     static async loadFromFile(from: File): Promise<GameMap> {

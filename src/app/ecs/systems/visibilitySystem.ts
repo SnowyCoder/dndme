@@ -1,4 +1,4 @@
-import {Component, PositionComponent} from "../component";
+import {Component, HOST_HIDDEN_TYPE, POSITION_TYPE, PositionComponent} from "../component";
 import {Aabb} from "../../geometry/aabb";
 import {SingleEcsStorage} from "../storage";
 import {DynamicTree} from "../../geometry/dynamicTree";
@@ -8,6 +8,7 @@ import {computeViewport} from "../../geometry/visibilityPolygon";
 import {System} from "../system";
 import {EditMapPhase} from "../../phase/editMap/editMapPhase";
 import {
+    INTERACTION_TYPE,
     InteractionComponent,
     InteractionSystem,
     LineShape,
@@ -16,8 +17,11 @@ import {
     ShapeType
 } from "./interactionSystem";
 
+
+export const VISIBILITY_TYPE = 'visibility';
+export type VISIBILITY_TYPE = 'visibility';
 export interface VisibilityComponent extends Component {
-    type: "visibility";
+    type: VISIBILITY_TYPE;
     range: number;// In grids (by default 1 grid = 50 pixels)
     trackWalls: boolean;
     polygon?: number[];
@@ -27,9 +31,12 @@ export interface VisibilityComponent extends Component {
     _canSeeWalls?: number[];
 }
 
+export const VISIBILITY_BLOCKER_TYPE = 'visibility_blocker';
+export type VISIBILITY_BLOCKER_TYPE = 'visibility_blocker';
 export interface VisibilityBlocker extends Component {
-    type: "visibility_blocker";
+    type: VISIBILITY_BLOCKER_TYPE;
 }
+
 
 /**
  * Please don't stick a visibility component to an entity with a wall component (or vice-versa),
@@ -49,22 +56,22 @@ export interface VisibilityBlocker extends Component {
  * Cut off all those ear cutting algorithms, just make triangles starting from the center!
  */
 export class VisibilitySystem implements System {
-    ecs: World;
-    storage = new SingleEcsStorage<VisibilityComponent>("visibility", false, false);
-    blockerStorage = new SingleEcsStorage<VisibilityBlocker>("visibility_blocker", false, false);
+    world: World;
+    storage = new SingleEcsStorage<VisibilityComponent>(VISIBILITY_TYPE, false, false);
+    blockerStorage = new SingleEcsStorage<VisibilityBlocker>(VISIBILITY_BLOCKER_TYPE, false, false);
 
     interactionSystem: InteractionSystem;
     aabbTree = new DynamicTree<VisibilityComponent>();
 
-    constructor(ecs: World, phase: EditMapPhase) {
-        this.ecs = ecs;
+    constructor(world: World, phase: EditMapPhase) {
+        this.world = world;
         this.interactionSystem = phase.interactionSystem;
 
-        ecs.addStorage(this.storage);
-        ecs.addStorage(this.blockerStorage);
-        ecs.events.on('component_add', this.onComponentAdd, this);
-        ecs.events.on('component_edited', this.onComponentEdited, this);
-        ecs.events.on('component_removed', this.onComponentRemoved, this);
+        world.addStorage(this.storage);
+        world.addStorage(this.blockerStorage);
+        world.events.on('component_add', this.onComponentAdd, this);
+        world.events.on('component_edited', this.onComponentEdited, this);
+        world.events.on('component_removed', this.onComponentRemoved, this);
     }
 
     private removeTreePolygon(c: VisibilityComponent): void {
@@ -75,14 +82,17 @@ export class VisibilitySystem implements System {
     }
 
     updatePolygon(c: VisibilityComponent): void {
-        let pos = this.ecs.getComponent(c.entity, "position") as PositionComponent;
+        // Ignore if it's hidden.
+        if (this.world.getComponent(c.entity, HOST_HIDDEN_TYPE)) return;
+
+        let pos = this.world.getComponent(c.entity, POSITION_TYPE) as PositionComponent;
         if (pos === undefined) return;
 
         // We will recreate it later (if necessary)
         this.removeTreePolygon(c);
 
         if (c.range <= 0) {
-            this.ecs.editComponent(c.entity, c.type, {
+            this.world.editComponent(c.entity, c.type, {
                 polygon: undefined,
                 polygonAabb: undefined,
                 aabb: undefined,
@@ -124,7 +134,7 @@ export class VisibilitySystem implements System {
             }
         }
 
-        this.ecs.editComponent(c.entity, c.type, {
+        this.world.editComponent(c.entity, c.type, {
             polygon,
             aabb: viewport,
             _canSeeWalls: usedBlockers,
@@ -140,37 +150,48 @@ export class VisibilitySystem implements System {
     }
 
     private onComponentAdd(c: Component): void {
-        if (c.type === 'visibility') {
+        if (c.type === VISIBILITY_TYPE) {
             let v = c as VisibilityComponent;
             v._canSee = [];
             this.updatePolygon(v);
-        } else if (c.type === 'visibility_blocker') {
-            let cmp = this.ecs.getComponent(c.entity, 'interaction') as InteractionComponent;
+        } else if (c.type === VISIBILITY_BLOCKER_TYPE) {
+            let cmp = this.world.getComponent(c.entity, INTERACTION_TYPE) as InteractionComponent;
             if (cmp !== undefined) {
                 this.recomputeArea(shapeToAabb(cmp.shape));
             }
-        } else if (c.type === 'interaction' && this.blockerStorage.getComponent(c.entity) !== undefined) {
+        } else if (c.type === INTERACTION_TYPE && this.blockerStorage.getComponent(c.entity) !== undefined) {
             this.recomputeArea(shapeToAabb((c as InteractionComponent).shape));
+        } else if (c.type === HOST_HIDDEN_TYPE) {
+            // Component hidden is like component missing, they won't be able to see a thing
+            let vis = this.storage.getComponent(c.entity);
+            if (vis !== undefined) {
+                this.removeVisibility(vis);
+            }
+
+            let blo = this.blockerStorage.getComponent(c.entity);
+            if (blo !== undefined) {
+                this.removeVisibilityBlocker(blo);
+            }
         }
     }
 
     private onComponentEdited(c: Component, changes: any): void {
-        if (c.type === 'visibility') {
+        if (this.world.getComponent(c.entity, HOST_HIDDEN_TYPE)) return;
+        if (c.type === VISIBILITY_TYPE) {
             if ('range' in changes) {
                 this.updatePolygon(c as VisibilityComponent);
             }
-        } else if (c.type === 'position') {
+        } else if (c.type === POSITION_TYPE) {
             let vis = this.storage.getComponent(c.entity);
             if (vis !== undefined) {
                 this.updatePolygon(vis);
             }
             let blk = this.blockerStorage.getComponent(c.entity);
             if (blk !== undefined) {
-                let inter = this.ecs.getComponent(blk.entity,'interaction') as InteractionComponent;
+                let inter = this.world.getComponent(blk.entity,INTERACTION_TYPE) as InteractionComponent;
                 this.recomputeArea(shapeToAabb(inter.shape));
             }
-        }
-         else if (c.type === 'interaction' && 'shape' in changes && this.blockerStorage.getComponent(c.entity) !== undefined) {
+        } else if (c.type === INTERACTION_TYPE && 'shape' in changes && this.blockerStorage.getComponent(c.entity) !== undefined) {
             let i = c as InteractionComponent;
 
             this.recomputeArea(shapeToAabb(i.shape));
@@ -178,17 +199,39 @@ export class VisibilitySystem implements System {
     }
 
     private onComponentRemoved(c: Component): void {
-        if (c.type === 'visibility') {
-            this.removeTreePolygon(c as VisibilityComponent);
-        } else if (c.type === 'visibility_blocker') {
-            let cmp = this.ecs.getComponent(c.entity, 'interaction') as InteractionComponent;
-            if (cmp !== undefined) {
-                this.recomputeArea(shapeToAabb(cmp.shape));
-            }
-        } else if (c.type === 'interaction' && this.blockerStorage.getComponent(c.entity) !== undefined) {
+        if (c.type === VISIBILITY_TYPE) {
+            this.removeVisibility(c as VisibilityComponent);
+        } else if (c.type === VISIBILITY_BLOCKER_TYPE) {
+            this.removeVisibilityBlocker(c as VisibilityBlocker);
+        } else if (c.type === INTERACTION_TYPE && this.blockerStorage.getComponent(c.entity) !== undefined) {
             let i = c as InteractionComponent;
 
             this.recomputeArea(shapeToAabb(i.shape));
+        } else if (c.type === HOST_HIDDEN_TYPE) {
+            // Welcome to the visible!
+            let vis = this.storage.getComponent(c.entity);
+            if (vis !== undefined) {
+                this.updatePolygon(vis);
+            }
+
+            let blo = this.blockerStorage.getComponent(c.entity);
+            if (blo !== undefined) {
+                let cmp = this.world.getComponent(c.entity, INTERACTION_TYPE) as InteractionComponent;
+                if (cmp !== undefined) {
+                    this.recomputeArea(shapeToAabb(cmp.shape));
+                }
+            }
+        }
+    }
+
+    private removeVisibility(c: VisibilityComponent) {
+        this.removeTreePolygon(c);
+    }
+
+    private removeVisibilityBlocker(c: VisibilityBlocker) {
+        let cmp = this.world.getComponent(c.entity, INTERACTION_TYPE) as InteractionComponent;
+        if (cmp !== undefined) {
+            this.recomputeArea(shapeToAabb(cmp.shape));
         }
     }
 

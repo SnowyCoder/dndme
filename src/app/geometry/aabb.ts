@@ -121,6 +121,15 @@ export class Aabb {
     static fromPoint(p: PIXI.IPointData): Aabb {
         return new Aabb(p.x, p.y, p.x, p.y);
     }
+
+    static fromPointAnchor(pos: PIXI.IPointData, size: PIXI.IPointData, anchor: PIXI.IPointData): Aabb {
+        return new Aabb(
+            pos.x - size.x * anchor.x,
+            pos.y - size.y * anchor.y,
+            pos.x + size.x * (1 - anchor.x),
+            pos.y + size.y * (1 - anchor.y)
+        );
+    }
 }
 
 

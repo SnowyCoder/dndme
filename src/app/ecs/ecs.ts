@@ -134,6 +134,12 @@ export class World {
         this.events.emit('component_removed', cmp);
     }
 
+    removeComponentType(entity: number, type: string): void {
+        for (let c of this.storages.get(type).getComponents(entity)) {
+            this.removeComponent(c);
+        }
+    }
+
     addStorage(storage: EcsStorage<any>): void {
         this.storages.set(storage.type, storage);
         this.storageList.push(storage);
@@ -154,10 +160,10 @@ export class World {
         return res;
     }
 
-    editComponent(entity: number, type: string, changes: any, multiId?: number): void {
+    editComponent(entity: number, type: string, changes: any, multiId?: number, clearCh: boolean = true): void {
         let c = this.getComponent(entity, type, multiId);
 
-        if (!clearChanges(c, changes)) return;// No real changes
+        if (clearCh && !clearChanges(c, changes)) return;// No real changes
         this.events.emit('component_edit', c, changes);
 
         let changed = assignSwap(c, changes);

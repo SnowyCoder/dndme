@@ -1,6 +1,6 @@
 import {EditMapPhase} from "./editMapPhase";
 import {FlagEcsStorage} from "../../ecs/storage";
-import {Component, NameComponent, PositionComponent, TransformComponent} from "../../ecs/component";
+import {NameComponent, PositionComponent, TransformComponent} from "../../ecs/component";
 import {BackgroundImageComponent} from "../../ecs/systems/backgroundSystem";
 import {app} from "../../index";
 import {GameMap} from "../../map/gameMap";

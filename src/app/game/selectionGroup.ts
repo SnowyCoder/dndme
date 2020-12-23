@@ -1,9 +1,17 @@
 import {World} from "../ecs/ecs";
-import {Component, NameComponent, NoteComponent, PositionComponent} from "../ecs/component";
+import {
+    Component,
+    NAME_TYPE,
+    NameComponent,
+    NOTE_TYPE,
+    NoteComponent,
+    POSITION_TYPE,
+    PositionComponent
+} from "../ecs/component";
 import {LightComponent} from "../ecs/systems/lightSystem";
 import {PlayerComponent} from "../ecs/systems/playerSystem";
 import {DoorComponent, DoorType} from "../ecs/systems/doorSystem";
-import {PropTeleport} from "../ecs/systems/propSystem";
+import {PROP_TELEPORT_TYPE, PropTeleport} from "../ecs/systems/propSystem";
 
 const MULTI_TYPES = ['name', 'note'];
 const ELIMINABLE_TYPES = ['name', 'note', 'player', 'light'];
@@ -300,14 +308,14 @@ export class SelectionGroup {
                     switch (propertyValue) {
                         case 'name':
                             comp = {
-                                type: 'name',
+                                type: NAME_TYPE,
                                 name: '',
                                 clientVisible: true,
                             } as NameComponent;
                             break;
                         case 'note':
                             comp = {
-                                type: 'note',
+                                type: NOTE_TYPE,
                                 note: '',
                                 clientVisible: true,
                             } as NoteComponent;
@@ -337,7 +345,9 @@ export class SelectionGroup {
                             break;
                         case 'prop_teleport':
                             comp = {
-                                type: 'prop_teleport',
+                                type: PROP_TELEPORT_TYPE,
+                                entity: -1,
+                                targetProp: -1,
                             } as PropTeleport;
                             break;
                         default: throw 'Cannot add unknown component: ' + propertyValue;
@@ -373,10 +383,10 @@ export class SelectionGroup {
 
     moveAll(diffX: number, diffY: number) {
         for (let entity of this.selectedEntities) {
-            let pos = this.ecs.getComponent(entity, 'position') as PositionComponent;
+            let pos = this.ecs.getComponent(entity, POSITION_TYPE) as PositionComponent;
             if (pos === undefined) continue;
 
-            this.ecs.editComponent(entity, 'position', {
+            this.ecs.editComponent(entity, POSITION_TYPE, {
                 x: pos.x + diffX,
                 y: pos.y + diffY,
             });

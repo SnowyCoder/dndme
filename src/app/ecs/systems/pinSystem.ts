@@ -1,308 +1,181 @@
-import PIXI from "../../PIXI";
 import {System} from "../system";
 import {World} from "../ecs";
 import {EditMapPhase, Tool} from "../../phase/editMap/editMapPhase";
-import {DESTROY_ALL} from "../../util/pixi";
-import {EditMapDisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {SingleEcsStorage} from "../storage";
-import {Component, PositionComponent} from "../component";
-import {app} from "../../index";
-import {TextSystem} from "./textSystem";
-import {InteractionComponent, shapePoint} from "./interactionSystem";
-import {PlayerVisibleComponent} from "./playerSystem";
-import {Resource} from "../resource";
-import {LocalLightSettings} from "./lightSystem";
+import {
+    Component,
+    FOLLOW_MOUSE_TYPE,
+    FollowMouseComponent,
+    HOST_HIDDEN_TYPE, HostHiddenComponent,
+    POSITION_TYPE,
+    PositionComponent
+} from "../component";
+import {
+    ElementType,
+    GRAPHIC_TYPE,
+    GraphicComponent,
+    PointElement,
+    TextElement,
+    VisibilityType
+} from "../../graphics";
+import {POINT_RADIUS} from "./pixiSystem";
+import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
+
+export const PIN_TYPE = 'pin';
+export type PIN_TYPE = 'pin';
 
 export interface PinComponent extends Component {
-    type: 'pin';
+    type: PIN_TYPE;
     color: number;
     label?: string;
-    _display: PIXI.Sprite;
-    _labelDisplay?: PIXI.Text;
-    _selected?: boolean;
 }
 
-
-function lerpColor(a: number, b: number, t: number): number {
-    let tr = ((a >> 16) & 0xFF) * (1 - t) + ((b >> 16) & 0xFF) * t;
-    let tg = ((a >> 8) & 0xFF) * (1 - t) + ((b >> 8) & 0xFF) * t;
-    let tb = (a & 0xFF) * (1 - t) + (b & 0xFF) * t;
-    return tr << 16 | tg << 8 | tb;
-}
-
-const RADIUS = 12;
 
 export class PinSystem implements System {
-    readonly ecs: World;
+    readonly world: World;
     readonly phase: EditMapPhase;
 
-    readonly storage = new SingleEcsStorage<PinComponent>('pin', true, true);
+    readonly storage = new SingleEcsStorage<PinComponent>(PIN_TYPE, true, true);
 
-    textSystem: TextSystem;
-
-    displayPins: PIXI.ParticleContainer;
-    displayLabels: PIXI.Container;
-
-    layerPin: PIXI.display.Layer;
-
-    circleTex: PIXI.Texture;
-
-    // Sprite of the pin to be created
-    createPin?: PIXI.Sprite;
-    useVisibility: boolean;
+    // Entity of the pin to be created (or -1)
+    createPin: number = -1;
 
 
     constructor(world: World, phase: EditMapPhase) {
-        this.ecs = world;
+        this.world = world;
         this.phase = phase;
-
-        this.textSystem = phase.textSystem;
-
-        this.useVisibility = !this.ecs.isMaster;
 
         world.addStorage(this.storage);
         world.events.on('component_add', this.onComponentAdd, this);
         world.events.on('component_edited', this.onComponentEdited, this);
-        world.events.on('component_remove', this.onComponentRemove, this);
-        world.events.on('selection_begin', this.onSelectionBegin, this);
-        world.events.on('selection_end', this.onSelectionEnd, this);
-        world.events.on('resource_edited', this.onResourceEdited, this);
-    }
-
-    private setVisible(pin: PinComponent, visible: boolean): void {
-        if (visible) {
-            if (!pin._display.visible) {
-                pin._display.visible = true;
-                this.displayPins.addChild(pin._display);
-            }
-            if (pin._labelDisplay !== undefined) pin._labelDisplay.visible = true;
-            this.redrawComponent(pin, undefined);
-        } else {
-            if (pin._display.visible) {
-                pin._display.visible = false;
-                this.displayPins.removeChild(pin._display);
-            }
-            if (pin._labelDisplay !== undefined) pin._labelDisplay.visible = false;
-        }
     }
 
     private onComponentAdd(c: Component): void {
-        if (c.type !== 'pin') return;
+        if (c.type !== PIN_TYPE) return;
         let pin = c as PinComponent;
-        let pos = this.ecs.getComponent(c.entity, "position") as PositionComponent;
+        let pos = this.world.getComponent(c.entity, POSITION_TYPE) as PositionComponent;
         if (pos === undefined) return;
 
-        this.addPin(pos, pin);
-
-        this.ecs.addComponent(c.entity, {
-            type: "interaction",
-            entity: -1,
-            snapEnabled: true,
-            selectPriority: EditMapDisplayPrecedence.PINS,
-            shape: shapePoint(new PIXI.Point(pos.x, pos.y)),
-        } as InteractionComponent);
-        this.ecs.addComponent(c.entity, {
-            type: "player_visible",
-            entity: -1,
-            visible: false,
-        } as PlayerVisibleComponent);
+        let display = this.world.getComponent(c.entity, GRAPHIC_TYPE) as GraphicComponent;
+        if (display === undefined) {
+            display = {
+                type: GRAPHIC_TYPE,
+                entity: -1,
+                interactive: true,
+                display: this.createElement()
+            } as GraphicComponent;
+            this.world.addComponent(c.entity, display);
+        }
+        this.redrawComponent(pin, display.display as PointElement);
     }
 
     private onComponentEdited(comp: Component, changed: any): void {
-        if (comp.type === 'pin' || comp.type === 'position') {
-            let pin, position;
-            if (comp.type === 'pin') {
-                pin = comp as PinComponent;
-                position = this.ecs.getComponent(comp.entity, 'position') as PositionComponent;
+        if (comp.type === PIN_TYPE) {
+            let pin = comp as PinComponent;
+
+            let grapc = this.world.getComponent(comp.entity, GRAPHIC_TYPE) as GraphicComponent;
+            let pinDisplay = grapc.display as PointElement;
+            this.redrawComponent(pin, pinDisplay);
+        }
+    }
+
+    private createElement(): PointElement {
+        return {
+            type: ElementType.POINT,
+            priority: DisplayPrecedence.PINS,
+            visib: VisibilityType.NORMAL,
+            ignore: false,
+            interactive: true,
+            color: 0xFFFFFF,
+            children: [],
+        } as PointElement;
+    }
+
+    private redrawComponent(pin: PinComponent, display: PointElement): void {
+        display.color = pin.color;
+
+        if (pin.label !== undefined) {
+            if (display.children.length === 0) {
+                display._childrenAdd = [{
+                    type: ElementType.TEXT,
+                    ignore: false,
+                    interactive: false,
+                    priority: 0,
+                    visib: VisibilityType.NORMAL,
+                    anchor: {x: 0.5, y: 1.0},
+                    offset: {x: 0, y: -POINT_RADIUS},
+                    color: 0,
+                    text: pin.label,
+                } as TextElement];
             } else {
-                pin = this.storage.getComponent(comp.entity);
-                position = comp as PositionComponent;
-            }
-
-            if (pin === undefined || position === undefined) return;
-
-            this.redrawComponent(pin, position);
-        } else if (comp.type === 'player_visible') {
-            if (!this.useVisibility) return;// The DM always sees everything
-            let pv = comp as PlayerVisibleComponent;
-
-            let pin = this.storage.getComponent(pv.entity);
-            if (pin !== undefined) this.setVisible(pin, pv.visible)
-        }
-    }
-
-    private onComponentRemove(component: Component): void {
-        if (component.type !== 'pin') return;
-        (component as PinComponent)._display.destroy({
-           children: true,
-           texture: false,
-           baseTexture: false,
-        });
-    }
-
-    private onSelectionBegin(entity: number): void {
-        let pin = this.storage.getComponent(entity);
-        if (pin === undefined) return;
-        pin._selected = true;
-        this.redrawComponent(pin, undefined);
-    }
-
-    private onSelectionEnd(entity: number): void {
-        let pin = this.storage.getComponent(entity);
-        if (pin === undefined) return;
-        pin._selected = undefined;
-        this.redrawComponent(pin, undefined);
-    }
-
-    private onResourceEdited(res: Resource, changes: any): void {
-        if (res.type !== 'local_light_settings') return;
-        let set = res as LocalLightSettings;
-        if (!('visionType' in changes)) return;
-
-        if (set.visionType === 'dm') {
-            this.useVisibility = false;
-            for (let c of this.storage.allComponents()) {
-                this.setVisible(c, true);
-            }
-        } else if (set.visionType === 'rp') {
-            this.useVisibility = true;
-            for (let c of this.storage.allComponents()) {
-                let pv = this.ecs.getComponent(c.entity, 'player_visible') as PlayerVisibleComponent;
-                this.setVisible(c, pv.visible);
+                (display.children[0] as TextElement).text = pin.label;
             }
         } else {
-            throw 'Unknown vision type';
-        }
-    }
-
-    addPin(pos: PositionComponent, p: PinComponent) {
-        if (p._display === undefined) {
-            let g = new PIXI.Sprite(this.circleTex);
-
-            g.visible = false;
-            p._display = g;
-        }
-        this.setVisible(p, !this.useVisibility);
-        this.redrawComponent(p, pos);
-    }
-
-    redrawComponent(pin: PinComponent, pos: PositionComponent | undefined) {
-        if (pos === undefined) {
-            pos = this.ecs.getComponent(pin.entity, 'position') as PositionComponent;
+            display._childrenReplace = [];
         }
 
-        let d = pin._display;
-
-        let color = pin.color;
-
-        if (pin._selected) {
-            color = lerpColor(color, 0x7986CB, 0.3);
-        }
-
-        d.tint = color;
-        d.position.set(pos.x, pos.y);
-
-        if (pin.label === undefined) {
-            if (pin._labelDisplay !== undefined) {
-                pin._labelDisplay.destroy(DESTROY_ALL);
-                pin._labelDisplay = undefined;
-            }
-        } else {
-            if (pin._labelDisplay === undefined) {
-                pin._labelDisplay = new PIXI.Text("TEST");
-                pin._labelDisplay.parentLayer = this.textSystem.textLayer;
-                pin._labelDisplay.anchor.set(0.5, 1);
-                pin._labelDisplay.visible = pin._display.visible;
-                this.displayLabels.addChild(pin._labelDisplay);
-            }
-            pin._labelDisplay.position.set(pos.x, pos.y - RADIUS);
-            pin._labelDisplay.text = pin.label;
-        }
+        this.world.editComponent(pin.entity, GRAPHIC_TYPE, { display }, undefined, false);
     }
 
     initCreation() {
         this.cancelCreation();
         let color = Math.floor(Math.random() * 0xFFFFFF);
 
-        this.createPin = new PIXI.Sprite(this.circleTex);
-        this.createPin.tint = color;
-        this.createPin.position.set(Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY);
-        this.displayPins.addChild(this.createPin);
+        let display = this.createElement();
+        display.color = color;
+        display.visib = VisibilityType.ALWAYS_VISIBLE;
+
+        this.createPin = this.world.spawnEntity(
+            {
+                type: HOST_HIDDEN_TYPE,
+            } as HostHiddenComponent,
+            {
+                type: POSITION_TYPE,
+                entity: -1,
+                x: Number.NEGATIVE_INFINITY,
+                y: Number.NEGATIVE_INFINITY,
+            } as PositionComponent,
+            {
+                type: GRAPHIC_TYPE,
+                entity: -1,
+                interactive: false,
+                display,
+            } as GraphicComponent,
+            {
+                type: FOLLOW_MOUSE_TYPE,
+            } as FollowMouseComponent,
+        );
     }
 
     cancelCreation() {
-        if (this.createPin !== undefined) {
-            this.createPin.destroy({
-                children: true,
-                texture: false,
-                baseTexture: false,
-            });
-            this.createPin = undefined;
+        if (this.createPin !== -1) {
+            this.world.despawnEntity(this.createPin);
+            this.createPin = -1;
         }
     }
 
-    redrawCreation(pos: PIXI.Point) {
-        if (this.createPin !== undefined) {
-            this.createPin.position.set(pos.x, pos.y);
-        }
-    }
+    confirmCreation() {
+        if (this.createPin === -1) return;
 
-    confirmCreation(pos: PIXI.Point) {
-        if (this.createPin === undefined) return;
+        let id = this.createPin;
+        this.world.removeComponentType(id, FOLLOW_MOUSE_TYPE);
+        let g = this.world.getComponent(id, GRAPHIC_TYPE) as GraphicComponent;
+        this.world.removeComponent(g);
+        this.world.addComponent(id, {
+            type: PIN_TYPE,
+            entity: id,
+            color: (g.display as PointElement).color,
+        } as PinComponent);
+        this.world.removeComponentType(id, HOST_HIDDEN_TYPE);
 
-        let id = this.ecs.spawnEntity(
-            {
-                type: 'position',
-                x: pos.x,
-                y: pos.y,
-            } as PositionComponent,
-            {
-                type: 'pin',
-                color: this.createPin.tint,
-                _display: this.createPin,
-            } as PinComponent,
-        );
-        this.createPin = undefined;
+        this.createPin = -1;
         this.phase.changeTool(Tool.INSPECT);
         this.phase.selection.setOnlyEntity(id);
     }
 
     enable() {
-        this.useVisibility = this.phase.lightSystem.localLightSettings.visionType !== 'dm';
-
-        this.layerPin = new PIXI.display.Layer();
-        this.layerPin.zIndex = EditMapDisplayPrecedence.PINS;
-        app.stage.addChild(this.layerPin);
-
-        // TODO: unwrap ParticleContainer from Container https://github.com/pixijs/pixi-layers/issues/60
-        let cnt = new PIXI.Container();
-        this.displayPins = new PIXI.ParticleContainer(10000, {
-            vertices: false,
-            position: true,
-            rotation: false,
-            uvs: false,
-            tint: true,
-        });
-        cnt.parentLayer = this.layerPin;
-
-        cnt.addChild(this.displayPins);
-
-        this.displayLabels = new PIXI.Container();
-
-        this.phase.board.addChild(cnt, this.displayLabels);
-
-        let g = new PIXI.Graphics();
-        g.beginFill(0xFFFFFF);
-        g.lineStyle(0);
-        g.drawCircle(RADIUS, RADIUS, RADIUS);
-        this.circleTex = app.renderer.generateTexture(g, PIXI.SCALE_MODES.LINEAR, 1);
-        this.circleTex.defaultAnchor.set(0.5, 0.5);
     }
 
     destroy(): void {
-        this.circleTex.destroy(true);
-        this.displayLabels.destroy(DESTROY_ALL);
-        this.displayPins.destroy(DESTROY_ALL);
-        this.layerPin.destroy(DESTROY_ALL);
     }
 }

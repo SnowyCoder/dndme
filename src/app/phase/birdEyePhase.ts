@@ -38,6 +38,7 @@ export class BirdEyePhase extends Phase {
         this.board.interactive = false;
         this.board.interactiveChildren = false;
         this.board.position.set(0, 0);
+        this.board.sortableChildren = true;
     }
 
     setupEcs() {

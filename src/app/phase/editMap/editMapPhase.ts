@@ -18,6 +18,9 @@ import {PlayerSystem} from "../../ecs/systems/playerSystem";
 import {VisibilityAwareSystem} from "../../ecs/systems/visibilityAwareSystem";
 import {DoorSystem} from "../../ecs/systems/doorSystem";
 import {PropSystem} from "../../ecs/systems/propSystem";
+import {PixiSystem} from "../../ecs/systems/pixiSystem";
+import {FOLLOW_MOUSE_TYPE, POSITION_TYPE} from "../../ecs/component";
+import {FlagEcsStorage} from "../../ecs/storage";
 
 
 export class EditMapPhase extends BirdEyePhase {
@@ -27,6 +30,7 @@ export class EditMapPhase extends BirdEyePhase {
     tool: Tool = Tool.INSPECT;
 
     interactionSystem: InteractionSystem;
+    pixiSystem: PixiSystem;
     backgroundSystem: BackgroundSystem;
     textSystem: TextSystem;
     wallSystem: WallSystem;
@@ -57,8 +61,9 @@ export class EditMapPhase extends BirdEyePhase {
         super.setupEcs();
 
         this.interactionSystem = new InteractionSystem(this.ecs, this);
+        this.pixiSystem = new PixiSystem(this.ecs, this);
         this.backgroundSystem = new BackgroundSystem(this.ecs, this);
-        this.textSystem = new TextSystem(this.ecs);
+        this.textSystem = new TextSystem();
         this.wallSystem = new WallSystem(this.ecs, this);
         this.doorSystem = new DoorSystem(this.ecs, this);
         this.visibilitySystem = new VisibilitySystem(this.ecs, this);
@@ -171,13 +176,10 @@ export class EditMapPhase extends BirdEyePhase {
 
     onPointerMove(event: PIXI.InteractionEvent) {
         super.onPointerMove(event);
+        let point = this.getMapPointFromMouseInteraction(event);
         if (this.tool === Tool.CREATE_WALL) {
-            let point = this.getMapPointFromMouseInteraction(event);
-
             this.wallSystem.redrawCreationLastLine(point);
         } else if (this.isMovingSelection) {
-            let point = this.getMapPointFromMouseInteraction(event);
-
             let diffX = point.x - this.movingStart.x;
             let diffY = point.y - this.movingStart.y;
 
@@ -185,15 +187,9 @@ export class EditMapPhase extends BirdEyePhase {
             let moveY = diffY - this.lastMove.y;
             this.lastMove.set(diffX, diffY);
             this.selection.moveAll(moveX, moveY);
-        } else if (this.tool === Tool.CREATE_PIN) {
-            let point = this.getMapPointFromMouseInteraction(event);
-
-            this.pinSystem.redrawCreation(point);
-        } else if (this.tool === Tool.CREATE_PROP) {
-            let point = this.getMapPointFromMouseInteraction(event);
-
-            this.propSystem.redrawCreation(point);
         }
+
+        this.updatePointerFollowers(point);
     }
 
     onPointerUp(event: PIXI.InteractionEvent) {
@@ -219,14 +215,15 @@ export class EditMapPhase extends BirdEyePhase {
     onPointerClick(event: PIXI.InteractionEvent) {
         super.onPointerClick(event);
         let point = this.getMapPointFromMouseInteraction(event);
+        this.updatePointerFollowers(point);
         if (this.tool === Tool.CREATE_WALL) {
            this.wallSystem.addVertex(point);
            return;
         } else if (this.tool === Tool.CREATE_PIN) {
-            this.pinSystem.confirmCreation(point);
+            this.pinSystem.confirmCreation();
             return;
         } else if (this.tool === Tool.CREATE_PROP) {
-            this.propSystem.confirmCreation(point);
+            this.propSystem.confirmCreation();
             return;
         } else if (this.tool === Tool.PROP_TELEPORT_LINK) {
             let query = this.interactionSystem.query(shapePoint(point), x => {
@@ -258,9 +255,9 @@ export class EditMapPhase extends BirdEyePhase {
     }
 
     private onNetworkReady() {
-        console.log("Network is ready! " + this.networkManager.isHost)
+        console.log("Network is ready! side: " + (this.networkManager.isHost ? "master" : "player"));
         if (this.networkManager.isHost) {
-            history.replaceState(null, null, '#p' + this.networkManager.peer.id)
+            history.replaceState(null, null, '#p' + this.networkManager.peer.id);
         }
     }
 
@@ -297,6 +294,14 @@ export class EditMapPhase extends BirdEyePhase {
         }
     }
 
+    updatePointerFollowers(point: PIXI.IPointData) {
+        for (let c of (this.ecs.storages.get(FOLLOW_MOUSE_TYPE) as FlagEcsStorage).allComponents()) {
+            this.ecs.editComponent(c.entity, POSITION_TYPE, {
+                x: point.x,
+                y: point.y,
+            });
+        }
+    }
 
 
     ui() {
@@ -312,6 +317,7 @@ export class EditMapPhase extends BirdEyePhase {
         this.setupBoard();
 
         this.interactionSystem.enable();
+        this.pixiSystem.enable();
         this.backgroundSystem.enable();
         this.textSystem.enable();
         this.wallSystem.enable();
@@ -335,6 +341,7 @@ export class EditMapPhase extends BirdEyePhase {
         this.wallSystem.destroy();
         this.textSystem.destroy();
         this.backgroundSystem.destroy();
+        this.pixiSystem.destroy();
         this.interactionSystem.destroy();
 
         super.disable();

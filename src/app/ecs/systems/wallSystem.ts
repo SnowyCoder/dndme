@@ -3,112 +3,93 @@ import {System} from "../system";
 import {World} from "../ecs";
 import {EditMapPhase, Tool} from "../../phase/editMap/editMapPhase";
 import {DESTROY_ALL} from "../../util/pixi";
-import {EditMapDisplayPrecedence} from "../../phase/editMap/displayPrecedence";
+import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {SingleEcsStorage} from "../storage";
-import {Component, PositionComponent} from "../component";
+import {Component, POSITION_TYPE, PositionComponent} from "../component";
 import {distSquared2d, Point} from "../../util/geometry";
 import {Aabb} from "../../geometry/aabb";
 import {Line} from "../../geometry/line";
 import {intersectSegmentVsSegment, lineSameSlope, SegmentVsSegmentRes} from "../../geometry/collision";
-import {app} from "../../index";
-import {InteractionComponent, LineShape, shapeAabb, shapeLine} from "./interactionSystem";
-import {VisibilityBlocker} from "./visibilitySystem";
-import {PlayerVisibleComponent} from "./playerSystem";
-import {Resource} from "../resource";
-import {LocalLightSettings} from "./lightSystem";
+import {INTERACTION_TYPE, LineShape, shapeAabb, shapeLine} from "./interactionSystem";
+import {VISIBILITY_BLOCKER_TYPE, VisibilityBlocker} from "./visibilitySystem";
+import {ElementType, GRAPHIC_TYPE, GraphicComponent, LineElement, VisibilityType} from "../../graphics";
 
+export const WALL_TYPE = 'wall';
+export type WALL_TYPE = 'wall';
 export interface WallComponent extends Component {
-    type: 'wall';
+    type: WALL_TYPE;
     vec: Point;
-    visible: boolean,
-    _display: PIXI.Graphics;
-    _selected?: boolean;
     _dontMerge?: number;
 }
 
 const SELECTION_COLOR = 0x7986CB;
 
 export class WallSystem implements System {
-    readonly ecs: World;
+    readonly world: World;
     readonly phase: EditMapPhase;
 
-    readonly storage = new SingleEcsStorage<WallComponent>('wall');
-
-    displayWalls: PIXI.Container;
+    readonly storage = new SingleEcsStorage<WallComponent>(WALL_TYPE);
 
     // Sprite of the pin to be created
     createdIds: number[] = [];
     createdLastPos?: Point;
     createLastLineDisplay: PIXI.Graphics;
 
-    layer: PIXI.display.Layer;
-
     isTranslating: boolean = false;
 
-
     constructor(world: World, phase: EditMapPhase) {
-        this.ecs = world;
+        this.world = world;
         this.phase = phase;
 
         world.addStorage(this.storage);
         world.events.on('component_add', this.onComponentAdd, this);
         world.events.on('component_edited', this.onComponentEdited, this);
         world.events.on('component_remove', this.onComponentRemove, this);
-        world.events.on('resource_edited', this.onResourceEdited, this);
-        world.events.on('selection_begin', this.onSelectionBegin, this);
-        world.events.on('selection_end', this.onSelectionEnd, this);
         world.events.on('tool_move_begin', this.onToolMoveBegin, this);
         world.events.on('tool_move_end', this.onToolMoveEnd, this);
     }
 
     private onComponentAdd(component: Component): void {
-        if (component.type !== 'wall') return;
+        if (component.type !== WALL_TYPE) return;
         let wall = component as WallComponent;
-        let pos = this.ecs.getComponent(wall.entity, "position") as PositionComponent;
+        let pos = this.world.getComponent(wall.entity, POSITION_TYPE) as PositionComponent;
         if (pos === undefined) {
             console.warn("Found wall without position, please add first the position, then the wall");
             return;
         }
         wall._dontMerge = 0;
 
-        if (wall.visible === undefined) wall.visible = false;
-        this.addWallDisplay(pos, wall);
-
-        this.ecs.addComponent(component.entity, {
-            type: "interaction",
-            entity: -1,
-            shape: shapeLine(new Line(pos.x, pos.y, pos.x + wall.vec[0], pos.y + wall.vec[1])),
-            snapEnabled: true,
-            selectPriority: EditMapDisplayPrecedence.WALL,
-        } as InteractionComponent);
-
-        if (!wall.visible) {
-            this.ecs.addComponent(component.entity, {
-                type: "player_visible",
-                entity: -1,
-                visible: false,
-                isWall: true,
-            } as PlayerVisibleComponent);
-        }
-
-        this.ecs.addComponent(component.entity, {
-            type: "visibility_blocker",
+        this.world.addComponent(component.entity, {
+            type: VISIBILITY_BLOCKER_TYPE,
             entity: -1
         } as VisibilityBlocker);
+
+        this.world.addComponent(component.entity, {
+            type: GRAPHIC_TYPE,
+            entity: -1,
+            display: {
+                type: ElementType.LINE,
+                ignore: false,
+                visib: VisibilityType.REMEMBER,
+                priority: DisplayPrecedence.WALL,
+                vec: { x: wall.vec[0], y: wall.vec[1] },
+            } as LineElement,
+            interactive: true,
+            isWall: true,
+        } as GraphicComponent);
     }
 
     fixWallPreTranslation(walls: WallComponent[]) {
         for (let wall of walls) {
-            let visBlock = this.ecs.getComponent(wall.entity, 'visibility_blocker');
-            if (visBlock !== undefined) this.ecs.removeComponent(visBlock);
+            let visBlock = this.world.getComponent(wall.entity, VISIBILITY_BLOCKER_TYPE);
+            if (visBlock !== undefined) this.world.removeComponent(visBlock);
         }
-
 
         // what changes here? a little bittle thing:
         // we need to unfix the wall (remove the intersection breaks).
 
         let wall_index = new Map<string, WallComponent[]>();
-        let posStorage = this.ecs.storages.get('position') as SingleEcsStorage<PositionComponent>;
+        let posStorage = this.world.storages.get(POSITION_TYPE) as SingleEcsStorage<PositionComponent>;
 
         let insertInIndex = (index: string, wall: WallComponent) => {
             let list = wall_index.get(index);
@@ -176,8 +157,8 @@ export class WallSystem implements System {
                     p = (mpos.x + mwall.vec[0]) + "@" + (mpos.y + mwall.vec[1]);
                 }
                 insertInIndex(p, mwall);
-                this.ecs.despawnEntity(wall.entity);
-                this.redrawWall(mpos, mwall);
+                this.world.despawnEntity(wall.entity);
+                this.redrawWall(mwall);
 
                 return true;
             };
@@ -193,14 +174,14 @@ export class WallSystem implements System {
         // Recompute intersections with other walls.
         // Why not all everything directly? we want to compute also the self-intersections
 
-        let posStorage = this.ecs.storages.get('position') as SingleEcsStorage<PositionComponent>;
+        let posStorage = this.world.storages.get(POSITION_TYPE) as SingleEcsStorage<PositionComponent>;
 
         for (let wall of walls) {
             let pos = posStorage.getComponent(wall.entity);
             let points = [pos.x, pos.y, pos.x + wall.vec[0], pos.y + wall.vec[1]];
             this.fixIntersections(points, 0);
 
-            this.ecs.editComponent(pos.entity, "interaction", {
+            this.world.editComponent(pos.entity, INTERACTION_TYPE, {
                 shape: shapeLine(new Line(points[0], points[1], points[2], points[3])),
             });
 
@@ -211,7 +192,7 @@ export class WallSystem implements System {
                 wall.vec[1] = points[3] - pos.y;
             }
 
-            this.redrawWall(pos, wall);
+            this.redrawWall(wall);
 
             let plen = points.length;
             let cIds = [];
@@ -227,7 +208,7 @@ export class WallSystem implements System {
             }
         }
         for (let wall of walls) {
-            this.ecs.addComponent(wall.entity, {
+            this.world.addComponent(wall.entity, {
                 type: "visibility_blocker",
                 entity: -1
             } as VisibilityBlocker);
@@ -236,24 +217,12 @@ export class WallSystem implements System {
 
 
     private onComponentEdited(comp: Component, changed: any): void {
-        if (comp.type === 'player_visible') {
-            let  c = comp as PlayerVisibleComponent;
-            let wall = this.storage.getComponent(comp.entity);
-            if (wall === undefined || !c.visible) return;
-
-            this.ecs.editComponent(comp.entity, 'wall', { visible: true });
-            wall._display.visible = true;
-            this.ecs.removeComponent(comp);
-
-            return;
-        }
-
-        if (comp.type !== 'wall' && comp.type !== 'position') return;
+        if (comp.type !== WALL_TYPE && comp.type !== POSITION_TYPE) return;
 
         let wall, position;
-        if (comp.type === 'wall') {
+        if (comp.type === WALL_TYPE) {
             wall = comp as WallComponent;
-            position = this.ecs.getComponent(comp.entity, 'position') as PositionComponent;
+            position = this.world.getComponent(comp.entity, POSITION_TYPE) as PositionComponent;
         } else {
             wall = this.storage.getComponent(comp.entity);
             position = comp as PositionComponent;
@@ -265,20 +234,16 @@ export class WallSystem implements System {
             this.fixWallPreTranslation([wall]);
             this.fixWallPostTranslation([wall]);
         }
-        if (comp.type === 'wall' && 'vec' in changed) {
-            this.ecs.editComponent(wall.entity, 'interaction', {
-                shape: shapeLine(new Line(
-                    position.x, position.y,
-                    position.x + wall.vec[0], position.y + wall.vec[1],
-                )),
-            });
-        }
 
-        if (comp.type === 'position') {
-            wall._display.position.set(position.x, position.y);
-        } else {
-            this.redrawWall(position, wall);
+        if (comp.type === WALL_TYPE && 'vec' in changed) {
+            this.redrawWall(wall);
         }
+    }
+
+    private redrawWall(wall: WallComponent): void {
+        let display = (this.world.getComponent(wall.entity, GRAPHIC_TYPE) as GraphicComponent).display as LineElement;
+        display.vec = { x: wall.vec[0], y: wall.vec[1] };
+        this.world.editComponent(wall.entity, GRAPHIC_TYPE, {display}, undefined, false);
     }
 
     findLocationOnWall(point: PIXI.Point, radius: number): PIXI.Point | undefined {
@@ -315,47 +280,23 @@ export class WallSystem implements System {
     }
 
     private onComponentRemove(component: Component): void {
-        if (component.type !== 'wall') return;
-        let wall = component as WallComponent;
+        if (component.type !== WALL_TYPE) return;
 
-        wall._display.destroy(DESTROY_ALL);
-    }
-
-    private onResourceEdited(res: Resource, changes: any): void {
-        if (res.type === 'local_light_settings' && 'visionType' in changes) {
-            let lls = res as LocalLightSettings;
-            let visAll = lls.visionType === 'dm';
-            for (let c of this.storage.allComponents()) {
-                c._display.visible = visAll || c.visible;
-            }
+        let vblocker = this.world.getComponent(component.entity, VISIBILITY_BLOCKER_TYPE);
+        if (vblocker !== undefined) {
+            this.world.removeComponent(vblocker);
         }
-    }
-
-    private onSelectionBegin(entity: number): void {
-        let wall = this.storage.getComponent(entity);
-        if (wall === undefined) return;
-        wall._selected = true;
-        let pos = this.ecs.getComponent(wall.entity, 'position') as PositionComponent;
-        this.redrawWall(pos, wall);
-    }
-
-    private onSelectionEnd(entity: number): void {
-        let wall = this.storage.getComponent(entity);
-        if (wall === undefined) return;
-        wall._selected = undefined;
-        let pos = this.ecs.getComponent(wall.entity, 'position') as PositionComponent;
-        this.redrawWall(pos, wall);
     }
 
     private onToolMoveBegin(): void {
         this.isTranslating = true;
-        let walls = [...this.phase.selection.getSelectedByType("wall")] as WallComponent[];
+        let walls = [...this.phase.selection.getSelectedByType(WALL_TYPE)] as WallComponent[];
         this.fixWallPreTranslation(walls);
     }
 
     private onToolMoveEnd(): void {
         this.isTranslating = false;
-        let walls = [...this.phase.selection.getSelectedByType("wall")] as WallComponent[];
+        let walls = [...this.phase.selection.getSelectedByType(WALL_TYPE)] as WallComponent[];
         this.fixWallPostTranslation(walls);
     }
 
@@ -399,18 +340,16 @@ export class WallSystem implements System {
     }
 
     private createWall(minX: number, minY: number, maxX: number, maxY: number): number {
-        return this.ecs.spawnEntity(
+        return this.world.spawnEntity(
             {
-                type: 'position',
+                type: POSITION_TYPE,
                 entity: -1,
                 x: minX,
                 y: minY,
             } as PositionComponent,
             {
-                type: 'wall',
+                type: WALL_TYPE,
                 vec: [maxX - minX, maxY - minY],
-                visible: false,
-                _selected: true,
             } as WallComponent,
         );
     }
@@ -445,7 +384,7 @@ export class WallSystem implements System {
         } else {
             let lastCreated = this.createdIds.pop();
 
-            let wallPos = this.ecs.getComponent(lastCreated, 'position') as PositionComponent;
+            let wallPos = this.world.getComponent(lastCreated, POSITION_TYPE) as PositionComponent;
             let wall = this.storage.getComponent(lastCreated);
 
             if (wallPos.x === this.createdLastPos[0] && wallPos.y == this.createdLastPos[1]) {
@@ -460,7 +399,7 @@ export class WallSystem implements System {
                 ];
             }
 
-            this.ecs.despawnEntity(lastCreated);
+            this.world.despawnEntity(lastCreated);
         }
 
         this.redrawCreationLastLine(point);
@@ -479,58 +418,6 @@ export class WallSystem implements System {
         this.phase.selection.setOnlyEntities(this.createdIds);
         this.createdIds.length = 0;
         this.phase.changeTool(Tool.INSPECT);
-    }
-
-    addWallDisplay(pos: PositionComponent, wall: WallComponent) {
-        let g = new PIXI.Graphics();
-
-        this.displayWalls.addChild(g);
-        wall._display = g;
-        this.redrawWall(pos, wall);
-    }
-
-    redrawWall(pos: PositionComponent, wall: WallComponent) {
-        wall._display.visible = wall.visible || this.phase.lightSystem.localLightSettings.visionType === 'dm';
-        wall._display.position.set(pos.x, pos.y);
-
-        let color = 0;
-
-        if (wall._selected) {
-            color = SELECTION_COLOR;
-        }
-
-        let strip = [
-            0, 0,
-            wall.vec[0], wall.vec[1]
-        ];
-
-        this.redrawWall0(wall._display, strip, wall._selected, color);
-    }
-
-    redrawWall0(display: PIXI.Graphics, strip: number[], drawPoints: boolean, color: number) {
-        display.clear();
-
-        if (strip.length === 0) return;
-        display.moveTo(strip[0], strip[1]);
-
-        display.lineStyle(5, color);
-        for (let i = 2; i < strip.length; i += 2) {
-            display.lineTo(strip[i], strip[i + 1]);
-        }
-
-        if (drawPoints) {
-            display.lineStyle(0);
-            display.beginFill(0xe51010);
-            display.drawCircle(strip[0], strip[1], 10);
-
-            display.endFill();
-            display.beginFill(color);
-
-            for (let i = 2; i < strip.length; i += 2) {
-                display.drawCircle(strip[i], strip[i + 1], 10);
-            }
-            display.endFill();
-        }
     }
 
     redrawCreationLastLine(pos: PIXI.Point): void {
@@ -552,25 +439,15 @@ export class WallSystem implements System {
     }
 
     enable() {
-        this.layer = new PIXI.display.Layer();
-        this.layer.zIndex = EditMapDisplayPrecedence.WALL;
-        this.layer.interactive = false;
-        app.stage.addChild(this.layer);
-
-        this.displayWalls = new PIXI.Container();
-        this.displayWalls.parentLayer = this.layer;
-        this.displayWalls.interactive = false;
-        this.displayWalls.interactiveChildren = false;
         this.createLastLineDisplay = new PIXI.Graphics();
-        this.createLastLineDisplay.parentLayer = this.layer
-        this.createLastLineDisplay.zOrder = 2;
+        this.createLastLineDisplay.zIndex = DisplayPrecedence.WALL + 1;
+        this.createLastLineDisplay.interactive = false;
+        this.createLastLineDisplay.interactiveChildren = false;
 
-        this.phase.board.addChild(this.displayWalls, this.createLastLineDisplay);
+        this.phase.board.addChild(this.createLastLineDisplay);
     }
 
     destroy(): void {
-        this.layer.destroy(DESTROY_ALL);
-        this.displayWalls.destroy(DESTROY_ALL);
         this.createLastLineDisplay.destroy(DESTROY_ALL)
     }
 }

@@ -1,23 +1,26 @@
-import {Component, PositionComponent} from "../component";
+import {Component, POSITION_TYPE, PositionComponent} from "../component";
 import {System} from "../system";
 import {World} from "../ecs";
 import {EditMapPhase} from "../../phase/editMap/editMapPhase";
-import {VisibilityComponent, VisibilitySystem} from "./visibilitySystem";
+import {VISIBILITY_TYPE, VisibilityComponent, VisibilitySystem} from "./visibilitySystem";
 import {SingleEcsStorage} from "../storage";
 import {arrayRemoveElem} from "../../util/array";
-import {InteractionComponent, shapeCircle, shapeIntersect, shapePolygon} from "./interactionSystem";
+import {INTERACTION_TYPE, InteractionComponent, shapeCircle, shapeIntersect, shapePolygon} from "./interactionSystem";
 import {Aabb} from "../../geometry/aabb";
 import EventEmitter = PIXI.utils.EventEmitter;
 
+
+export const VISIBILITY_AWARE_TYPE = 'visibility_aware';
+export type VISIBILITY_AWARE_TYPE = 'visibility_aware';
 export interface VisibilityAwareComponent extends Component {
-    type: "visibility_aware";
+    type: VISIBILITY_AWARE_TYPE;
     visibleBy: number[];
     isWall: boolean;
 }
 
 export function newVisibilityAwareComponent(isWall: boolean = false): VisibilityAwareComponent {
     return {
-        type: "visibility_aware",
+        type: VISIBILITY_AWARE_TYPE,
         entity: -1,
         visibleBy: [],
         isWall,
@@ -26,11 +29,11 @@ export function newVisibilityAwareComponent(isWall: boolean = false): Visibility
 
 
 export class VisibilityAwareSystem implements System {
-    private ecs: World;
+    private world: World;
     private phase: EditMapPhase;
     private visSys: VisibilitySystem;
 
-    storage = new SingleEcsStorage<VisibilityAwareComponent>("visibility_aware", false, false);
+    storage = new SingleEcsStorage<VisibilityAwareComponent>(VISIBILITY_AWARE_TYPE, false, false);
 
     /**
      * Events:
@@ -42,16 +45,16 @@ export class VisibilityAwareSystem implements System {
      */
     events = new EventEmitter();
 
-    constructor(ecs: World, phase: EditMapPhase) {
-        this.ecs = ecs;
+    constructor(world: World, phase: EditMapPhase) {
+        this.world = world;
         this.phase = phase;
         this.visSys = phase.visibilitySystem;
 
-        ecs.addStorage(this.storage);
+        world.addStorage(this.storage);
 
-        ecs.events.on('component_add', this.onComponentAdd, this);
-        ecs.events.on('component_edited', this.onComponentEdited, this);
-        ecs.events.on('component_remove', this.onComponentRemove, this);
+        world.events.on('component_add', this.onComponentAdd, this);
+        world.events.on('component_edited', this.onComponentEdited, this);
+        world.events.on('component_remove', this.onComponentRemove, this);
     }
 
     private visibilityChange(viewer: VisibilityComponent, polygon: number[] | undefined, range: number): void {
@@ -71,8 +74,8 @@ export class VisibilityAwareSystem implements System {
 
         let oldCanSee = viewer._canSee;
         viewer._canSee = [];
-        let posStorage = this.ecs.storages.get('position') as SingleEcsStorage<PositionComponent>;
-        let interStorage = this.ecs.storages.get('interaction') as SingleEcsStorage<InteractionComponent>;
+        let posStorage = this.world.storages.get(POSITION_TYPE) as SingleEcsStorage<PositionComponent>;
+        let interStorage = this.world.storages.get(INTERACTION_TYPE) as SingleEcsStorage<InteractionComponent>;
         let viewerPos = posStorage.getComponent(viewer.entity);
 
         let viewerPoly = shapePolygon(polygon);
@@ -109,11 +112,11 @@ export class VisibilityAwareSystem implements System {
 
     private visibleElementMove(aware: VisibilityAwareComponent): void {
         if (aware.isWall === true) return;
-        let posStorage = this.ecs.storages.get('position') as SingleEcsStorage<PositionComponent>;
-        let visStorage = this.ecs.storages.get('visibility') as SingleEcsStorage<VisibilityComponent>;
+        let posStorage = this.world.storages.get(POSITION_TYPE) as SingleEcsStorage<PositionComponent>;
+        let visStorage = this.world.storages.get(VISIBILITY_TYPE) as SingleEcsStorage<VisibilityComponent>;
 
         let pos = posStorage.getComponent(aware.entity);
-        let shape = (this.ecs.getComponent(aware.entity, 'interaction') as InteractionComponent).shape;
+        let shape = (this.world.getComponent(aware.entity, INTERACTION_TYPE) as InteractionComponent).shape;
 
         let oldVisibleBy = aware.visibleBy;
         aware.visibleBy = [];
@@ -210,14 +213,14 @@ export class VisibilityAwareSystem implements System {
     }
 
     private onComponentAdd(comp: Component): void {
-        if (comp.type === 'visibility_aware') {
+        if (comp.type === VISIBILITY_AWARE_TYPE) {
             this.visibleElementMove(comp as VisibilityAwareComponent);
         }
     }
 
 
     private onComponentEdited(comp: Component, changed: any): void {
-        if (comp.type === 'visibility') {
+        if (comp.type === VISIBILITY_TYPE) {
             let vis = comp as VisibilityComponent;
 
             if ('polygon' in changed) {
@@ -226,7 +229,7 @@ export class VisibilityAwareSystem implements System {
             if ('_canSeeWalls' in changed) {
                 this.onViewBlockerEdited(vis, vis._canSeeWalls, changed.walls);
             }
-        } else if (comp.type === 'position') {
+        } else if (comp.type === POSITION_TYPE) {
             let visAware = this.storage.getComponent(comp.entity);
             if (visAware === undefined) return;
 
@@ -235,14 +238,14 @@ export class VisibilityAwareSystem implements System {
     }
 
     private onComponentRemove(comp: Component) {
-        if (comp.type === 'visibility') {
+        if (comp.type === VISIBILITY_TYPE) {
             let vis = comp as VisibilityComponent;
             this.visibilityChange(vis, undefined, 0);
             this.onViewBlockerEdited(vis, [], vis._canSeeWalls);
-        } else if (comp.type === 'visibility_aware') {
+        } else if (comp.type === VISIBILITY_AWARE_TYPE) {
             let va = comp as VisibilityAwareComponent;
             va.visibleBy
-            let visStorage = this.ecs.storages.get('visibility') as SingleEcsStorage<VisibilityComponent>;
+            let visStorage = this.world.storages.get(VISIBILITY_TYPE) as SingleEcsStorage<VisibilityComponent>;
             for (let p of va.visibleBy) {
                 let vis = visStorage.getComponent(p);
                 arrayRemoveElem(vis._canSee, va.entity);

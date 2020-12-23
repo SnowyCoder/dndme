@@ -6,15 +6,18 @@ import {GridGraphicalOptions, GridType, STANDARD_GRID_OPTIONS} from "../../game/
 import {GridResource, Resource} from "../resource";
 import {World} from "../ecs";
 import {System} from "../system";
-import {EditMapDisplayPrecedence} from "../../phase/editMap/displayPrecedence";
+import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 
 
 const SQRT3 = Math.sqrt(3);
 
+export const GRID_TYPE = 'grid';
+export type GRID_TYPE = 'grid';
+
 
 export class GridSystem implements System {
-    readonly type = 'grid';
-    ecs: World;
+    readonly type = GRID_TYPE;
+    world: World;
     sprite: PIXI.TilingSprite;
 
     private readonly gridRes: GridResource;
@@ -26,16 +29,16 @@ export class GridSystem implements System {
     scaleY: number = 1;
 
     constructor(ecs: World) {
-        this.ecs = ecs;
+        this.world = ecs;
         this.sprite = new PIXI.TilingSprite(PIXI.Texture.EMPTY, app.screen.width, app.screen.height);
-        this.sprite.zIndex = EditMapDisplayPrecedence.GRID;
+        this.sprite.zIndex = DisplayPrecedence.GRID;
 
         ecs.events.on('resource_edited', this.onResourceEdited, this);
         ecs.events.on('resource_remove', this.onResourceRemove, this);
         app.renderer.on('resize', this.onResize, this);
 
         this.gridRes = Object.assign({
-            type: 'grid',
+            type: GRID_TYPE,
             _save: true,
             _sync: true,
         }, STANDARD_GRID_OPTIONS)  as GridResource;
@@ -46,7 +49,7 @@ export class GridSystem implements System {
     }
 
     onResourceEdited(res: Resource, changed: any) {
-        if (res.type !== 'grid') return;
+        if (res.type !== GRID_TYPE) return;
 
         // Redraw
         this.updateTex();
@@ -54,7 +57,7 @@ export class GridSystem implements System {
     }
 
     onResourceRemove(res: Resource) {
-        if (res.type !== 'grid') return;
+        if (res.type !== GRID_TYPE) return;
         throw 'Fool! Thou shall not remove thy grid!'
     }
 

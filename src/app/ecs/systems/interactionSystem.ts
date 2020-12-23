@@ -297,8 +297,11 @@ function shapeClone(shape: Shape): Shape {
     }
 }
 
+export const INTERACTION_TYPE = 'interaction';
+export type INTERACTION_TYPE = 'interaction';
+
 export interface InteractionComponent extends Component {
-    type: 'interaction';
+    type: INTERACTION_TYPE;
 
     selectPriority?: number;// If !== undefined then the item is selectable
     snapEnabled?: boolean;// if === true then the snapDb registration is available.
@@ -308,11 +311,10 @@ export interface InteractionComponent extends Component {
 
     _treeId?: number;
     _snaps?: number[];
-    _translateStartLoc?: [number, number];
 }
 
 export class InteractionSystem implements System {
-    ecs: World;
+    world: World;
     phase: EditMapPhase;
 
     storage = new SingleEcsStorage<InteractionComponent>('interaction', false, false);
@@ -321,18 +323,18 @@ export class InteractionSystem implements System {
     snapDb: PointDB;
     aabbTree = new DynamicTree<InteractionComponent>();
 
-    constructor(ecs: World, phase: EditMapPhase) {
-        this.ecs = ecs;
+    constructor(world: World, phase: EditMapPhase) {
+        this.world = world;
         this.phase = phase;
         this.snapDb = new PointDB(phase.gridSystem);
 
-        ecs.addStorage(this.storage);
-        ecs.events.on('component_add', this.onComponentAdd, this);
-        ecs.events.on('component_edited', this.onComponentEdited, this);
-        ecs.events.on('component_remove', this.onComponentRemove, this);
-        ecs.events.on('tool_move_begin', this.onToolMoveBegin, this);
-        ecs.events.on('tool_move_end', this.onToolMoveEnd, this);
-        ecs.events.on('query_hit', this.onQueryHit, this);
+        world.addStorage(this.storage);
+        world.events.on('component_add', this.onComponentAdd, this);
+        world.events.on('component_edited', this.onComponentEdited, this);
+        world.events.on('component_remove', this.onComponentRemove, this);
+        world.events.on('tool_move_begin', this.onToolMoveBegin, this);
+        world.events.on('tool_move_end', this.onToolMoveEnd, this);
+        world.events.on('query_hit', this.onQueryHit, this);
     }
 
     private registerSnapPoints(snaps: number[]): void {
@@ -370,26 +372,13 @@ export class InteractionSystem implements System {
         }
     }
 
-    private savePosPreTranslate(comp: InteractionComponent): void {
-        let pos = this.ecs.getComponent(comp.entity, 'position') as PositionComponent;
-        comp._translateStartLoc = [pos.x, pos.y];
-    }
-
-    private updatePosPostTranslate(comp: InteractionComponent): void {
-        let pos = this.ecs.getComponent(comp.entity, 'position') as PositionComponent;
-
-        let oldPos = comp._translateStartLoc;
-        shapeTranslate(comp.shape, pos.x - oldPos[0], pos.y - oldPos[1]);
-        comp._translateStartLoc = undefined;
-    }
-
     private onComponentAdd(comp: Component): void {
-        if (comp.type !== 'interaction') return;
+        if (comp.type !== INTERACTION_TYPE) return;
         this.updateComponent(comp as InteractionComponent);
     }
 
     private onComponentEdited(comp: Component, changed: any): void {
-        if (comp.type === 'interaction') {
+        if (comp.type === INTERACTION_TYPE) {
             let c = comp as InteractionComponent;
 
             if ('shape' in changed) {
@@ -399,7 +388,6 @@ export class InteractionSystem implements System {
             let pos = comp as PositionComponent;
             let inter = this.storage.getComponent(pos.entity);
             if (inter === undefined || inter.shape === undefined) return;
-            if (this.isTranslating && this.phase.selection.selectedEntities.has(pos.entity)) return;// Ignore
             let oldX = changed.x !== undefined ? changed.x : pos.x;
             let oldY = changed.y !== undefined ? changed.y : pos.y;
             let diffX = pos.x - oldX;
@@ -408,7 +396,9 @@ export class InteractionSystem implements System {
             if (diffX !== 0 || diffY !== 0) {
                 // TODO: trigger component change(?)
                 shapeTranslate(inter.shape, diffX, diffY);
-                this.updateComponent(inter);
+                if (!(this.isTranslating && this.phase.selection.selectedEntities.has(pos.entity))) {
+                    this.updateComponent(inter);
+                }
             }
 
             return;
@@ -441,24 +431,22 @@ export class InteractionSystem implements System {
     }
 
     private onComponentRemove(comp: Component): void {
-        if (comp.type !== 'interaction') return;
+        if (comp.type !== INTERACTION_TYPE) return;
         this.unregisterComponent(comp as InteractionComponent);
     }
 
     private onToolMoveBegin(): void {
-        for (let comp of this.phase.selection.getSelectedByType("interaction")) {
+        for (let comp of this.phase.selection.getSelectedByType(INTERACTION_TYPE)) {
             let c = comp as InteractionComponent;
             this.unregisterComponent(c);
-            this.savePosPreTranslate(c);
         }
         this.isTranslating = true;
     }
 
     private onToolMoveEnd(): void {
         this.isTranslating = false;
-        for (let comp of this.phase.selection.getSelectedByType("interaction")) {
+        for (let comp of this.phase.selection.getSelectedByType(INTERACTION_TYPE)) {
             let c = comp as InteractionComponent;
-            this.updatePosPostTranslate(c);
             this.updateComponent(c);
         }
     }
@@ -508,8 +496,8 @@ export class InteractionSystem implements System {
 
     queryVisible(shape: Shape, preCheck?: (c: InteractionComponent) => boolean): Generator<InteractionComponent> {
         let playerVis: SingleEcsStorage<PlayerVisibleComponent> = undefined;
-        if (!this.ecs.isMaster) {
-            playerVis = this.ecs.storages.get('player_visible') as SingleEcsStorage<PlayerVisibleComponent>;
+        if (!this.world.isMaster) {
+            playerVis = this.world.storages.get('player_visible') as SingleEcsStorage<PlayerVisibleComponent>;
         }
 
         if (playerVis === undefined) return this.query(shape, preCheck);
