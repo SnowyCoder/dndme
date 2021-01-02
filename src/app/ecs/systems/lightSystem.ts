@@ -1,19 +1,22 @@
 import {Component, POSITION_TYPE, PositionComponent} from "../component";
 import {System} from "../system";
-import {World} from "../ecs";
+import {World} from "../world";
 import {CUSTOM_BLEND_MODES, DESTROY_ALL} from "../../util/pixi";
 import {SingleEcsStorage} from "../storage";
-import {EditMapPhase} from "../../phase/editMap/editMapPhase";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {StupidPoint} from "../../geometry/point";
 import {Resource} from "../resource";
 import PIXI from "../../PIXI";
 import {app} from "../../index";
 import {VISIBILITY_TYPE, VisibilityComponent} from "./visibilitySystem";
-import hex2rgb = PIXI.utils.hex2rgb;
 import * as PointLightRender from "../../game/pointLightRenderer";
 import {PLAYER_TYPE, PlayerComponent} from "./playerSystem";
 import {Mesh} from "pixi.js";
+import {PixiBoardSystem, PIXI_BOARD_TYPE} from "./pixiBoardSystem";
+import hex2rgb = PIXI.utils.hex2rgb;
+import {TOOL_TYPE, ToolSystem} from "./toolSystem";
+import {createEmptyDriver} from "../tools/utils";
+import {Tool} from "../tools/toolType";
 
 export const DEFAULT_BACKGROUND = 0x6e472c;
 
@@ -82,8 +85,10 @@ export interface LocalLightSettings extends Resource {
  */
 export class LightSystem implements System {
     readonly world: World;
+    readonly name = LIGHT_TYPE;
+    readonly dependencies = [PIXI_BOARD_TYPE];
+
     storage = new SingleEcsStorage<LightComponent>(LIGHT_TYPE);
-    phase: EditMapPhase;
 
     playerContainer: PIXI.Container;
     lightContainer: PIXI.Container;
@@ -92,27 +97,29 @@ export class LightSystem implements System {
     lightSettings: LightSettings;
     localLightSettings: LocalLightSettings;
 
-    constructor(ecs: World, phase: EditMapPhase) {
-        this.world = ecs;
-        this.phase = phase;
+    constructor(world: World) {
+        this.world = world;
 
-        ecs.addStorage(this.storage);
+        let toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
+        toolSys.addTool(createEmptyDriver(Tool.LIGHT));
+
+        world.addStorage(this.storage);
         this.lightSettings = Object.assign({
             type: LIGHT_SETTINGS_TYPE,
             _save: true, _sync: true,
         }, DEFAULT_LIGHT_SETTINGS) as LightSettings;
-        ecs.addResource(this.lightSettings);
+        world.addResource(this.lightSettings);
         this.localLightSettings = {
             type: LOCAL_LIGHT_SETTINGS_TYPE,
             visionType: this.world.isMaster ? 'dm' : 'rp',
             _save: true, _sync: false,
         } as LocalLightSettings;
-        ecs.addResource(this.localLightSettings);
+        world.addResource(this.localLightSettings);
 
-        ecs.events.on('component_add', this.onComponentAdd, this);
-        ecs.events.on('component_edited', this.onComponentEdited, this);
-        ecs.events.on('component_remove', this.onComponentRemove, this);
-        ecs.events.on('resource_edited', this.onResourceEdited, this);
+        world.events.on('component_add', this.onComponentAdd, this);
+        world.events.on('component_edited', this.onComponentEdited, this);
+        world.events.on('component_remove', this.onComponentRemove, this);
+        world.events.on('resource_edited', this.onResourceEdited, this);
     }
 
     createLightVisMesh(): PIXI.Mesh {
@@ -281,7 +288,8 @@ export class LightSystem implements System {
         this.playerContainer.zIndex = DisplayPrecedence.LIGHT - 1;
         this.playerContainer.interactive = false;
         this.playerContainer.interactiveChildren = false;
-        this.playerContainer.parentLayer = this.phase.lightSystem.lightLayer;
+        let lightSystem = this.world.systems.get(LIGHT_TYPE) as LightSystem;
+        this.playerContainer.parentLayer = lightSystem.lightLayer;
 
         this.lightContainer = new PIXI.Container();
         this.lightContainer.zOrder = DisplayPrecedence.LIGHT;
@@ -298,7 +306,9 @@ export class LightSystem implements System {
         lightingSprite.interactive = false;
         lightingSprite.interactiveChildren = false;
 
-        this.phase.board.addChild(this.playerContainer, this.lightContainer, this.lightLayer);
+        let board = this.world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
+
+        board.board.addChild(this.playerContainer, this.lightContainer, this.lightLayer);
         app.stage.addChild(lightingSprite);
     }
 

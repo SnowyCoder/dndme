@@ -4,9 +4,14 @@ import {distSquared2d, Point} from "../../util/geometry";
 import {DESTROY_ALL} from "../../util/pixi";
 import {GridGraphicalOptions, GridType, STANDARD_GRID_OPTIONS} from "../../game/grid";
 import {GridResource, Resource} from "../resource";
-import {World} from "../ecs";
+import {World} from "../world";
 import {System} from "../system";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
+import {BOARD_TRANSFORM_TYPE, BoardTransformResource, PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
+import {TOOL_TYPE, ToolSystem} from "./toolSystem";
+import {SELECTION_TYPE} from "./selectionSystem";
+import {createEmptyDriver} from "../tools/utils";
+import {Tool} from "../tools/toolType";
 
 
 const SQRT3 = Math.sqrt(3);
@@ -16,7 +21,9 @@ export type GRID_TYPE = 'grid';
 
 
 export class GridSystem implements System {
-    readonly type = GRID_TYPE;
+    readonly name = GRID_TYPE;
+    readonly dependencies = [PIXI_BOARD_TYPE, SELECTION_TYPE, TOOL_TYPE];
+
     world: World;
     sprite: PIXI.TilingSprite;
 
@@ -28,37 +35,49 @@ export class GridSystem implements System {
     scaleX: number = 1;
     scaleY: number = 1;
 
-    constructor(ecs: World) {
-        this.world = ecs;
+    constructor(world: World) {
+        this.world = world;
         this.sprite = new PIXI.TilingSprite(PIXI.Texture.EMPTY, app.screen.width, app.screen.height);
         this.sprite.zIndex = DisplayPrecedence.GRID;
 
-        ecs.events.on('resource_edited', this.onResourceEdited, this);
-        ecs.events.on('resource_remove', this.onResourceRemove, this);
-        app.renderer.on('resize', this.onResize, this);
+        let toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
+        toolSys.addTool(createEmptyDriver(Tool.GRID));
+
+        world.events.on('resource_edited', this.onResourceEdited, this);
+        world.events.on('resource_remove', this.onResourceRemove, this);
 
         this.gridRes = Object.assign({
             type: GRID_TYPE,
             _save: true,
             _sync: true,
         }, STANDARD_GRID_OPTIONS)  as GridResource;
-        ecs.addResource(this.gridRes);
+        world.addResource(this.gridRes);
 
         this.updateTex();
         this.updatePos();
     }
 
     onResourceEdited(res: Resource, changed: any) {
-        if (res.type !== GRID_TYPE) return;
-
-        // Redraw
-        this.updateTex();
-        this.updatePos();
+        if (res.type === GRID_TYPE) {
+            // Redraw
+            this.updateTex();
+            this.updatePos();
+        } else if (res.type === BOARD_TRANSFORM_TYPE) {
+            this.onBoardTransform(res as BoardTransformResource);
+        }
     }
 
     onResourceRemove(res: Resource) {
         if (res.type !== GRID_TYPE) return;
         throw 'Fool! Thou shall not remove thy grid!'
+    }
+
+    onBoardTransform(data: BoardTransformResource) {
+        this.posX = data.posX;
+        this.posY = data.posY;
+        this.scaleX = data.scaleX;
+        this.scaleY = data.scaleY;
+        this.updatePos();
     }
 
     onResize(width: number, height: number) {
@@ -70,7 +89,7 @@ export class GridSystem implements System {
         this.sprite.texture.destroy(true);
 
         if (!this.gridRes.visible) {
-            this.sprite.texture = PIXI.Texture.WHITE;
+            this.sprite.texture = PIXI.Texture.EMPTY;
             return;
         }
 
@@ -176,13 +195,17 @@ export class GridSystem implements System {
         return [pnt.x, pnt.y];
     }
 
+    enable() {
+        app.renderer.on('resize', this.onResize, this);
+        app.stage.addChild(this.sprite);
+        this.onResize(app.screen.width, app.screen.height);
+    }
 
     destroy() {
         this.sprite.destroy(DESTROY_ALL);
         app.renderer.off('resize', this.onResize, this);
     }
 }
-
 
 // ----------------------------------------- DRAW -----------------------------------------
 

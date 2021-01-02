@@ -1,12 +1,21 @@
 import {System} from "../system";
-import {World} from "../ecs";
+import {World} from "../world";
 import {Channel} from "../../network/channel";
 import {Component, HideableComponent, MultiComponent} from "../component";
 import * as P from "../../protocol/game";
 import {Resource} from "../resource";
 import {PacketContainer} from "../../protocol/packet";
 
+export const NETWORK_TYPE = 'network';
+export type NETWORK_TYPE = typeof NETWORK_TYPE;
+
+export const HOST_NETWORK_TYPE = 'host_network';
+export type HOST_NETWORK_TYPE = typeof HOST_NETWORK_TYPE;
 export class HostNetworkSystem implements System {
+    readonly name = HOST_NETWORK_TYPE;
+    readonly dependencies = [] as string[];
+    readonly provides = [NETWORK_TYPE];
+
     readonly world: World;
     private channel: Channel;
 
@@ -213,14 +222,21 @@ export class HostNetworkSystem implements System {
         } as P.EntitySpawn;
     }
 
-
+    enable(): void {
+    }
 
     destroy(): void {
     }
 
 }
 
+export const CLIENT_NETWORK_TYPE = 'client_network';
+export type CLIENT_NETWORK_TYPE = typeof CLIENT_NETWORK_TYPE;
 export class ClientNetworkSystem implements System {
+    readonly name = CLIENT_NETWORK_TYPE;
+    readonly dependencies = [] as string[];
+    readonly provides = [NETWORK_TYPE];
+
     readonly ecs: World;
     private channel: Channel;
 
@@ -292,6 +308,9 @@ export class ClientNetworkSystem implements System {
         if (container.sender !== 0) return; // Only admin
 
         this.ecs.removeResource(packet.resType);
+    }
+
+    enable(): void {
     }
 
     destroy(): void {

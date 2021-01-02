@@ -10,9 +10,11 @@ import PIXI from "../PIXI";
 import {Component} from "./component";
 import {Resource} from "./resource";
 import EventEmitter = PIXI.utils.EventEmitter;
+import {SystemGraph} from "./systemGraph";
+import {System} from "./system";
 
 
-export type SerializedEcs = {
+export type SerializedWorld = {
     entities: number[];
     storages: {[type: string]: any};
     resources: {[type: string]: any};
@@ -23,10 +25,13 @@ export interface EcsEntityLinked {
 }
 
 export class World {
+    systems = new SystemGraph();
     storages = new Map<string, EcsStorage<any>>();
     storageList = new Array<EcsStorage<any>>();
     entities = new Set<number>();
     resources = new Map<string, Resource>();
+
+    private systemsFinalized: boolean = false;
     isDeserializing: boolean = false;
     isMaster: boolean;
 
@@ -108,6 +113,15 @@ export class World {
         }
         this.entities.delete(entity);
         this.events.emit('entity_despawned', entity);
+    }
+
+    addSystem(system: System): void {
+        if (this.systemsFinalized) throw 'Too late to add a system';
+        try {
+            this.systems.register(system);
+        } catch (e) {
+            throw new Error("Error while mounting " + system.name + ": " + e);
+        }
     }
 
     hasAllComponents(entity: number, ...types: string[]): boolean {
@@ -212,7 +226,20 @@ export class World {
         this.events.emit('resource_removed', resource);
     }
 
-    serialize(): SerializedEcs {
+    enable() {
+        for (let system of this.systems) {
+            system.enable();
+        }
+    }
+
+    destroy() {
+        for (let i = this.systems.size() - 1; i >= 0; i--) {
+            let system = this.systems.getAt(i);
+            system.destroy();
+        }
+    }
+
+    serialize(): SerializedWorld {
         this.events.emit('serialize', 'save');
 
         let storages: {[type: string]: any} = {};
@@ -238,14 +265,14 @@ export class World {
             entities: [...this.entities],
             storages,
             resources,
-        } as SerializedEcs;
+        } as SerializedWorld;
 
         this.events.emit('serialized', res);
 
         return res;
     }
 
-    serializeClient(): SerializedEcs {
+    serializeClient(): SerializedWorld {
         this.events.emit('serialize', 'client');
 
         let storages: {[type: string]: any} = {};
@@ -273,7 +300,7 @@ export class World {
             entities: [...this.entities].filter((e) => hostHidden.getFirstComponent(e) === undefined),
             storages,
             resources,
-        } as SerializedEcs;
+        } as SerializedWorld;
 
 
         this.events.emit('serialized', res);
@@ -281,7 +308,7 @@ export class World {
         return res;
     }
 
-    deserialize(data: SerializedEcs) {
+    deserialize(data: SerializedWorld) {
         this.clear();
         this.isDeserializing = true;
         this.events.emit('deserialize', data);

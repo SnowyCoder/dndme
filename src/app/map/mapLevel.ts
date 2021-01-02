@@ -1,11 +1,9 @@
-import JSZip from "jszip";
-import {GridOptions, GridType} from "../game/grid";
-import {World, SerializedEcs} from "../ecs/ecs";
+import {SerializedWorld, World} from "../ecs/world";
 
 export class MapLevel {
     id: number;
     name?: string;
-    ecs?: SerializedEcs;
+    ecs?: SerializedWorld;
 
     constructor(id: number) {
         this.id = id;

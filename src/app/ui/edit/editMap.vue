@@ -166,16 +166,18 @@
 <script lang="ts">
     import Vue from "vue";
 
-    import {GridType, STANDARD_GRID_OPTIONS} from "../../game/grid";
-    import {EditMapPhase, Tool} from "../../phase/editMap/editMapPhase";
+    import {GridType} from "../../game/grid";
+    import {EditMapPhase} from "../../phase/editMap/editMapPhase";
     import EntityInspect from "../ecs/entityInspect.vue";
     import {Component} from "../../ecs/component";
     import {GridResource, Resource} from "../../ecs/resource";
-    import {AddComponent} from "../../game/selectionGroup";
+    import {AddComponent} from "../../ecs/systems/selectionSystem";
     import {DEFAULT_LIGHT_SETTINGS, LightSettings, LocalLightSettings} from "../../ecs/systems/lightSystem";
     import PIXI from "../../PIXI";
     import hex2string = PIXI.utils.hex2string;
     import string2hex = PIXI.utils.string2hex;
+    import {Tool} from "../../ecs/tools/toolType";
+    import {ToolResource} from "../../ecs/systems/toolSystem";
 
     export default Vue.extend({
         components: {EntityInspect},
@@ -209,15 +211,15 @@
         },
         methods: {
             changeTool(tool: Tool) {
-                this.phase.changeTool(tool);
+                this.phase.world.editResource('tool', {tool});
             },
 
             onEcsPropertyChange(type: string, property: string, value: any, multiId: number) {
-                this.phase.selection.setProperty(type, property, value, multiId);
+                this.phase.world.systems.get('selection').setProperty(type, property, value, multiId);
             },
 
             onAmbientLightChange() {
-              this.phase.ecs.addResource({
+              this.phase.world.addResource({
                 type: 'light_settings',
                 ambientLight: string2hex(this.light.ambientLight),
                 needsLight: this.light.needsLight,
@@ -225,23 +227,23 @@
               } as LightSettings, 'update');
             },
             onLightSettingsReset() {
-                this.phase.ecs.addResource(Object.assign({
+                this.phase.world.addResource(Object.assign({
                   type: 'light_settings',
                 }, DEFAULT_LIGHT_SETTINGS) as LightSettings, 'update');
                 this.reloadLight();
             },
             reloadLight() {
-                let light: LightSettings = this.phase.ecs.getResource('light_settings');
+                let light: LightSettings = this.phase.world.getResource('light_settings');
                 this.light.ambientLight = hex2string(light.ambientLight);
                 this.light.needsLight = light.needsLight;
                 this.light.background = hex2string(light.background);
-                let llight: LocalLightSettings = this.phase.ecs.getResource('local_light_settings');
+                let llight: LocalLightSettings = this.phase.world.getResource('local_light_settings');
                 this.light.roleplayVision = llight.visionType === 'rp';
             },
             reloadGrid() {
                 this.disableWatchSave = true;
 
-                let grid: GridResource = this.phase.ecs.getResource('grid');
+                let grid: GridResource = this.phase.world.getResource('grid');
                 switch (grid.gridType) {
                     case GridType.HEXAGON:
                         this.grid.type = 'hex'
@@ -267,6 +269,7 @@
             onResourceEdited(res: Resource) {
                 if (res.type === 'grid') this.reloadGrid();
                 else if (res.type === 'light_settings' || res.type === 'local_light_settings') this.reloadLight();
+                else if (res.type === 'tool') this.tool = (res as ToolResource).tool;
             }
         },
         watch: {
@@ -283,7 +286,7 @@
                         case 'square': type = GridType.SQUARE; break;
                     }
                     if (type !== undefined) {
-                        this.phase.ecs.editResource('grid', {
+                        this.phase.world.editResource('grid', {
                             visible: true,
                             gridType: type,
                             size: newGrid.size,
@@ -294,7 +297,7 @@
                             thick: newGrid.thick,
                         } as GridResource);
                     } else {
-                        this.phase.ecs.editResource('grid', {
+                        this.phase.world.editResource('grid', {
                             visible: false,
                         });
                     }
@@ -304,15 +307,14 @@
             'light.roleplayVision': function () {
                 let visionType = this.light.roleplayVision ? 'rp' : 'dm';
 
-                this.phase.ecs.editResource('local_light_settings', { visionType });
+                this.phase.world.editResource('local_light_settings', { visionType });
             }
         },
         mounted() {
             this.reloadGrid();
             this.reloadLight();
 
-            this.phase.ecs.events.on('resource_edited', this.onResourceEdited);
-            this.eventEmitter.on('changeTool', (t: Tool) => { this.tool = t; });
+            this.phase.world.events.on('resource_edited', this.onResourceEdited);
         },
     });
 </script>

@@ -1,10 +1,12 @@
-import {Phase} from "./phase";
-import PIXI from "../PIXI";
-import {app} from "../index";
-import {World} from "../ecs/ecs";
-import {registerCommonStorage} from "../ecs/component";
-import {GridSystem} from "../ecs/systems/gridSystem";
+import {System} from "../system";
+import PIXI from "../../PIXI";
+import {app} from "../../index";
 import {IHitArea} from "pixi.js";
+import {World} from "../world";
+import {Resource} from "../resource";
+import {FOLLOW_MOUSE_TYPE, POSITION_TYPE} from "../component";
+import {FlagEcsStorage} from "../storage";
+import {getMapPointFromMouseInteraction} from "../tools/utils";
 
 interface PointerData {
     firstX: number,
@@ -13,23 +15,75 @@ interface PointerData {
     lastY: number,
 }
 
-export class BirdEyePhase extends Phase {
-    ecs: World;
+export enum PointerEvents {
+    POINTER_MOVE = 'pointer_move',
+    POINTER_DOWN = 'pointer_down',
+    POINTER_UP = 'pointer_up',
+    POINTER_RIGHT_DOWN = 'pointer_right_down',
+    POINTER_RIGHT_UP = 'pointer_right_up',
+    POINTER_CLICK = 'pointer_click',
+}
+
+export interface ConsumableEvent {
+    consumed: boolean;
+}
+
+export interface HasLastPosition {
+    lastPosition: PIXI.IPointData;
+}
+
+export type PointerDownEvent = PIXI.InteractionEvent & ConsumableEvent;
+export type PointerUpEvent = PIXI.InteractionEvent & HasLastPosition;
+export type PointerMoveEvent = PIXI.InteractionEvent & HasLastPosition;
+export type PointerRightDownEvent = PIXI.InteractionEvent & ConsumableEvent;
+export type PointerRightUpEvent = PIXI.InteractionEvent;
+export type PointerClickEvent = PIXI.InteractionEvent;
+
+export type BOARD_TRANSFORM_TYPE = 'board_transform';
+export const BOARD_TRANSFORM_TYPE = 'board_transform';
+export interface BoardTransformResource extends Resource {
+    type: BOARD_TRANSFORM_TYPE;
+    _save: true;
+    _sync: false;
+
+    posX: number;
+    posY: number;
+    scaleX: number;
+    scaleY: number;
+}
+
+export type PIXI_BOARD_TYPE = 'pixi_board';
+export const PIXI_BOARD_TYPE = 'pixi_board';
+export class PixiBoardSystem implements System {
+    name = PIXI_BOARD_TYPE;
+    dependencies = [] as string[];
+
+    world: World;
+
     board: PIXI.Container;
 
+    private wheelListener: any;
+    pointers = new Map<number, PointerData>();
     lastMouseDownTime?: number;
     isDraggingBoard: boolean = false;
 
-    gridSystem: GridSystem;
+    constructor(world: World) {
+        this.world = world;
 
-    private wheelListener: any;
+        this.world.events.addListener('req_board_center', this.centerBoard, this);
+        this.world.events.addListener('resource_edited', this.onResourceEdited, this);
 
-    pointers = new Map<number, PointerData>();
-
-    constructor(name: string, isMaster: boolean) {
-        super(name);
-
-        this.ecs = new World(isMaster);
+        this.world.addResource(
+            {
+                type: BOARD_TRANSFORM_TYPE,
+                _save: true,
+                _sync: false,
+                posX: 0,
+                posY: 0,
+                scaleX: 1,
+                scaleY: 1,
+            } as BoardTransformResource
+        );
 
         // TODO: we should create render phases, one for the world (using the projection matrix to move the camera)
         //       and the other for the GUI (or other things that do not depend on camera position, as the GridSystem(?)).
@@ -41,16 +95,10 @@ export class BirdEyePhase extends Phase {
         this.board.sortableChildren = true;
     }
 
-    setupEcs() {
-        registerCommonStorage(this.ecs);
-        this.gridSystem = new GridSystem(this.ecs);
-    }
-
     zoom(dScale: number, centerX: number, centerY: number) {
         const minScale = 0.05;
         const maxScale = 3;
 
-        //console.log("Scale", this.board.scale.x, this.board.scale.y, "dScale", dScale);
         if (this.board.scale.x < minScale && dScale < 1 || this.board.scale.x > maxScale && dScale > 1)
             return;
 
@@ -74,14 +122,12 @@ export class BirdEyePhase extends Phase {
             return;
         }*/
 
-        this.board.position.copyFrom(position);
-        this.board.scale.copyFrom(scale);
-
-        this.gridSystem.posX = position.x;
-        this.gridSystem.posY = position.y;
-        this.gridSystem.scaleX = scale.x;
-        this.gridSystem.scaleY = scale.y;
-        this.gridSystem.updatePos();
+        this.world.editResource(BOARD_TRANSFORM_TYPE, {
+            posX: position.x,
+            posY: position.y,
+            scaleX: scale.x,
+            scaleY: scale.y,
+        } as BoardTransformResource);
     }
 
     /**
@@ -97,9 +143,12 @@ export class BirdEyePhase extends Phase {
     onPointerDown(event: PIXI.InteractionEvent) {
         if (event.data.pointerType === 'mouse' && event.data.button === 2) {
             // Right button
-            this.onPointerRightDown(event);
+            let prde = event as PointerRightDownEvent;
+            prde.consumed = false;
+            this.world.events.emit(PointerEvents.POINTER_RIGHT_DOWN, prde);
             return;
         }
+
         let pos = event.data.global;
         this.pointers.set(event.data.pointerId, {
             firstX: pos.x,
@@ -108,25 +157,33 @@ export class BirdEyePhase extends Phase {
             lastY: pos.y,
         } as PointerData);
 
-        if (this.pointers.size === 1) {
+        this.lastMouseDownTime = Date.now();
+
+        let e = event as PointerDownEvent;
+        e.consumed = false;
+        this.world.events.emit(PointerEvents.POINTER_DOWN, event);
+
+        if (!e.consumed && this.pointers.size === 1) {// TODO: better tool management
             this.isDraggingBoard = true;
         }
-
-        this.lastMouseDownTime = Date.now();
     }
 
     onPointerUp(event: PIXI.InteractionEvent): void {
+        if (event.data.pointerType === 'mouse' && event.data.button === 2) {
+            // Right button
+            this.world.events.emit(PointerEvents.POINTER_RIGHT_UP, event);
+        }
+
         let pdata = this.pointers.get(event.data.pointerId);
         if (pdata === undefined) return;
-
 
         this.pointers.delete(event.data.pointerId);
 
         if (this.lastMouseDownTime === undefined) return;
 
-
         if (this.pointers.size === 0) {
             this.isDraggingBoard = false;
+
             let now = Date.now();
 
             let timeDiff = now - this.lastMouseDownTime;
@@ -136,7 +193,16 @@ export class BirdEyePhase extends Phase {
             let diffPos = Math.sqrt(diffX * diffX + diffY * diffY);
 
             let isClick = diffPos < 5 && timeDiff < 500;
-            if (isClick) this.onPointerClick(event);
+
+            let pue = event as PointerUpEvent;
+            pue.lastPosition = {
+                x: pdata.lastX,
+                y: pdata.lastY
+            };
+            this.world.events.emit(PointerEvents.POINTER_UP, pue);
+            if (isClick) {
+                this.world.events.emit(PointerEvents.POINTER_CLICK, event);
+            }
         }
     }
 
@@ -146,26 +212,35 @@ export class BirdEyePhase extends Phase {
 
     /** Function called when the cursor moves around the map. */
     onPointerMove(e: PIXI.InteractionEvent) {
+        // TODO: magnet snap system
+        let localPos = getMapPointFromMouseInteraction(this.world, e);
+        this.updatePointerFollowers(localPos);
+
         let pdata = this.pointers.get(e.data.pointerId);
         if (pdata === undefined) return;
 
         let pos = e.data.global;
+        if (this.pointers.size === 1) {// Move
+            if (this.isDraggingBoard) {
+                const newPosX = this.board.position.x + (pos.x - pdata.lastX);
+                const newPosY = this.board.position.y + (pos.y - pdata.lastY);
 
-        if (this.pointers.size === 1 && this.isDraggingBoard) {// Move
-            const newPosX = this.board.position.x + (pos.x - pdata.lastX);
-            const newPosY = this.board.position.y + (pos.y - pdata.lastY);
+                /*if (this.board.isBoardLost(new PIXI.Point(newPosX, newPosY), this.scale)) {
+                    //console.log("You can't go further than this, you'll loose the board!");
+                    return;
+                }*/
 
-            /*if (this.board.isBoardLost(new PIXI.Point(newPosX, newPosY), this.scale)) {
-                //console.log("You can't go further than this, you'll loose the board!");
-                return;
-            }*/
+                this.world.editResource(BOARD_TRANSFORM_TYPE, {
+                    posX: newPosX,
+                    posY: newPosY,
+                } as BoardTransformResource);
+            }
 
-            this.board.position.x = newPosX;
-            this.board.position.y = newPosY;
-
-            this.gridSystem.posX = newPosX;
-            this.gridSystem.posY = newPosY;
-            this.gridSystem.updatePos();
+            let pme = e as PointerMoveEvent;
+            pme.lastPosition = {
+                x: pdata.lastX, y: pdata.lastY
+            };
+            this.world.events.emit(PointerEvents.POINTER_MOVE, pme);
         }
 
         let firstDist = 0;
@@ -196,12 +271,20 @@ export class BirdEyePhase extends Phase {
         }
     }
 
-    /** Function called when the cursor clicks. */
-    onPointerClick(event: PIXI.InteractionEvent) {
+    private onResourceEdited(res: Resource, changes: any): void {
+        if (res.type !== BOARD_TRANSFORM_TYPE) return;
+        let t = res as BoardTransformResource;
+        this.board.position.set(t.posX, t.posY);
+        this.board.scale.set(t.scaleX, t.scaleY);
     }
 
-    /** Function called when the cursor clicks. */
-    onPointerRightDown(event: PIXI.InteractionEvent) {
+    updatePointerFollowers(point: PIXI.IPointData) {
+        for (let c of (this.world.storages.get(FOLLOW_MOUSE_TYPE) as FlagEcsStorage).allComponents()) {
+            this.world.editComponent(c.entity, POSITION_TYPE, {
+                x: point.x,
+                y: point.y,
+            });
+        }
     }
 
     /**
@@ -229,9 +312,7 @@ export class BirdEyePhase extends Phase {
         s.height = "100%";
     }
 
-    enable() {
-        super.enable();
-
+    enable(): void {
         const canvas = app.view;
         this.applyCanvasStyle(canvas);
         let cnt = document.getElementById('canvas-container');
@@ -243,12 +324,12 @@ export class BirdEyePhase extends Phase {
         // PIXI
         let stage = new PIXI.display.Stage();
         app.stage = stage;
+        stage.sortableChildren = true;
         stage.group.enableSort = true;
         stage.addChild(this.board);
-        stage.addChild(this.gridSystem.sprite);
 
-        app.stage.interactive = true;
-        app.stage.hitArea = {
+        stage.interactive = true;
+        stage.hitArea = {
             contains(x: number, y: number): boolean {
                 return true;
             }
@@ -263,9 +344,7 @@ export class BirdEyePhase extends Phase {
         canvas.addEventListener("wheel", this.wheelListener);
     }
 
-    disable() {
-        this.gridSystem.destroy();
-
+    destroy(): void {
         app.stage.off("pointermove", this.onPointerMove, this);
         app.stage.off("pointerdown", this.onPointerDown, this);
         app.stage.off("pointerup", this.onPointerUp, this);
@@ -274,9 +353,7 @@ export class BirdEyePhase extends Phase {
         app.view.removeEventListener('wheel', this.wheelListener);
 
         let cnt = document.getElementById('canvas-container');
-        cnt.removeChild(app.view);
+        cnt?.removeChild(app.view);
         app.resizeTo = undefined;
-
-        super.disable();
     }
 }

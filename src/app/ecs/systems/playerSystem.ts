@@ -1,19 +1,25 @@
 import {System} from "../system";
-import {World} from "../ecs";
+import {World} from "../world";
 import {SingleEcsStorage} from "../storage";
 import {EditMapPhase} from "../../phase/editMap/editMapPhase";
 import {Component, HOST_HIDDEN_TYPE, POSITION_TYPE, PositionComponent} from "../component";
-import {VISIBILITY_TYPE, VisibilityComponent} from "./visibilitySystem";
+import {VISIBILITY_TYPE, VisibilityComponent, VisibilitySystem} from "./visibilitySystem";
 import * as PointLightRender from "../../game/pointLightRenderer";
 import {DESTROY_ALL} from "../../util/pixi";
-import {newVisibilityAwareComponent, VisibilityAwareComponent} from "./visibilityAwareSystem";
-import {LIGHT_SETTINGS_TYPE, LIGHT_TYPE, LightComponent, LightSettings} from "./lightSystem";
+import {
+    newVisibilityAwareComponent,
+    VISIBILITY_AWARE_TYPE,
+    VisibilityAwareComponent,
+    VisibilityAwareSystem
+} from "./visibilityAwareSystem";
+import {LIGHT_SETTINGS_TYPE, LIGHT_TYPE, LightComponent, LightSettings, LightSystem} from "./lightSystem";
 import {Aabb} from "../../geometry/aabb";
 import PIXI from "../../PIXI";
 import {Resource} from "../resource";
+import {PIN_TYPE} from "./pinSystem";
 
 export const PLAYER_TYPE = 'player';
-export type PLAYER_TYPE = 'player';
+export type PLAYER_TYPE = typeof PLAYER_TYPE;
 export interface PlayerComponent extends Component {
     type: PLAYER_TYPE;
     nightVision: boolean;
@@ -21,7 +27,7 @@ export interface PlayerComponent extends Component {
 }
 
 export const PLAYER_VISIBLE_TYPE = 'player_visible';
-export type PLAYER_VISIBLE_TYPE = 'player_visible';
+export type PLAYER_VISIBLE_TYPE = typeof PLAYER_VISIBLE_TYPE;
 export interface PlayerVisibleComponent extends Component {
     type: PLAYER_VISIBLE_TYPE;
     visible: boolean;
@@ -47,10 +53,16 @@ export interface VisibilitySpreadEntryData {
 }
 
 export const EVENT_VISIBILITY_SPREAD = 'visibility_spread';
-export type EVENT_VISIBILITY_SPREAD = 'visibility_spread';
+export type EVENT_VISIBILITY_SPREAD = typeof EVENT_VISIBILITY_SPREAD;
 
 export class PlayerSystem implements System {
+    readonly name = PLAYER_TYPE;
+    readonly dependencies = [PIN_TYPE, VISIBILITY_TYPE, VISIBILITY_AWARE_TYPE, LIGHT_TYPE];
+
     readonly world: World;
+
+    private readonly lightSystem: LightSystem;
+    private readonly visibilitySystem: VisibilitySystem;
 
     storage = new SingleEcsStorage<PlayerComponent>(PLAYER_TYPE, true, true);
     visibleStorage = new SingleEcsStorage<PlayerVisibleComponent>(PLAYER_VISIBLE_TYPE, false, false);
@@ -59,9 +71,11 @@ export class PlayerSystem implements System {
     // If false a player can see a thing only if it's illuminated by artificial light
     ambientIlluminated: boolean;
 
-    constructor(world: World, phase: EditMapPhase) {
+    constructor(world: World) {
         this.world = world;
-        this.phase = phase;
+
+        this.lightSystem = world.systems.get(LIGHT_TYPE) as LightSystem;
+        this.visibilitySystem = world.systems.get(VISIBILITY_TYPE) as VisibilitySystem;
 
         this.world.addStorage(this.storage);
         this.world.addStorage(this.visibleStorage);
@@ -70,7 +84,7 @@ export class PlayerSystem implements System {
         this.world.events.on('component_remove', this.onComponentRemove, this);
         this.world.events.on('resource_edited', this.onResourceEdited, this);
 
-        let visAware = phase.visibilityAwareSystem;
+        let visAware = world.systems.get(VISIBILITY_AWARE_TYPE) as VisibilityAwareSystem;
         visAware.events.on('aware_update', this.onVisibilityAwareUpdate, this);
     }
 
@@ -162,11 +176,11 @@ export class PlayerSystem implements System {
 
         let lights = [];
         let aabb;
-        if (!nightVision && this.phase.lightSystem.lightSettings.needsLight) {
+        if (!nightVision && this.lightSystem.lightSettings.needsLight) {
             players.push(playerData);
 
             aabb = undefined;
-            for (let c of this.phase.visibilitySystem.aabbTree.query(vis.aabb)) {
+            for (let c of this.visibilitySystem.aabbTree.query(vis.aabb)) {
                 let visComponent = c.tag;
                 let lightComponent = lightStorage.getComponent(visComponent.entity);
                 if (lightComponent === undefined || visComponent.range <= 0) continue;
@@ -208,7 +222,7 @@ export class PlayerSystem implements System {
         // When a light visibility polygon is changed this will query each player in the polygon's reach and
         // spread the visibility (only with that light!)
 
-        if (!this.phase.lightSystem.lightSettings.needsLight) return;// Who needs lights?
+        if (!this.lightSystem.lightSettings.needsLight) return;// Who needs lights?
 
         let visStorage = this.world.storages.get(VISIBILITY_TYPE) as SingleEcsStorage<VisibilityComponent>;
         let posStorage = this.world.storages.get(POSITION_TYPE) as SingleEcsStorage<PositionComponent>;
@@ -225,7 +239,7 @@ export class PlayerSystem implements System {
         let aabb = undefined;
 
         let players = [];
-        for (let c of this.phase.visibilitySystem.aabbTree.query(lightVis.aabb)) {
+        for (let c of this.visibilitySystem.aabbTree.query(lightVis.aabb)) {
             let visComponent = c.tag;
             let player = this.storage.getComponent(visComponent.entity);
             if (player === undefined || visComponent.range <= 0 || player.nightVision) continue;
@@ -303,11 +317,11 @@ export class PlayerSystem implements System {
         let players = [];
         let lights = [];
 
-        let lightsNeeded = this.phase.lightSystem.lightSettings.needsLight;
+        let lightsNeeded = this.lightSystem.lightSettings.needsLight;
         let lightStorage = this.world.storages.get(LIGHT_TYPE) as SingleEcsStorage<LightComponent>;
         let posStorage = this.world.storages.get(POSITION_TYPE) as SingleEcsStorage<PositionComponent>;
 
-        for (let c of this.phase.visibilitySystem.aabbTree.query(aabb)) {
+        for (let c of this.visibilitySystem.aabbTree.query(aabb)) {
             let vis = c.tag;
 
             let player = this.storage.getComponent(vis.entity);

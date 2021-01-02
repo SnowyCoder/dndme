@@ -1,11 +1,17 @@
 import {Component, POSITION_TYPE, PositionComponent} from "../component";
 import {System} from "../system";
-import {World} from "../ecs";
-import {EditMapPhase} from "../../phase/editMap/editMapPhase";
+import {World} from "../world";
 import {VISIBILITY_TYPE, VisibilityComponent, VisibilitySystem} from "./visibilitySystem";
 import {SingleEcsStorage} from "../storage";
 import {arrayRemoveElem} from "../../util/array";
-import {INTERACTION_TYPE, InteractionComponent, shapeCircle, shapeIntersect, shapePolygon} from "./interactionSystem";
+import {
+    INTERACTION_TYPE,
+    InteractionComponent,
+    InteractionSystem,
+    shapeCircle,
+    shapeIntersect,
+    shapePolygon
+} from "./interactionSystem";
 import {Aabb} from "../../geometry/aabb";
 import EventEmitter = PIXI.utils.EventEmitter;
 
@@ -29,9 +35,12 @@ export function newVisibilityAwareComponent(isWall: boolean = false): Visibility
 
 
 export class VisibilityAwareSystem implements System {
+    readonly name = VISIBILITY_AWARE_TYPE;
+    readonly dependencies = [VISIBILITY_TYPE, INTERACTION_TYPE];
+
     private world: World;
-    private phase: EditMapPhase;
-    private visSys: VisibilitySystem;
+    private visibilitySys: VisibilitySystem;
+    private interactionSys: InteractionSystem;
 
     storage = new SingleEcsStorage<VisibilityAwareComponent>(VISIBILITY_AWARE_TYPE, false, false);
 
@@ -45,11 +54,11 @@ export class VisibilityAwareSystem implements System {
      */
     events = new EventEmitter();
 
-    constructor(world: World, phase: EditMapPhase) {
+    constructor(world: World) {
         this.world = world;
-        this.phase = phase;
-        this.visSys = phase.visibilitySystem;
 
+        this.visibilitySys = this.world.systems.get(VISIBILITY_TYPE) as VisibilitySystem;
+        this.interactionSys = this.world.systems.get(INTERACTION_TYPE) as InteractionSystem;
         world.addStorage(this.storage);
 
         world.events.on('component_add', this.onComponentAdd, this);
@@ -95,7 +104,7 @@ export class VisibilityAwareSystem implements System {
             }
         }
 
-        let iter = this.phase.interactionSystem.query(viewerPoly, c => {
+        let iter = this.interactionSys.query(viewerPoly, c => {
             let target = this.storage.getComponent(c.entity);
             return  target !== undefined && target.isWall !== true && oldCanSee.indexOf(c.entity) === -1;
         });
@@ -125,7 +134,7 @@ export class VisibilityAwareSystem implements System {
         let removed = [];
 
         // Search for new players
-        for (let p of this.phase.visibilitySystem.aabbTree.query(Aabb.fromPoint(pos))) {
+        for (let p of this.visibilitySys.aabbTree.query(Aabb.fromPoint(pos))) {
             let entity = p.tag.entity;
             let vis = visStorage.getComponent(entity);
             if (vis === undefined || oldVisibleBy.indexOf(entity) !== -1) continue;

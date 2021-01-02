@@ -1,4 +1,4 @@
-import {World} from "./ecs";
+import {World} from "./world";
 import {FlagEcsStorage, MultiEcsStorage, SingleEcsStorage} from "./storage";
 
 export interface Component {
@@ -66,8 +66,6 @@ export function registerCommonStorage(ecs: World) {
     ecs.addStorage(new SingleEcsStorage(TRANSFORM_TYPE));
     ecs.addStorage(new MultiEcsStorage(NAME_TYPE));
     ecs.addStorage(new MultiEcsStorage(NOTE_TYPE));
-    ecs.addStorage(new FlagEcsStorage(FOLLOW_MOUSE_TYPE));
-    if (ecs.isMaster) {
-        ecs.addStorage(new FlagEcsStorage(HOST_HIDDEN_TYPE));
-    }
+    ecs.addStorage(new FlagEcsStorage(FOLLOW_MOUSE_TYPE, false, false));
+    ecs.addStorage(new FlagEcsStorage(HOST_HIDDEN_TYPE, false, false));
 }

@@ -1,21 +1,21 @@
-// Common info about the graphical systems, this should be a semi-astraction.
+// Common info about the graphical systems, this should be a semi-abstraction.
 // NONE OF THIS SHOULD BE SERIALIZED! THIS IS ALL RUNTIME DEPENDANT! DETAILS WILL CHANGE BETWEEN MINOR VERSIONS!
 
 import {Component} from "./ecs/component";
 
 export const EVENT_REMEMBER_BIT_BY_BIY_MASK_UPDATE = 'remember_bit_by_bit_vis_update';
 
-export type GRAPHIC_COMPONENT_TYPE = "graphic";
+export type GRAPHIC_TYPE = "graphic";
 export const GRAPHIC_TYPE = "graphic";
 export interface GraphicComponent extends Component {
-    type: GRAPHIC_COMPONENT_TYPE,
+    type: GRAPHIC_TYPE,
     display: DisplayElement;
     // Why does this flag exist? good thing you asked! Walls have a special performance optimization that does
     // not use imprecise collision detection, they use data extracted from the visibility polygon algorithm.
     // If you think about it a bit it's not that far-fetched, the algorithm computes all of the visibility paths, it
     // should also know what walls are being used (and we get that info for free!).
     isWall?: true;
-    interactive: boolean;// When true this element will be added to the Interaction system TODO
+    interactive: boolean;// When true this element will be added to the Interaction system
 }
 
 export enum ElementType {

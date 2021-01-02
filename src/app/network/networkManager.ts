@@ -82,6 +82,11 @@ export class NetworkManager extends EventEmitter {
         }
     }
 
+    disconnect(): void {
+        this.connectId = undefined;
+        this.peer.destroy();
+    }
+
     private connectReady() {
         let conn = this.peer.connect(this.connectId, {
             reliable: true,

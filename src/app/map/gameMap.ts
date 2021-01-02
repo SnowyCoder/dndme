@@ -1,6 +1,6 @@
 import {MapLevel} from "./mapLevel";
 
-import {encode, decodeAsync, decode} from "@msgpack/msgpack";
+import {decode, encode} from "@msgpack/msgpack";
 import JSZip from "jszip";
 
 export class GameMap {

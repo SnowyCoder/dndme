@@ -1,28 +1,25 @@
 import {System} from "../system";
-import {World} from "../ecs";
-import {EditMapPhase, Tool} from "../../phase/editMap/editMapPhase";
+import {World} from "../world";
 import {SingleEcsStorage} from "../storage";
 import {
     Component,
     FOLLOW_MOUSE_TYPE,
     FollowMouseComponent,
-    HOST_HIDDEN_TYPE, HostHiddenComponent,
+    HOST_HIDDEN_TYPE,
+    HostHiddenComponent,
     POSITION_TYPE,
     PositionComponent
 } from "../component";
-import {
-    ElementType,
-    GRAPHIC_TYPE,
-    GraphicComponent,
-    PointElement,
-    TextElement,
-    VisibilityType
-} from "../../graphics";
-import {POINT_RADIUS} from "./pixiSystem";
+import {ElementType, GRAPHIC_TYPE, GraphicComponent, PointElement, TextElement, VisibilityType} from "../../graphics";
+import {POINT_RADIUS} from "./pixiGraphicSystem";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
+import {TOOL_TYPE, ToolDriver, ToolSystem} from "./toolSystem";
+import {PointerClickEvent} from "./pixiBoardSystem";
+import {SELECTION_TYPE, SelectionSystem} from "./selectionSystem";
+import {Tool} from "../tools/toolType";
 
 export const PIN_TYPE = 'pin';
-export type PIN_TYPE = 'pin';
+export type PIN_TYPE = typeof PIN_TYPE;
 
 export interface PinComponent extends Component {
     type: PIN_TYPE;
@@ -32,18 +29,23 @@ export interface PinComponent extends Component {
 
 
 export class PinSystem implements System {
+    readonly name = PIN_TYPE;
+    readonly dependencies = [TOOL_TYPE, GRAPHIC_TYPE, SELECTION_TYPE];
+
     readonly world: World;
-    readonly phase: EditMapPhase;
+    readonly selectionSys: SelectionSystem;
 
     readonly storage = new SingleEcsStorage<PinComponent>(PIN_TYPE, true, true);
 
-    // Entity of the pin to be created (or -1)
-    createPin: number = -1;
-
-
-    constructor(world: World, phase: EditMapPhase) {
+    constructor(world: World) {
         this.world = world;
-        this.phase = phase;
+
+        this.selectionSys = this.world.systems.get(SELECTION_TYPE) as SelectionSystem;
+
+        if (world.isMaster) {
+            let toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
+            toolSys.addTool(new CreatePinToolDriver(this));
+        }
 
         world.addStorage(this.storage);
         world.events.on('component_add', this.onComponentAdd, this);
@@ -79,7 +81,7 @@ export class PinSystem implements System {
         }
     }
 
-    private createElement(): PointElement {
+    createElement(): PointElement {
         return {
             type: ElementType.POINT,
             priority: DisplayPrecedence.PINS,
@@ -117,15 +119,33 @@ export class PinSystem implements System {
         this.world.editComponent(pin.entity, GRAPHIC_TYPE, { display }, undefined, false);
     }
 
+    enable() {
+    }
+
+    destroy(): void {
+    }
+}
+
+export class CreatePinToolDriver implements ToolDriver {
+    readonly name = Tool.CREATE_PIN;
+    private readonly sys: PinSystem;
+
+    // Entity of the pin to be created (or -1)
+    createPin: number = -1;
+
+    constructor(sys: PinSystem) {
+        this.sys = sys;
+    }
+
     initCreation() {
         this.cancelCreation();
         let color = Math.floor(Math.random() * 0xFFFFFF);
 
-        let display = this.createElement();
+        let display = this.sys.createElement();
         display.color = color;
         display.visib = VisibilityType.ALWAYS_VISIBLE;
 
-        this.createPin = this.world.spawnEntity(
+        this.createPin = this.sys.world.spawnEntity(
             {
                 type: HOST_HIDDEN_TYPE,
             } as HostHiddenComponent,
@@ -149,7 +169,7 @@ export class PinSystem implements System {
 
     cancelCreation() {
         if (this.createPin !== -1) {
-            this.world.despawnEntity(this.createPin);
+            this.sys.world.despawnEntity(this.createPin);
             this.createPin = -1;
         }
     }
@@ -157,25 +177,35 @@ export class PinSystem implements System {
     confirmCreation() {
         if (this.createPin === -1) return;
 
+        const world = this.sys.world;
         let id = this.createPin;
-        this.world.removeComponentType(id, FOLLOW_MOUSE_TYPE);
-        let g = this.world.getComponent(id, GRAPHIC_TYPE) as GraphicComponent;
-        this.world.removeComponent(g);
-        this.world.addComponent(id, {
+        world.removeComponentType(id, FOLLOW_MOUSE_TYPE);
+        let g = world.getComponent(id, GRAPHIC_TYPE) as GraphicComponent;
+        world.removeComponent(g);
+        world.addComponent(id, {
             type: PIN_TYPE,
             entity: id,
             color: (g.display as PointElement).color,
         } as PinComponent);
-        this.world.removeComponentType(id, HOST_HIDDEN_TYPE);
+        world.removeComponentType(id, HOST_HIDDEN_TYPE);
 
         this.createPin = -1;
-        this.phase.changeTool(Tool.INSPECT);
-        this.phase.selection.setOnlyEntity(id);
+        this.sys.world.editResource(TOOL_TYPE, {
+            tool: Tool.INSPECT,
+        });
+        this.sys.selectionSys.setOnlyEntity(id);
     }
 
-    enable() {
+
+    onStart(): void {
+        this.initCreation();
     }
 
-    destroy(): void {
+    onEnd(): void {
+        this.cancelCreation();
+    }
+
+    onPointerClick(event: PointerClickEvent) {
+        this.confirmCreation();
     }
 }

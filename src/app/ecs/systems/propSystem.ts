@@ -1,7 +1,6 @@
 import PIXI from "../../PIXI";
 import {System} from "../system";
-import {World} from "../ecs";
-import {EditMapPhase, Tool} from "../../phase/editMap/editMapPhase";
+import {World} from "../world";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {SingleEcsStorage} from "../storage";
 import {
@@ -15,7 +14,7 @@ import {
     TRANSFORM_TYPE,
     TransformComponent
 } from "../component";
-import {INTERACTION_TYPE, InteractionComponent} from "./interactionSystem";
+import {INTERACTION_TYPE, InteractionComponent, InteractionSystem, shapePoint} from "./interactionSystem";
 import {Texture} from "pixi.js";
 import {PinComponent} from "./pinSystem";
 import {
@@ -26,6 +25,11 @@ import {
     ImageScaleMode,
     VisibilityType
 } from "../../graphics";
+import {TOOL_TYPE, ToolDriver, ToolSystem} from "./toolSystem";
+import {PointerClickEvent} from "./pixiBoardSystem";
+import {getMapPointFromMouseInteraction} from "../tools/utils";
+import {SELECTION_TYPE, SelectionSystem} from "./selectionSystem";
+import {Tool} from "../tools/toolType";
 
 
 export const PROP_TYPE = 'prop';
@@ -49,25 +53,31 @@ export interface PropTeleport extends Component {
 }
 
 export class PropSystem implements System {
+    readonly name = PROP_TYPE;
+    readonly dependencies = [GRAPHIC_TYPE, INTERACTION_TYPE, SELECTION_TYPE];
+
     readonly world: World;
-    readonly phase: EditMapPhase;
+    readonly interactionSys: InteractionSystem;
+    readonly selectionSys: SelectionSystem
 
     readonly storage = new SingleEcsStorage<PropComponent>(PROP_TYPE, true, true);
     readonly teleportStorage = new SingleEcsStorage<PropTeleport>(PROP_TELEPORT_TYPE, true, true);
-
-    // Sprite of the pin to be created
-    createProp: number = -1;
-    createPropType?: string;
-
-    currentLinkTarget?: number;
 
     propTypes: Map<string, PropType>;
     defaultPropType: string = "ladder_down";
 
 
-    constructor(world: World, phase: EditMapPhase) {
+    constructor(world: World) {
         this.world = world;
-        this.phase = phase;
+
+        if (world.isMaster) {
+            const toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
+            toolSys.addTool(new CreatePropToolDriver(this));
+            toolSys.addTool(new PropTeleportLinkToolDriver(this));
+        }
+
+        this.interactionSys = world.systems.get(INTERACTION_TYPE) as InteractionSystem;
+        this.selectionSys = world.systems.get(SELECTION_TYPE) as SelectionSystem;
 
         this.propTypes = new Map<string, PropType>();
 
@@ -79,7 +89,6 @@ export class PropSystem implements System {
         world.events.on('component_edited', this.onComponentEdited, this);
         world.events.on('component_remove', this.onComponentRemove, this);
         world.events.on('prop_use', this.onPropUse, this);
-        world.events.on('prop_teleport_link', this.onPropTeleportLink, this);
     }
 
     registerPropType(propType: PropType): void {
@@ -162,7 +171,7 @@ export class PropSystem implements System {
 
         let shape = (this.world.getComponent(entity, INTERACTION_TYPE) as InteractionComponent).shape;
         let pinStorage = this.world.storages.get('pin') as SingleEcsStorage<PinComponent>;
-        let query = this.phase.interactionSystem.query(shape, x => {
+        let query = this.interactionSys.query(shape, x => {
             return pinStorage.getComponent(x.entity) !== undefined;
         });
 
@@ -178,43 +187,34 @@ export class PropSystem implements System {
         }
     }
 
-    private onPropTeleportLink(entity: number): void {
-        let tp = this.teleportStorage.getComponent(entity);
-        if (tp === undefined) {
-            console.warn("Called teleport link on a non-teleport prop, ignoring");
-            return;
-        }
-        this.currentLinkTarget = entity;
-
-        this.phase.changeTool(Tool.PROP_TELEPORT_LINK);
+    enable() {
     }
 
-    teleportLinkTo(target: number): void {
-        if (this.storage.getComponent(target) === undefined) {
-            console.warn("Trying to link teleport to a non-prop, ignoring");
-            return;
-        }
-        let tper = this.teleportStorage.getComponent(this.currentLinkTarget);
-        if (tper === undefined) {
-            console.warn("Teleporter has been destroyed");
-            return;
-        }
-        tper.targetProp = target;
-        this.currentLinkTarget = undefined;
+    destroy(): void {
     }
+}
 
-    teleportLinkCancel(): void {
-        this.currentLinkTarget = undefined;
+
+export class CreatePropToolDriver implements ToolDriver {
+    readonly name = Tool.CREATE_PROP;
+    private readonly sys: PropSystem;
+
+    // Entity of the prop to be created
+    createProp: number = -1;
+    createPropType?: string;
+
+    constructor(sys: PropSystem) {
+        this.sys = sys;
     }
 
     initCreation() {
         this.cancelCreation();
 
-        this.createPropType = this.defaultPropType;
-        let propType = this.propTypes.get(this.createPropType);
+        this.createPropType = this.sys.defaultPropType;
+        let propType = this.sys.propTypes.get(this.createPropType);
         if (propType === undefined) throw 'Illegal prop type: ' + this.createPropType;
 
-        this.createProp = this.world.spawnEntity(
+        this.createProp = this.sys.world.spawnEntity(
             {
                 type: HOST_HIDDEN_TYPE
             } as HostHiddenComponent,
@@ -252,7 +252,7 @@ export class PropSystem implements System {
 
     cancelCreation() {
         if (this.createProp !== -1) {
-            this.world.despawnEntity(this.createProp);
+            this.sys.world.despawnEntity(this.createProp);
             this.createProp = -1;
         }
     }
@@ -260,23 +260,110 @@ export class PropSystem implements System {
     confirmCreation() {
         if (this.createProp === undefined) return;
 
-        let id = this.createProp;
-        this.world.removeComponentType(id, FOLLOW_MOUSE_TYPE);
-        this.world.removeComponentType(id, GRAPHIC_TYPE);
-        this.world.addComponent(id, {
+        const id = this.createProp;
+        const world = this.sys.world;
+        world.removeComponentType(id, FOLLOW_MOUSE_TYPE);
+        world.removeComponentType(id, GRAPHIC_TYPE);
+        world.addComponent(id, {
             type: PROP_TYPE,
             propType: this.createPropType,
         } as PropComponent);
-        this.world.removeComponentType(id, HOST_HIDDEN_TYPE);
+        world.removeComponentType(id, HOST_HIDDEN_TYPE);
 
         this.createProp = -1;
-        this.phase.changeTool(Tool.INSPECT);
-        this.phase.selection.setOnlyEntity(id);
+        this.sys.world.editResource(TOOL_TYPE, {
+            tool: Tool.INSPECT,
+        })
+        this.sys.selectionSys.setOnlyEntity(id);
     }
 
-    enable() {
+
+    onStart(): void {
+        this.initCreation();
     }
 
-    destroy(): void {
+    onEnd(): void {
+        this.cancelCreation();
+    }
+
+    onPointerClick(event: PointerClickEvent) {
+        this.confirmCreation();
+    }
+}
+
+export class PropTeleportLinkToolDriver implements ToolDriver {
+    readonly name = Tool.PROP_TELEPORT_LINK;
+    private readonly sys: PropSystem;
+
+    currentTarget?: number;
+
+    constructor(sys: PropSystem) {
+        this.sys = sys;
+    }
+
+    initialize(): void {
+        this.sys.world.events.on('prop_teleport_link', this.onPropTeleportLink, this);
+    }
+
+    destroy() {
+        this.sys.world.events.off('prop_teleport_link', this.onPropTeleportLink, this);
+    }
+
+    private onPropTeleportLink(entity: number): void {
+        let tp = this.sys.teleportStorage.getComponent(entity);
+        if (tp === undefined) {
+            console.warn("Called teleport link on a non-teleport prop, ignoring");
+            return;
+        }
+        this.currentTarget = entity;
+
+        this.sys.world.editResource(TOOL_TYPE, {
+            tool: Tool.PROP_TELEPORT_LINK,
+        })
+    }
+
+    linkTo(target: number): void {
+        if (this.sys.storage.getComponent(target) === undefined) {
+            console.warn("Trying to link teleport to a non-prop, ignoring");
+            return;
+        }
+        let tper = this.sys.teleportStorage.getComponent(this.currentTarget);
+        if (tper === undefined) {
+            console.warn("Teleporter has been destroyed");
+            return;
+        }
+        tper.targetProp = target;
+        this.currentTarget = undefined;
+    }
+
+    linkCancel(): void {
+        this.currentTarget = undefined;
+    }
+
+    onStart(): void {
+        document.body.style.cursor = 'crosshair';
+    }
+
+    onEnd(): void {
+        this.linkCancel();
+        document.body.style.cursor = 'auto';
+    }
+
+    onPointerClick(event: PointerClickEvent) {
+        let point = getMapPointFromMouseInteraction(this.sys.world, event);
+
+        let interactionSystem = this.sys.world.systems.get(INTERACTION_TYPE) as InteractionSystem;
+        let query = interactionSystem.query(shapePoint(point), x => {
+            return this.sys.world.getComponent(x.entity, 'prop') !== undefined;
+        });
+        for (let found of query) {
+            let oldTper = this.currentTarget;
+            this.linkTo(found.entity);
+            this.sys.selectionSys.setOnlyEntity(oldTper);
+            this.sys.world.editResource(TOOL_TYPE, {
+                tool: Tool.INSPECT,
+            })
+            return;
+        }
     }
 }

@@ -1,17 +1,15 @@
 import {EditMapPhase} from "./editMapPhase";
-import {FlagEcsStorage} from "../../ecs/storage";
 import {NameComponent, PositionComponent, TransformComponent} from "../../ecs/component";
 import {BackgroundImageComponent} from "../../ecs/systems/backgroundSystem";
 import {app} from "../../index";
 import {GameMap} from "../../map/gameMap";
 import {MapLevel} from "../../map/mapLevel";
+import {PIXI_BOARD_TYPE, PixiBoardSystem} from "../../ecs/systems/pixiBoardSystem";
 import {HostNetworkSystem} from "../../ecs/systems/networkSystem";
 
 export class HostEditMapPhase extends EditMapPhase {
     map: GameMap;
     currentLevel: MapLevel;
-
-    networkSystem: HostNetworkSystem;
 
     constructor(map: GameMap) {
         super('editHost', true);
@@ -21,16 +19,12 @@ export class HostEditMapPhase extends EditMapPhase {
             this.map.levels.set(42, new MapLevel(42));
         }
         this.currentLevel = this.map.levels.values().next().value;
-
-
-        this.setupEcs();
     }
 
-    setupEcs() {
-        super.setupEcs();
-        this.ecs.addStorage(new FlagEcsStorage("host_hidden", false, true));
+    registerSystems() {
+        super.registerSystems();
 
-        this.networkSystem = new HostNetworkSystem(this.ecs, this.networkManager.channel);
+        this.world.addSystem(new HostNetworkSystem(this.world, this.networkManager.channel));
     }
 
     async onDrop(event: DragEvent) {
@@ -62,7 +56,6 @@ export class HostEditMapPhase extends EditMapPhase {
         return false;
     }
 
-
     async onFileDrop(files: AbsFileList, x: number, y: number) {
         if (files.length == 0) return;
         let firstFile = files[0];
@@ -71,11 +64,12 @@ export class HostEditMapPhase extends EditMapPhase {
         // so if you have firefox and linux (this seems to be the wrong stack) and have spare time, pls debug this.
         // Could be caused by: https://bugzilla.mozilla.org/show_bug.cgi?id=505521#c80
         let p = new PIXI.Point(x, y);
-        this.board.updateTransform();
-        this.board.transform.worldTransform.applyInverse(p, p);
+        let pixiBoard = this.world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
+        pixiBoard.board.updateTransform();
+        pixiBoard.board.transform.worldTransform.applyInverse(p, p);
 
         if (firstFile.type.startsWith("image/")) {
-            this.ecs.spawnEntity(
+            this.world.spawnEntity(
                 {
                     type: 'name',
                     name: firstFile.name,
@@ -103,7 +97,7 @@ export class HostEditMapPhase extends EditMapPhase {
 
 
     async exportMap() {
-        this.currentLevel.saveFrom(this.ecs);
+        this.currentLevel.saveFrom(this.world);
         let blob = await this.map.saveToFile();
         this.saveBlob(blob, "map.dndm");
     }
@@ -123,7 +117,7 @@ export class HostEditMapPhase extends EditMapPhase {
         app.view.ondrop = this.onDrop.bind(this);
         app.view.ondragover = this.onDragOver.bind(this);
 
-        this.currentLevel.loadInto(this.ecs);
+        this.currentLevel.loadInto(this.world);
 
         //let ch = this.networkManager.channel.eventEmitter;
         //ch.on("_device_join", this.onDeviceJoin, this);

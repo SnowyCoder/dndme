@@ -1,7 +1,6 @@
 import {System} from "../system";
-import {World} from "../ecs";
+import {World} from "../world";
 import {loadTexture} from "../../util/pixi";
-import {EditMapPhase} from "../../phase/editMap/editMapPhase";
 import {Component} from "../component";
 import {SingleEcsStorage} from "../storage";
 import {
@@ -15,8 +14,8 @@ import {
 } from "../../graphics";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 
-type BACKGROUND_TYPE = 'background_image';
-const BACKGROUND_TYPE = 'background_image';
+export type BACKGROUND_TYPE = 'background_image';
+export const BACKGROUND_TYPE = 'background_image';
 
 export interface BackgroundImageComponent extends Component {
     type: BACKGROUND_TYPE;
@@ -28,13 +27,14 @@ export interface BackgroundImageComponent extends Component {
 
 
 export class BackgroundSystem implements System {
+    readonly name = BACKGROUND_TYPE;
+    readonly dependencies = [GRAPHIC_TYPE];
+
     readonly world: World;
-    readonly phase: EditMapPhase;
     readonly storage: SingleEcsStorage<BackgroundImageComponent>;
 
-    constructor(world: World, phase: EditMapPhase) {
+    constructor(world: World) {
         this.world = world;
-        this.phase = phase;
         this.storage = new SingleEcsStorage<BackgroundImageComponent>(BACKGROUND_TYPE, true, true);
 
         this.world.addStorage(this.storage);

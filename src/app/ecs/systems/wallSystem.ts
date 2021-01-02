@@ -1,7 +1,6 @@
 import PIXI from "../../PIXI";
 import {System} from "../system";
-import {World} from "../ecs";
-import {EditMapPhase, Tool} from "../../phase/editMap/editMapPhase";
+import {World} from "../world";
 import {DESTROY_ALL} from "../../util/pixi";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {SingleEcsStorage} from "../storage";
@@ -10,9 +9,14 @@ import {distSquared2d, Point} from "../../util/geometry";
 import {Aabb} from "../../geometry/aabb";
 import {Line} from "../../geometry/line";
 import {intersectSegmentVsSegment, lineSameSlope, SegmentVsSegmentRes} from "../../geometry/collision";
-import {INTERACTION_TYPE, LineShape, shapeAabb, shapeLine} from "./interactionSystem";
+import {INTERACTION_TYPE, InteractionSystem, LineShape, shapeAabb, shapeLine} from "./interactionSystem";
 import {VISIBILITY_BLOCKER_TYPE, VisibilityBlocker} from "./visibilitySystem";
 import {ElementType, GRAPHIC_TYPE, GraphicComponent, LineElement, VisibilityType} from "../../graphics";
+import {TOOL_TYPE, ToolDriver, ToolSystem} from "./toolSystem";
+import {PointerClickEvent, PointerMoveEvent, PointerRightDownEvent} from "./pixiBoardSystem";
+import { getMapPointFromMouseInteraction } from "../tools/utils";
+import {SELECTION_TYPE, SelectionSystem} from "./selectionSystem";
+import {Tool} from "../tools/toolType";
 
 export const WALL_TYPE = 'wall';
 export type WALL_TYPE = 'wall';
@@ -25,21 +29,28 @@ export interface WallComponent extends Component {
 const SELECTION_COLOR = 0x7986CB;
 
 export class WallSystem implements System {
+    readonly name = WALL_TYPE;
+    readonly dependencies = [INTERACTION_TYPE, GRAPHIC_TYPE, TOOL_TYPE, SELECTION_TYPE];
+
     readonly world: World;
-    readonly phase: EditMapPhase;
+    readonly interactionSys: InteractionSystem;
+    readonly selectionSys: SelectionSystem;
 
     readonly storage = new SingleEcsStorage<WallComponent>(WALL_TYPE);
 
-    // Sprite of the pin to be created
-    createdIds: number[] = [];
-    createdLastPos?: Point;
-    createLastLineDisplay: PIXI.Graphics;
-
     isTranslating: boolean = false;
 
-    constructor(world: World, phase: EditMapPhase) {
+    constructor(world: World) {
         this.world = world;
-        this.phase = phase;
+
+        // Only masters can create walls
+        if (this.world.isMaster) {
+            let toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
+            toolSys.addTool(new CreateWallToolDriver(this));
+        }
+
+        this.interactionSys = world.systems.get(INTERACTION_TYPE) as InteractionSystem;
+        this.selectionSys = world.systems.get(SELECTION_TYPE) as SelectionSystem;
 
         world.addStorage(this.storage);
         world.events.on('component_add', this.onComponentAdd, this);
@@ -203,7 +214,7 @@ export class WallSystem implements System {
                 ));
             }
             if (cIds.length > 0) {
-                this.phase.selection.addEntities(cIds);
+                this.selectionSys.addEntities(cIds);
                 // TODO: optimization, update the selection only once!
             }
         }
@@ -247,9 +258,7 @@ export class WallSystem implements System {
     }
 
     findLocationOnWall(point: PIXI.Point, radius: number): PIXI.Point | undefined {
-        let interactionSystem = this.phase.interactionSystem;
-
-        let points = interactionSystem.query(shapeAabb(new Aabb(
+        let points = this.interactionSys.query(shapeAabb(new Aabb(
             point.x - radius, point.y - radius,
             point.x + radius, point.y + radius
         )), c => {
@@ -290,13 +299,13 @@ export class WallSystem implements System {
 
     private onToolMoveBegin(): void {
         this.isTranslating = true;
-        let walls = [...this.phase.selection.getSelectedByType(WALL_TYPE)] as WallComponent[];
+        let walls = [...this.selectionSys.getSelectedByType(WALL_TYPE)] as WallComponent[];
         this.fixWallPreTranslation(walls);
     }
 
     private onToolMoveEnd(): void {
         this.isTranslating = false;
-        let walls = [...this.phase.selection.getSelectedByType(WALL_TYPE)] as WallComponent[];
+        let walls = [...this.selectionSys.getSelectedByType(WALL_TYPE)] as WallComponent[];
         this.fixWallPostTranslation(walls);
     }
 
@@ -314,7 +323,7 @@ export class WallSystem implements System {
 
         let tmpLine = new Line(0, 0, 0, 0);
         let tmpPoint = new PIXI.Point();
-        let query = this.phase.interactionSystem.query(shapeAabb(aabb), c => {
+        let query = this.interactionSys.query(shapeAabb(aabb), c => {
             return this.storage.getComponent(c.entity) !== undefined;
         });
 
@@ -339,7 +348,7 @@ export class WallSystem implements System {
         return end;
     }
 
-    private createWall(minX: number, minY: number, maxX: number, maxY: number): number {
+    createWall(minX: number, minY: number, maxX: number, maxY: number): number {
         return this.world.spawnEntity(
             {
                 type: POSITION_TYPE,
@@ -354,55 +363,25 @@ export class WallSystem implements System {
         );
     }
 
-    addVertex(point: PIXI.Point): void {
-        let lp = this.createdLastPos;
-
-        if (lp === undefined) {
-            this.createdLastPos = [point.x, point.y];
-        } else if (point.x == lp[0] && point.y == lp[1]) {
-            this.endCreation();
-        } else {
-            let points = [lp[0], lp[1], point.x, point.y];
-            this.fixIntersections(points, 0);
-            let plen = points.length;
-
-            for (let i = 2; i < plen; i += 2) {
-                this.createdIds.push(this.createWall(
-                    points[i - 2], points[i - 1],
-                    points[i    ], points[i + 1]
-                ));
-            }
-            this.createdLastPos = [point.x, point.y];
-        }
+    enable(): void {
     }
 
-    undoVertex(point: PIXI.Point): void {
-        if (this.createdLastPos === undefined) return;
+    destroy(): void {
+    }
+}
 
-        if (this.createdIds.length === 0) {
-            this.createdLastPos = undefined;
-        } else {
-            let lastCreated = this.createdIds.pop();
+export class CreateWallToolDriver implements ToolDriver {
+    readonly name = Tool.CREATE_WALL;
 
-            let wallPos = this.world.getComponent(lastCreated, POSITION_TYPE) as PositionComponent;
-            let wall = this.storage.getComponent(lastCreated);
+    private readonly sys: WallSystem;
 
-            if (wallPos.x === this.createdLastPos[0] && wallPos.y == this.createdLastPos[1]) {
-                this.createdLastPos = [
-                    wallPos.x + wall.vec[0],
-                    wallPos.y + wall.vec[1],
-                ];
-            } else {
-                this.createdLastPos = [
-                    wallPos.x,
-                    wallPos.y,
-                ];
-            }
+    // Sprite of the pin to be created
+    createdIds: number[] = [];
+    createdLastPos?: Point;
+    createLastLineDisplay: PIXI.Graphics;
 
-            this.world.despawnEntity(lastCreated);
-        }
-
-        this.redrawCreationLastLine(point);
+    constructor(sys: WallSystem) {
+        this.sys = sys;
     }
 
     initCreation(): void {
@@ -415,9 +394,11 @@ export class WallSystem implements System {
 
         if (this.createdIds.length === 0) return;
 
-        this.phase.selection.setOnlyEntities(this.createdIds);
+        this.sys.selectionSys.setOnlyEntities(this.createdIds);
         this.createdIds.length = 0;
-        this.phase.changeTool(Tool.INSPECT);
+        this.sys.world.editResource(TOOL_TYPE, {
+            tool: Tool.INSPECT,
+        })
     }
 
     redrawCreationLastLine(pos: PIXI.Point): void {
@@ -438,13 +419,85 @@ export class WallSystem implements System {
         g.drawCircle(pos.x, pos.y, 10);
     }
 
-    enable() {
+    addVertex(point: PIXI.Point): void {
+        let lp = this.createdLastPos;
+
+        if (lp === undefined) {
+            this.createdLastPos = [point.x, point.y];
+        } else if (point.x == lp[0] && point.y == lp[1]) {
+            this.endCreation();
+        } else {
+            let points = [lp[0], lp[1], point.x, point.y];
+            this.sys.fixIntersections(points, 0);
+            let plen = points.length;
+
+            for (let i = 2; i < plen; i += 2) {
+                this.createdIds.push(this.sys.createWall(
+                    points[i - 2], points[i - 1],
+                    points[i    ], points[i + 1]
+                ));
+            }
+            this.createdLastPos = [point.x, point.y];
+        }
+    }
+
+    undoVertex(point: PIXI.Point): void {
+        if (this.createdLastPos === undefined) return;
+
+        if (this.createdIds.length === 0) {
+            this.createdLastPos = undefined;
+        } else {
+            let lastCreated = this.createdIds.pop();
+
+            let wallPos = this.sys.world.getComponent(lastCreated, POSITION_TYPE) as PositionComponent;
+            let wall = this.sys.storage.getComponent(lastCreated);
+
+            if (wallPos.x === this.createdLastPos[0] && wallPos.y == this.createdLastPos[1]) {
+                this.createdLastPos = [
+                    wallPos.x + wall.vec[0],
+                    wallPos.y + wall.vec[1],
+                ];
+            } else {
+                this.createdLastPos = [
+                    wallPos.x,
+                    wallPos.y,
+                ];
+            }
+
+            this.sys.world.despawnEntity(lastCreated);
+        }
+
+        this.redrawCreationLastLine(point);
+    }
+
+    onStart(): void {
+        this.initCreation();
+    }
+
+    onPointerMove(event: PointerMoveEvent) {
+        let point = getMapPointFromMouseInteraction(this.sys.world, event);
+        this.redrawCreationLastLine(point);
+    }
+
+    onPointerClick(event: PointerClickEvent) {
+        let point = getMapPointFromMouseInteraction(this.sys.world, event);
+        this.addVertex(point);
+    }
+
+    onPointerRightDown(event: PointerRightDownEvent) {
+        let point = getMapPointFromMouseInteraction(this.sys.world, event);
+        this.undoVertex(point);
+    }
+
+    onEnd(): void {
+        this.endCreation();
+    }
+
+    initialize(): void {
         this.createLastLineDisplay = new PIXI.Graphics();
         this.createLastLineDisplay.zIndex = DisplayPrecedence.WALL + 1;
         this.createLastLineDisplay.interactive = false;
         this.createLastLineDisplay.interactiveChildren = false;
-
-        this.phase.board.addChild(this.createLastLineDisplay);
     }
 
     destroy(): void {

@@ -7,9 +7,8 @@ import {
     TransformComponent
 } from "../component";
 import {FlagEcsStorage, SingleEcsStorage} from "../storage";
-import {World} from "../ecs";
+import {World} from "../world";
 import {System} from "../system";
-import {EditMapPhase} from "../../phase/editMap/editMapPhase";
 import {
     DisplayElement,
     ElementType,
@@ -31,14 +30,17 @@ import {DESTROY_ALL, DESTROY_MIN} from "../../util/pixi";
 import {STANDARD_GRID_OPTIONS} from "../../game/grid";
 import {
     EVENT_VISIBILITY_SPREAD,
+    PLAYER_TYPE,
     PLAYER_VISIBLE_TYPE,
+    PlayerSystem,
     PlayerVisibleComponent,
     VisibilitySpreadData
 } from "./playerSystem";
-import {LocalLightSettings} from "./lightSystem";
+import {LIGHT_TYPE, LightSystem, LocalLightSettings} from "./lightSystem";
 import {
     INTERACTION_TYPE,
     InteractionComponent,
+    InteractionSystem,
     Shape,
     shapeAabb,
     shapeLine,
@@ -52,6 +54,8 @@ import {Obb} from "../../geometry/obb";
 import {Line} from "../../geometry/line";
 import {arrayRemoveElem} from "../../util/array";
 import {GRID_TYPE} from "./gridSystem";
+import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
+import {TEXT_TYPE, TextSystem} from "./textSystem";
 
 interface CustomGraphicComponent extends GraphicComponent {
     _selected: boolean;
@@ -65,7 +69,7 @@ interface CustomDisplayElement extends DisplayElement {
 }
 
 interface CustomImageElement extends ImageElement, CustomDisplayElement {
-    type: ElementType.IMAGE;// interference between interfaces (good-old diamond problem?
+    type: ElementType.IMAGE;// interference between interfaces (good-old diamond problem?)
     _oldTex?: Texture,
     _renTex?: RenderTexture;
     _visMapChanged?: boolean;
@@ -101,6 +105,9 @@ function lerpColor(a: number, b: number, t: number): number {
 
 export const POINT_RADIUS = 12;
 
+export const PIXI_GRAPHIC_TYPE = 'pixi_graphic';
+export type PIXI_GRAPHIC_TYPE = typeof PIXI_GRAPHIC_TYPE;
+
 /**
  * Manages:
  * - Drawing elements
@@ -113,21 +120,31 @@ export const POINT_RADIUS = 12;
  *
  * TODO: we could use a ParticleSystem in some instances
  */
-export class PixiSystem implements System {
-    phase: EditMapPhase;
+export class PixiGraphicSystem implements System {
+    readonly name = PIXI_GRAPHIC_TYPE;
+    readonly dependencies = [PIXI_BOARD_TYPE, INTERACTION_TYPE];
+    readonly provides = [GRAPHIC_TYPE];
+
     world: World;
     storage = new SingleEcsStorage<CustomGraphicComponent>(GRAPHIC_TYPE, false, false);
     rememberStorage = new FlagEcsStorage(REMEMBER_TYPE, false, true);
 
+    textSystem: TextSystem;
+    pixiBoardSystem: PixiBoardSystem;
+    interactionSystem: InteractionSystem;
+    playerSystem: PlayerSystem;
     renderTexturePool = new RenderTexturePool();
     circleTex: PIXI.Texture;
 
     masterVisibility: boolean;
 
 
-    constructor(world: World, phase: EditMapPhase) {
-        this.phase = phase;
+    constructor(world: World) {
         this.world = world;
+
+        this.textSystem = world.systems.get(TEXT_TYPE) as TextSystem;
+        this.pixiBoardSystem = world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
+        this.interactionSystem = world.systems.get(INTERACTION_TYPE) as InteractionSystem;
 
         world.addStorage(this.rememberStorage);
         world.addStorage(this.storage);
@@ -168,7 +185,7 @@ export class PixiSystem implements System {
             if (com === undefined) return;
             this.updateElementVisibility(com, com.display, true, true, true);
         } else if (c.type === HOST_HIDDEN_TYPE) {
-
+            // TODO: here?
         }
 
         if (spreadVis) {
@@ -223,7 +240,7 @@ export class PixiSystem implements System {
                     type: REMEMBER_TYPE,
                     entity: c.entity,
                 } as RememberComponent);
-                this.phase.playerSystem.removePlayerVisListener(c.entity);
+                this.playerSystem.removePlayerVisListener(c.entity);
                 remembered = true;
             }
 
@@ -314,7 +331,7 @@ export class PixiSystem implements System {
     }
 
     private onBBBVisibilitySpread(data: VisibilitySpreadData): void {
-        let iter = this.phase.interactionSystem.query(shapeAabb(data.aabb), c => {
+        let iter = this.interactionSystem.query(shapeAabb(data.aabb), c => {
             let com = this.storage.getComponent(c.entity);
             return com !== undefined && com._bitByBit === true;
         });
@@ -541,7 +558,7 @@ export class PixiSystem implements System {
     private updateBBBVisAround(com: CustomGraphicComponent) {
         let inter = this.world.getComponent(com.entity, INTERACTION_TYPE) as InteractionComponent;
         let aabb = shapeToAabb(inter.shape);
-        this.phase.playerSystem.getSpreadDataForAabb(aabb, data => {
+        this.playerSystem.getSpreadDataForAabb(aabb, data => {
             this.doOnBitByBit(com, com.display, (img) => this.updateBBBVisibility(data, com, img));
         });
     }
@@ -742,7 +759,7 @@ export class PixiSystem implements System {
                 break;
             case ElementType.TEXT:
                 res = new PIXI.Text("");
-                res.parentLayer = this.phase.textSystem.textLayer;
+                res.parentLayer = this.textSystem.textLayer;
                 break;
         }
         res.interactive = false;
@@ -750,8 +767,8 @@ export class PixiSystem implements System {
         res.zIndex = desc.priority;
         desc._pixi = res;
         desc._oldType = desc.type;
-        this.phase.board.addChild(res);
-        this.phase.board.sortChildren();
+        this.pixiBoardSystem.board.addChild(res);
+        this.pixiBoardSystem.board.sortChildren();
     }
 
     private textureUpdateGridSize(tex: CustomTexture): void {
@@ -820,9 +837,9 @@ export class PixiSystem implements System {
         }
 
         if (listenerNeeded && !oldListenerNeeded) {
-            this.phase.playerSystem.addPlayerVisListener(el.entity, el.isWall);
+            this.playerSystem.addPlayerVisListener(el.entity, el.isWall);
         } else if (!listenerNeeded && oldListenerNeeded) {
-            this.phase.playerSystem.removePlayerVisListener(el.entity);
+            this.playerSystem.removePlayerVisListener(el.entity);
         }
         el._visibListener = listLevel;
     }
@@ -958,13 +975,14 @@ export class PixiSystem implements System {
 
 
     enable(): void {
-        this.masterVisibility = this.phase.lightSystem.localLightSettings.visionType === 'dm';
+        this.playerSystem = this.world.systems.get(PLAYER_TYPE) as PlayerSystem;
+        this.masterVisibility = (this.world.systems.get(LIGHT_TYPE) as LightSystem).localLightSettings.visionType === 'dm';
 
         let g = new PIXI.Graphics();
         g.beginFill(0xFFFFFF);
         g.lineStyle(0);
         g.drawCircle(POINT_RADIUS, POINT_RADIUS, POINT_RADIUS);
-        this.circleTex = app.renderer.generateTexture(g, PIXI.SCALE_MODES.LINEAR, 1);// TODO: try to change res.
+        this.circleTex = app.renderer.generateTexture(g, PIXI.SCALE_MODES.LINEAR, 1);
         this.circleTex.defaultAnchor.set(0.5, 0.5);
     }
 
@@ -974,5 +992,3 @@ export class PixiSystem implements System {
         }
     }
 }
-
-

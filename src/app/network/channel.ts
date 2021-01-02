@@ -141,6 +141,5 @@ export class Channel {
         }
         this.eventEmitter.emit("_device_left", conn.channelId);
     }
-
 }
 

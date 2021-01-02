@@ -1,5 +1,5 @@
 import {Component, HideableComponent, MultiComponent} from "./component";
-import {World} from "./ecs";
+import {World} from "./world";
 
 
 export function serializeObj(obj: Component): any {

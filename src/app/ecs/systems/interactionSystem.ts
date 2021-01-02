@@ -17,7 +17,7 @@ import {
 import {Aabb} from "../../geometry/aabb";
 import {polygonPointIntersect} from "../../util/geometry";
 import {Obb} from "../../geometry/obb";
-import {World} from "../ecs";
+import {World} from "../world";
 import {DynamicTree} from "../../geometry/dynamicTree";
 import {SingleEcsStorage} from "../storage";
 import {System} from "../system";
@@ -26,6 +26,8 @@ import {GeomertyQueryType, QueryHitEvent} from "../interaction";
 import {PlayerVisibleComponent} from "./playerSystem";
 import {PointDB} from "../../game/pointDB";
 import {EditMapPhase} from "../../phase/editMap/editMapPhase";
+import {GRID_TYPE, GridSystem} from "./gridSystem";
+import {SELECTION_TYPE, SelectionSystem} from "./selectionSystem";
 
 export enum ShapeType {
     POINT, AABB, CIRCLE, LINE, POLYGON, OBB,
@@ -158,7 +160,7 @@ export function shapeIntersect(shape1: Shape, shape2: Shape): boolean {
     } else if (s1t === ShapeType.OBB) {
         return overlapRotatedRectVsRotatedRect((shape1 as ObbShape).data, (shape2 as ObbShape).data);
     }
-    // Polygon vs RotatedRect & co.
+    // Polygon vs Polygon
     throw 'Query not implemented: ' + s1t + ' vs ' + s2t;
 }
 
@@ -314,8 +316,11 @@ export interface InteractionComponent extends Component {
 }
 
 export class InteractionSystem implements System {
-    world: World;
-    phase: EditMapPhase;
+    readonly world: World;
+    readonly name = INTERACTION_TYPE;
+    readonly dependencies = [GRID_TYPE, SELECTION_TYPE];
+
+    private readonly selectionSys: SelectionSystem;
 
     storage = new SingleEcsStorage<InteractionComponent>('interaction', false, false);
     isTranslating: boolean = false;
@@ -323,10 +328,10 @@ export class InteractionSystem implements System {
     snapDb: PointDB;
     aabbTree = new DynamicTree<InteractionComponent>();
 
-    constructor(world: World, phase: EditMapPhase) {
+    constructor(world: World) {
         this.world = world;
-        this.phase = phase;
-        this.snapDb = new PointDB(phase.gridSystem);
+        this.selectionSys = this.world.systems.get(SELECTION_TYPE) as SelectionSystem;
+        this.snapDb = new PointDB(this.world.systems.get(GRID_TYPE) as GridSystem);
 
         world.addStorage(this.storage);
         world.events.on('component_add', this.onComponentAdd, this);
@@ -396,7 +401,7 @@ export class InteractionSystem implements System {
             if (diffX !== 0 || diffY !== 0) {
                 // TODO: trigger component change(?)
                 shapeTranslate(inter.shape, diffX, diffY);
-                if (!(this.isTranslating && this.phase.selection.selectedEntities.has(pos.entity))) {
+                if (!(this.isTranslating && this.selectionSys.selectedEntities.has(pos.entity))) {
                     this.updateComponent(inter);
                 }
             }
@@ -436,7 +441,7 @@ export class InteractionSystem implements System {
     }
 
     private onToolMoveBegin(): void {
-        for (let comp of this.phase.selection.getSelectedByType(INTERACTION_TYPE)) {
+        for (let comp of this.selectionSys.getSelectedByType(INTERACTION_TYPE)) {
             let c = comp as InteractionComponent;
             this.unregisterComponent(c);
         }
@@ -445,7 +450,7 @@ export class InteractionSystem implements System {
 
     private onToolMoveEnd(): void {
         this.isTranslating = false;
-        for (let comp of this.phase.selection.getSelectedByType(INTERACTION_TYPE)) {
+        for (let comp of this.selectionSys.getSelectedByType(INTERACTION_TYPE)) {
             let c = comp as InteractionComponent;
             this.updateComponent(c);
         }

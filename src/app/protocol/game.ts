@@ -1,5 +1,5 @@
 import {Packet} from "./packet";
-import {SerializedEcs} from "../ecs/ecs";
+import {SerializedWorld} from "../ecs/world";
 import {Component} from "../ecs/component";
 import {Resource} from "../ecs/resource";
 
@@ -37,7 +37,7 @@ export interface DeviceLeft extends Packet {
 export interface EcsBootrstrap extends Packet {
     type: "ecs_bootstrap";
 
-    payload: SerializedEcs;
+    payload: SerializedWorld;
 }
 
 export interface EntitySpawn extends Packet {

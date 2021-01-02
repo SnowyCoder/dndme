@@ -1,4 +1,4 @@
-import {World} from "../ecs/ecs";
+import {World} from "../world";
 import {
     Component,
     NAME_TYPE,
@@ -7,11 +7,12 @@ import {
     NoteComponent,
     POSITION_TYPE,
     PositionComponent
-} from "../ecs/component";
-import {LightComponent} from "../ecs/systems/lightSystem";
-import {PlayerComponent} from "../ecs/systems/playerSystem";
-import {DoorComponent, DoorType} from "../ecs/systems/doorSystem";
-import {PROP_TELEPORT_TYPE, PropTeleport} from "../ecs/systems/propSystem";
+} from "../component";
+import {LightComponent} from "./lightSystem";
+import {PlayerComponent} from "./playerSystem";
+import {DoorComponent, DoorType} from "./doorSystem";
+import {PROP_TELEPORT_TYPE, PropTeleport} from "./propSystem";
+import {System} from "../system";
 
 const MULTI_TYPES = ['name', 'note'];
 const ELIMINABLE_TYPES = ['name', 'note', 'player', 'light'];
@@ -38,8 +39,12 @@ export interface AddComponent {
     name: string,
 }
 
-export class SelectionGroup {
+export type SELECTION_TYPE = 'selection';
+export const SELECTION_TYPE = 'selection';
+export class SelectionSystem implements System {
     private ecs: World;
+    readonly name = SELECTION_TYPE;
+    readonly dependencies = [] as string[];
 
     selectedEntities = new Set<number>();
     dataByType = new Map<string, TypeData>();
@@ -416,6 +421,13 @@ export class SelectionGroup {
         let data = this.dataByType.get(type);
         if (data === undefined) return false;
         return data.entities.size === this.selectedEntities.size;
+    }
+
+
+    enable(): void {
+    }
+
+    destroy(): void {
     }
 }
 
