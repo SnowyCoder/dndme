@@ -11,8 +11,8 @@ export class HomePhase extends Phase {
         super("home");
     }
 
-    ui() {
-        return new HomeComponent();
+    ui(): Vue {
+        return new HomeComponent() as unknown as Vue;
     }
 
     createMap() {

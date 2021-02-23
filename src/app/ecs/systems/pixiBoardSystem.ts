@@ -64,6 +64,8 @@ export class PixiBoardSystem implements System {
 
     private wheelListener: any;
     pointers = new Map<number, PointerData>();
+    mouseLastX: number = 0;
+    mouseLastY: number = 0;
     lastMouseDownTime?: number;
     isDraggingBoard: boolean = false;
 
@@ -212,14 +214,26 @@ export class PixiBoardSystem implements System {
 
     /** Function called when the cursor moves around the map. */
     onPointerMove(e: PIXI.InteractionEvent) {
+        let pos = e.data.global;
+
         // TODO: magnet snap system
         let localPos = getMapPointFromMouseInteraction(this.world, e);
         this.updatePointerFollowers(localPos);
 
+
+        if (e.data.pointerType === 'mouse') {
+            let pme = e as PointerMoveEvent;
+            pme.lastPosition = {
+                x: this.mouseLastX, y: this.mouseLastY,
+            };
+            this.world.events.emit(PointerEvents.POINTER_MOVE, pme);
+            this.mouseLastX = pos.x;
+            this.mouseLastY = pos.y;
+        }
+
         let pdata = this.pointers.get(e.data.pointerId);
         if (pdata === undefined) return;
 
-        let pos = e.data.global;
         if (this.pointers.size === 1) {// Move
             if (this.isDraggingBoard) {
                 const newPosX = this.board.position.x + (pos.x - pdata.lastX);
@@ -235,12 +249,6 @@ export class PixiBoardSystem implements System {
                     posY: newPosY,
                 } as BoardTransformResource);
             }
-
-            let pme = e as PointerMoveEvent;
-            pme.lastPosition = {
-                x: pdata.lastX, y: pdata.lastY
-            };
-            this.world.events.emit(PointerEvents.POINTER_MOVE, pme);
         }
 
         let firstDist = 0;
@@ -316,6 +324,9 @@ export class PixiBoardSystem implements System {
         const canvas = app.view;
         this.applyCanvasStyle(canvas);
         let cnt = document.getElementById('canvas-container');
+        if (cnt === null) {
+            throw "Cannot find canvas container";
+        }
         app.resizeTo = cnt;
         cnt.appendChild(canvas);
 
@@ -354,6 +365,6 @@ export class PixiBoardSystem implements System {
 
         let cnt = document.getElementById('canvas-container');
         cnt?.removeChild(app.view);
-        app.resizeTo = undefined;
+        app.resizeTo = window;
     }
 }

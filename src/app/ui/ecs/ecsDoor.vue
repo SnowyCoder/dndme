@@ -25,62 +25,80 @@
 </template>
 
 <script lang="ts">
-    import {DoorType} from "../../ecs/systems/doorSystem";
+import {DoorComponent, DoorType} from "../../ecs/systems/doorSystem";
+import {Vue, VComponent, VProp, VWatch} from "../vue";
 
-    export default {
-        name: "ecs-door",
-        props: ["component", "isAdmin"],
-        data: function () {
-            return {
-                doorType: this.component.doorType,
-                open: this.component.open,
-                locked: this.component.locked,
-            }
-        },
-        methods: {
-            onChange: function () {
-                if (this.component.doorType !== this.doorType) {
-                    this.$emit('ecs-property-change', 'door', 'doorType', this.doorType);
-                }
-                if (this.component.open !== this.open) {
-                    this.$emit('ecs-property-change', 'door', 'open', this.open);
-                }
-                if (this.component.locked !== this.locked) {
-                    this.$emit('ecs-property-change', 'door', 'locked', this.locked);
-                }
-            }
-        },
-        computed: {
-            doorTypeName: function (): string {
-                switch (this.doorType) {
-                    case DoorType.NORMAL_LEFT: return "Normal";
-                    case DoorType.NORMAL_RIGHT: return "Normal right";
-                    case DoorType.ROTATE: return "Rotating";
-                    default: return "Unknown??"
-                }
-            }
-        },
-        watch: {
-            'component.doorType': function (doorType: string) {
-                this.doorType = doorType;
-            },
-            'component.open': function (open: boolean) {
-                this.open = open;
-            },
-            'component.locked': function (locked: boolean) {
-                this.locked = locked;
-            },
-            'doorType': function (dt: string) {
-                this.onChange();
-            },
-            'open': function (dt: string) {
-                this.onChange();
-            },
-            'locked': function (dt: string) {
-                this.onChange();
-            }
-        }
+@VComponent
+export default class EcsDoor extends Vue {
+  @VProp({required: true}) component!: DoorComponent;
+  @VProp({required: true}) isAdmin!: boolean;
+
+  doorType: DoorType;
+  open: boolean;
+  locked: boolean;
+
+  constructor() {
+    super();
+    this.doorType = this.component.doorType;
+    this.open = this.component.open;
+    this.locked = this.component.locked;
+  }
+
+  onChange() {
+    if (this.component.doorType !== this.doorType) {
+      this.$emit('ecs-property-change', 'door', 'doorType', this.doorType);
     }
+    if (this.component.open !== this.open) {
+      this.$emit('ecs-property-change', 'door', 'open', this.open);
+    }
+    if (this.component.locked !== this.locked) {
+      this.$emit('ecs-property-change', 'door', 'locked', this.locked);
+    }
+  }
+
+  get doorTypeName(): string {
+    switch (this.doorType) {
+      case DoorType.NORMAL_LEFT:
+        return "Normal";
+      case DoorType.NORMAL_RIGHT:
+        return "Normal right";
+      case DoorType.ROTATE:
+        return "Rotating";
+      default:
+        return "Unknown??"
+    }
+  }
+
+  @VWatch('component.doorType')
+  onCDoorTypeChanged(val: DoorType) {
+    this.doorType = val;
+  }
+
+  @VWatch('component.open')
+  onCOpenChanged(val: boolean) {
+    this.open = val;
+  }
+
+  @VWatch('component.locked')
+  onCLockedChanged(val: boolean) {
+    this.locked = val;
+  }
+
+  @VWatch('doorType')
+  onDoorTypeChanged() {
+    this.onChange();
+  }
+
+  @VWatch('open')
+  onOpenChanged() {
+    this.onChange();
+  }
+
+  @VWatch('locked')
+  onLockedChanged() {
+    this.onChange();
+  }
+}
 </script>
 
 <style scoped>

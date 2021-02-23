@@ -1,45 +1,56 @@
 <template>
-    <div>
-        <b-input type="color" v-model="color" @change="onChange" :readonly="!isAdmin"></b-input>
-        <b-input v-model="label" :readonly="!isAdmin" placeholder="Label" @change="onChange"/>
-    </div>
+  <div>
+    <b-input type="color" v-model="color" @change="onChange" :readonly="!isAdmin"></b-input>
+    <b-input v-model="label" :readonly="!isAdmin" placeholder="Label" @change="onChange"/>
+  </div>
 </template>
 
 <script lang="ts">
-    import PIXI from "../../PIXI";
-    import hex2string = PIXI.utils.hex2string;
-    import string2hex = PIXI.utils.string2hex;
+import PIXI from "../../PIXI";
 
-    export default {
-        name: "ecs-pin",
-        props: ["component", "isAdmin"],
-        data: function () {
-            return {
-                color: hex2string(this.component.color),
-                label: this.component.label,
-            }
-        },
-        methods: {
-            onChange: function () {
-                if (this.component.color !== this.color && this.color !== '') {
-                    let c = string2hex(this.color);
-                    this.$emit('ecs-property-change', 'pin', 'color', c);
-                }
-                if (this.label !== this.component.label) {
-                    if (!this.label) this.label = undefined;
-                    this.$emit('ecs-property-change', 'pin', 'label', this.label);
-                }
-            }
-        },
-        watch: {
-            'component.color': function (newColor: number) {
-                this.color = hex2string(newColor);
-            },
-            'component.label': function (newLabel: string) {
-                this.label = newLabel;
-            }
-        }
+import {VComponent, VProp, Vue, VWatch} from "../vue";
+import {PinComponent} from "../../ecs/systems/pinSystem";
+import hex2string = PIXI.utils.hex2string;
+import string2hex = PIXI.utils.string2hex;
+
+@VComponent
+export default class EcsPin extends Vue {
+  @VProp({required: true})
+  component!: PinComponent;
+
+  @VProp({required: true})
+  isAdmin!: boolean;
+
+  color: string;
+  label: string | undefined;
+
+  constructor() {
+    super();
+    this.color = hex2string(this.component.color);
+    this.label = this.component.label;
+  }
+
+  onChange() {
+    let c = string2hex(this.color);
+    if (this.component.color !== c && this.color !== '') {
+      this.$emit('ecs-property-change', 'pin', 'color', c);
     }
+    if (this.label !== this.component.label) {
+      if (!this.label) this.label = undefined;
+      this.$emit('ecs-property-change', 'pin', 'label', this.label);
+    }
+  }
+
+  @VWatch('component.color')
+  onCColorChanged(val: number) {
+    this.color = hex2string(val);
+  }
+
+  @VWatch('component.label')
+  onCLabelChanged(val: string | undefined) {
+    this.label = val;
+  }
+}
 </script>
 
 <style scoped>

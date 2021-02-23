@@ -68,9 +68,9 @@ const PLAYER_VIS_FRAGMENT_SHADER = `
     }
 `;
 
-let lightProgram: PIXI.Program = undefined;
-let constLightProgram: PIXI.Program = undefined;
-let playerVisProgram: PIXI.Program = undefined;
+let lightProgram: PIXI.Program | undefined = undefined;
+let constLightProgram: PIXI.Program | undefined = undefined;
+let playerVisProgram: PIXI.Program | undefined = undefined;
 
 type LightProgramType = 'normal' | 'const' | 'player';
 

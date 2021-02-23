@@ -2,10 +2,12 @@
 </template>
 
 <script lang="ts">
-    export default {
-        name: "ecs-wall",
-        props: ["component"],
-    }
+
+import {VComponent, Vue} from "../vue";
+
+@VComponent
+export default class EcsWall extends Vue {
+}
 </script>
 
 <style scoped>

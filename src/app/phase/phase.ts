@@ -19,7 +19,7 @@ export class Phase {
         console.log(`[${this.name}] ` + message);
     }
 
-    ui(): Vue {
+    ui(): Vue | undefined {
         return undefined;
     }
 

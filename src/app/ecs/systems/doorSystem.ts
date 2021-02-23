@@ -1,7 +1,7 @@
 import {System} from "../system";
 import {World} from "../world";
 import {SingleEcsStorage} from "../storage";
-import {Component, HideableComponent, NAME_TYPE, POSITION_TYPE, PositionComponent} from "../component";
+import {Component, HideableComponent, POSITION_TYPE, PositionComponent} from "../component";
 import {DESTROY_ALL} from "../../util/pixi";
 import PIXI from "../../PIXI";
 import {Line} from "../../geometry/line";
@@ -49,6 +49,9 @@ export class DoorSystem implements System {
     constructor(ecs: World) {
         this.world = ecs;
 
+        this.layer = new PIXI.display.Layer();
+        this.displayContainer = new PIXI.Container();
+
         this.pixiBoardSys = ecs.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
         this.localLightSettings = ecs.getResource(LOCAL_LIGHT_SETTINGS_TYPE) as LocalLightSettings;
 
@@ -65,7 +68,7 @@ export class DoorSystem implements System {
         let visible = this.localLightSettings.visionType === 'dm' ||
             this.world.getComponent(door.entity, REMEMBER_TYPE) !== undefined;
         if (!visible) {
-            door._display.clear();
+            door._display?.clear();
             return;
         }
 
@@ -190,7 +193,7 @@ export class DoorSystem implements System {
             this.redrawComponent(d);
 
             let wall = this.world.getComponent(comp.entity, WALL_TYPE) as WallComponent;
-            wall._dontMerge++;
+            if (wall !== undefined) wall._dontMerge++;
         }
     }
 
@@ -225,7 +228,7 @@ export class DoorSystem implements System {
                 this.openDoor(d, d.doorType, false);
             }
 
-            d._display.destroy(DESTROY_ALL);
+            d._display?.destroy(DESTROY_ALL);
 
             let wall = this.world.getComponent(comp.entity, WALL_TYPE) as WallComponent;
             wall._dontMerge--;
@@ -234,12 +237,10 @@ export class DoorSystem implements System {
 
 
     enable(): void {
-        this.layer = new PIXI.display.Layer();
         this.layer.zIndex = DisplayPrecedence.WALL + 1;
         this.layer.interactive = false;
         app.stage.addChild(this.layer);
 
-        this.displayContainer = new PIXI.Container();
         this.displayContainer.parentLayer = this.layer;
         this.displayContainer.interactive = false;
         this.displayContainer.interactiveChildren = false;

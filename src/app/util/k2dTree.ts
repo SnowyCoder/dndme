@@ -116,12 +116,12 @@ export class K2dTree {
         // node's dimension. If it is empty, we swap the left and right subtrees and
         // do the same.
         if (node.right !== undefined) {
-            let nextNode = this.findMin(node.right, node.dimension);
+            let nextNode = this.findMin(node.right, node.dimension)!;
             let nextPoint = nextNode.point;
             this.removeNode(nextNode);
             node.point = nextPoint;
         } else {
-            let nextNode = this.findMin(node.left, node.dimension);
+            let nextNode = this.findMin(node.left, node.dimension)!;
             let nextPoint = nextNode.point;
             this.removeNode(nextNode);
             node.right = node.left;
@@ -161,7 +161,7 @@ export class K2dTree {
             }
         }
 
-        let [bestChildNode, bestChildDist] = this.nearestPoint(point, bestChild);
+        let [bestChildNode, bestChildDist] = this.nearestPoint(point, bestChild)!;
 
         let bestNode;
         let bestDist;
@@ -186,7 +186,7 @@ export class K2dTree {
                 otherChild = root.left;
             }
             if (otherChild !== undefined) {
-                let [otherNode, otherDist] = this.nearestPoint(point, otherChild);
+                let [otherNode, otherDist] = this.nearestPoint(point, otherChild)!;
                 if (otherDist < bestDist) {
                     bestNode = otherNode;
                     bestDist = otherDist;

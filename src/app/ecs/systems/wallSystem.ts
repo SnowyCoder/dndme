@@ -13,7 +13,13 @@ import {INTERACTION_TYPE, InteractionSystem, LineShape, shapeAabb, shapeLine} fr
 import {VISIBILITY_BLOCKER_TYPE, VisibilityBlocker} from "./visibilitySystem";
 import {ElementType, GRAPHIC_TYPE, GraphicComponent, LineElement, VisibilityType} from "../../graphics";
 import {TOOL_TYPE, ToolDriver, ToolSystem} from "./toolSystem";
-import {PointerClickEvent, PointerMoveEvent, PointerRightDownEvent} from "./pixiBoardSystem";
+import {
+    PIXI_BOARD_TYPE,
+    PixiBoardSystem,
+    PointerClickEvent,
+    PointerMoveEvent,
+    PointerRightDownEvent
+} from "./pixiBoardSystem";
 import { getMapPointFromMouseInteraction } from "../tools/utils";
 import {SELECTION_TYPE, SelectionSystem} from "./selectionSystem";
 import {Tool} from "../tools/toolType";
@@ -23,7 +29,7 @@ export type WALL_TYPE = 'wall';
 export interface WallComponent extends Component {
     type: WALL_TYPE;
     vec: Point;
-    _dontMerge?: number;
+    _dontMerge: number;
 }
 
 const SELECTION_COLOR = 0x7986CB;
@@ -113,7 +119,7 @@ export class WallSystem implements System {
 
         for (let wall of walls) {
             if (wall._dontMerge !== 0) continue;
-            let pos = posStorage.getComponent(wall.entity);
+            let pos = posStorage.getComponent(wall.entity)!;
 
             let p1 = pos.x + "@" + pos.y;
             let p2 = (pos.x + wall.vec[0]) + "@" + (pos.y + wall.vec[1]);
@@ -123,7 +129,7 @@ export class WallSystem implements System {
 
                 let walls = wall_index.get(index);
 
-                if (walls === undefined) return;
+                if (walls === undefined) return false;
 
                 let wlen = walls.length;
                 for (let i = 0; i < wlen; i++) {
@@ -137,7 +143,7 @@ export class WallSystem implements System {
                 if (mergeWithIndex === undefined) return false;
 
                 let mwall = walls[mergeWithIndex];
-                let mpos = posStorage.getComponent(mwall.entity);
+                let mpos = posStorage.getComponent(mwall.entity)!;
                 let minChanged = false;
                 let x = pos.x;
                 let y = pos.y;
@@ -188,7 +194,7 @@ export class WallSystem implements System {
         let posStorage = this.world.storages.get(POSITION_TYPE) as SingleEcsStorage<PositionComponent>;
 
         for (let wall of walls) {
-            let pos = posStorage.getComponent(wall.entity);
+            let pos = posStorage.getComponent(wall.entity)!;
             let points = [pos.x, pos.y, pos.x + wall.vec[0], pos.y + wall.vec[1]];
             this.fixIntersections(points, 0);
 
@@ -374,6 +380,7 @@ export class CreateWallToolDriver implements ToolDriver {
     readonly name = Tool.CREATE_WALL;
 
     private readonly sys: WallSystem;
+    private readonly pixiBoardSys: PixiBoardSystem;
 
     // Sprite of the pin to be created
     createdIds: number[] = [];
@@ -382,6 +389,8 @@ export class CreateWallToolDriver implements ToolDriver {
 
     constructor(sys: WallSystem) {
         this.sys = sys;
+        this.createLastLineDisplay = new PIXI.Graphics();
+        this.pixiBoardSys = sys.world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
     }
 
     initCreation(): void {
@@ -447,10 +456,10 @@ export class CreateWallToolDriver implements ToolDriver {
         if (this.createdIds.length === 0) {
             this.createdLastPos = undefined;
         } else {
-            let lastCreated = this.createdIds.pop();
+            let lastCreated = this.createdIds.pop()!;
 
-            let wallPos = this.sys.world.getComponent(lastCreated, POSITION_TYPE) as PositionComponent;
-            let wall = this.sys.storage.getComponent(lastCreated);
+            let wallPos = this.sys.world.getComponent(lastCreated, POSITION_TYPE)! as PositionComponent;
+            let wall = this.sys.storage.getComponent(lastCreated)!;
 
             if (wallPos.x === this.createdLastPos[0] && wallPos.y == this.createdLastPos[1]) {
                 this.createdLastPos = [
@@ -475,11 +484,13 @@ export class CreateWallToolDriver implements ToolDriver {
     }
 
     onPointerMove(event: PointerMoveEvent) {
+        console.log("POINTER MOVE");
         let point = getMapPointFromMouseInteraction(this.sys.world, event);
         this.redrawCreationLastLine(point);
     }
 
     onPointerClick(event: PointerClickEvent) {
+        console.log("POINTER CLICK");
         let point = getMapPointFromMouseInteraction(this.sys.world, event);
         this.addVertex(point);
     }
@@ -494,10 +505,11 @@ export class CreateWallToolDriver implements ToolDriver {
     }
 
     initialize(): void {
-        this.createLastLineDisplay = new PIXI.Graphics();
         this.createLastLineDisplay.zIndex = DisplayPrecedence.WALL + 1;
         this.createLastLineDisplay.interactive = false;
         this.createLastLineDisplay.interactiveChildren = false;
+        this.pixiBoardSys.board.addChild(this.createLastLineDisplay);
+        this.pixiBoardSys.board.sortChildren();
     }
 
     destroy(): void {

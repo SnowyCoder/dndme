@@ -43,16 +43,16 @@ export class DynamicTree<T> {
         this.aabbMultiplier = aabbMultiplier;
     }
 
-    getTag(id: number): T {
-        return this.nodes.get(id).tag;
+    getTag(id: number): T | undefined {
+        return this.nodes.get(id)?.tag;
     }
 
     setTag(id: number, tag: T) {
-
+        this.nodes.get(id)!.tag = tag;
     }
 
-    getFatAabb(id: number): Aabb {
-        return this.nodes.get(id).aabb;
+    getFatAabb(id: number): Aabb | undefined {
+        return this.nodes.get(id)?.aabb;
     }
 
     private allocateNode(): TreeNode<T> {
@@ -81,14 +81,14 @@ export class DynamicTree<T> {
     }
 
     destroyProxy(id: number): void {
-        let node = this.nodes.get(id);
+        let node = this.nodes.get(id)!;
 
         this.removeLeaf(node);
         this.freeNode(node);
     }
 
     moveProxy(id: number, aabb: Aabb, d: Point): boolean {
-        let node = this.nodes.get(id);
+        let node = this.nodes.get(id)!;
 
         if (containsAabbVsAabb(node.aabb, aabb)) {
             return false;
@@ -125,8 +125,8 @@ export class DynamicTree<T> {
         let index = this.root;
 
         while (!index.isLeaf()) {
-            let left = index.left;
-            let right = index.right;
+            let left = index.left!;
+            let right = index.right!;
 
             let per = index.aabb.getPerimeter();
 
@@ -195,10 +195,10 @@ export class DynamicTree<T> {
         while (index !== undefined) {
             index = this.balance(index);
 
-            index.height = 1 + Math.max(index.left.height, index.right.height);
-            index.left.aabb.combine(index.right.aabb, index.aabb);
+            index.height = 1 + Math.max(index.left!.height, index.right!.height);
+            index.left!.aabb.combine(index.right!.aabb, index.aabb);
 
-            index = index.parent;
+            index = index.parent!;
         }
     }
 
@@ -208,11 +208,11 @@ export class DynamicTree<T> {
             return;
         }
 
-        let parent = leaf.parent;
+        let parent = leaf.parent!;
         let grandParent = parent.parent;
         let sibling;
-        if (parent.left === leaf) sibling = parent.right;
-        else                      sibling = parent.left;
+        if (parent.left === leaf) sibling = parent.right!;
+        else                      sibling = parent.left!;
 
         if (grandParent !== undefined) {
             // Destroy parent and connect sibling to grandParent
@@ -227,10 +227,10 @@ export class DynamicTree<T> {
             while (index !== undefined) {
                 index = this.balance(index);
 
-                index.left.aabb.combine(index.right.aabb, index.aabb);
-                index.height = 1 + Math.max(index.left.height, index.right.height);
+                index.left!.aabb.combine(index.right!.aabb, index.aabb);
+                index.height = 1 + Math.max(index.left!.height, index.right!.height);
 
-                index = index.parent;
+                index = index.parent!;
             }
         } else {
             this.root = sibling;
@@ -249,15 +249,15 @@ export class DynamicTree<T> {
 
         if (a.isLeaf() || a.height < 2) return a;
 
-        let b = a.left;
-        let c = a.right;
+        let b = a.left!;
+        let c = a.right!;
 
         let balance = c.height - b.height;
 
         // Rotate C up
         if (balance > 1) {
-            let f = c.left;
-            let g = c.right;
+            let f = c.left!;
+            let g = c.right!;
 
             // Swap a and c
             c.left = a;
@@ -297,8 +297,8 @@ export class DynamicTree<T> {
         }
 
         if (balance < -1) {
-            let d = b.left;
-            let e = b.right;
+            let d = b.left!;
+            let e = b.right!;
 
             // Swap a and b
             b.left = a;
@@ -343,7 +343,7 @@ export class DynamicTree<T> {
     }
 
     *query(aabb: Aabb): Generator<TreeNode<T>> {
-        let stack = [];
+        let stack = new Array<TreeNode<T>>();
 
         if (this.root === undefined) return;
 
@@ -351,7 +351,7 @@ export class DynamicTree<T> {
 
         stack.push(this.root);
         while (stack.length > 0) {
-            let node = stack.pop();
+            let node = stack.pop()!;
 
             let overlap = overlapAabbVsAabb(node.aabb, aabb);
             //console.log("Visit: " + node.id + " = " + overlap);
@@ -360,8 +360,8 @@ export class DynamicTree<T> {
             if (node.isLeaf()) {
                 yield node;
             } else {
-                stack.push(node.left);
-                stack.push(node.right);
+                stack.push(node.left!);
+                stack.push(node.right!);
             }
         }
     }

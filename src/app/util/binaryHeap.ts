@@ -25,7 +25,7 @@ export class BinaryHeap<T> {
         let result = this.content[0];
         this.elemMap.delete(result);
         // Get the element at the end of the array.
-        let end = this.content.pop();
+        let end = this.content.pop()!;
         // If there are any elements left, put the end element at the
         // start, and let it sink down.
         if (this.content.length !== 0) {
@@ -41,7 +41,7 @@ export class BinaryHeap<T> {
         if (index === undefined) return;
 
         this.elemMap.delete(e);
-        let end = this.content.pop();
+        let end = this.content.pop()!;
         if (index === this.content.length) return;
 
         this.content[index] = end;
@@ -97,7 +97,7 @@ export class BinaryHeap<T> {
             // This is used to store the new position of the element,
             // if any.
             let swap = null;
-            let child1
+            let child1: T | undefined = undefined;
             // If the first child exists (is inside the array)...
             if (child1N < length) {
                 // Look it up and compute its score.
@@ -109,7 +109,7 @@ export class BinaryHeap<T> {
             // Do the same checks for the other child.
             if (child2N < length) {
                 let child2 = this.content[child2N];
-                if (this.cmpLt(child2, swap == null ? element : child1)) {
+                if (this.cmpLt(child2, swap == null ? element : child1!)) {
                     swap = child2N;
                 }
             }

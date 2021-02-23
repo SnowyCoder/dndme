@@ -90,15 +90,19 @@ export class LightSystem implements System {
 
     storage = new SingleEcsStorage<LightComponent>(LIGHT_TYPE);
 
+    lightLayer: PIXI.display.Layer;
     playerContainer: PIXI.Container;
     lightContainer: PIXI.Container;
-    lightLayer: PIXI.display.Layer;
 
     lightSettings: LightSettings;
     localLightSettings: LocalLightSettings;
 
     constructor(world: World) {
         this.world = world;
+
+        this.lightLayer = new PIXI.display.Layer();
+        this.playerContainer = new PIXI.Container();
+        this.lightContainer = new PIXI.Container();
 
         let toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
         toolSys.addTool(createEmptyDriver(Tool.LIGHT));
@@ -177,11 +181,11 @@ export class LightSystem implements System {
     }
 
     updateLightVisPolygon(light: LightComponent, pos?: PositionComponent, vis?: VisibilityComponent): void {
-        this.updateVisPolygon(light.entity, light._lightDisplay, light.color, pos, vis);
+        this.updateVisPolygon(light.entity, light._lightDisplay!, light.color, pos, vis);
     }
 
     updatePlayerVisPolygon(player: CustomPlayerComponent, pos?: PositionComponent, vis?: VisibilityComponent): void {
-        this.updateVisPolygon(player.entity, player._lightVisionDisplay, 0, pos, vis);
+        this.updateVisPolygon(player.entity, player._lightVisionDisplay!, 0, pos, vis);
     }
 
     private onComponentAdd(comp: Component): void {
@@ -232,7 +236,7 @@ export class LightSystem implements System {
                 let vis = this.world.getComponent(c.entity, VISIBILITY_TYPE) as VisibilityComponent;
                 if (vis.polygon !== undefined) {
                     let range = vis.range * 50;
-                    this.updateVisUniforms(c._lightDisplay, pos, range * range, c.color);
+                    this.updateVisUniforms(c._lightDisplay!, pos, range * range, c.color);
                 }
             }
         } else if (comp.type === VISIBILITY_TYPE) {
@@ -268,22 +272,20 @@ export class LightSystem implements System {
     private onComponentRemove(comp: Component) {
         if (comp.type === LIGHT_TYPE) {
             let light = comp as LightComponent;
-            light._lightDisplay.destroy(DESTROY_ALL);
+            light._lightDisplay?.destroy(DESTROY_ALL);
         } else if (comp.type === PLAYER_TYPE) {
             let player = comp as CustomPlayerComponent;
-            player._lightVisionDisplay.destroy(DESTROY_ALL);
+            player._lightVisionDisplay?.destroy(DESTROY_ALL);
         }
     }
 
     enable() {
         PointLightRender.setup();
 
-        this.lightLayer = new PIXI.display.Layer();
         this.lightLayer.useRenderTexture = true;
         this.lightLayer.interactive = false;
         this.lightLayer.interactiveChildren = false;
 
-        this.playerContainer = new PIXI.Container();
         this.playerContainer.zOrder = DisplayPrecedence.LIGHT - 1;
         this.playerContainer.zIndex = DisplayPrecedence.LIGHT - 1;
         this.playerContainer.interactive = false;
@@ -291,7 +293,6 @@ export class LightSystem implements System {
         let lightSystem = this.world.systems.get(LIGHT_TYPE) as LightSystem;
         this.playerContainer.parentLayer = lightSystem.lightLayer;
 
-        this.lightContainer = new PIXI.Container();
         this.lightContainer.zOrder = DisplayPrecedence.LIGHT;
         this.lightContainer.zIndex = DisplayPrecedence.LIGHT;
         this.lightContainer.interactive = false;

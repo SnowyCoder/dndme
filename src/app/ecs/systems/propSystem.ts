@@ -96,7 +96,7 @@ export class PropSystem implements System {
     }
 
     loadPropTypes(): void {
-        const atlas = PIXI.Loader.shared.resources["props"].spritesheet;
+        const atlas = PIXI.Loader.shared.resources["props"].spritesheet!;
         const props = [
             {
                 id: 'ladder_up',
@@ -112,10 +112,23 @@ export class PropSystem implements System {
         for (let prop of props) this.registerPropType(prop);
     }
 
+    private getPropType(p: PropComponent): PropType {
+        let pType = this.propTypes.get(p.propType);
+        if (pType === undefined) {
+            console.warn(`Cannot find prop type: ${p.propType}`);
+            pType = this.propTypes.get(this.defaultPropType);
+
+            if (pType === undefined) {
+                throw "Default prop type is invalid!";
+            }
+        }
+        return pType;
+    }
+
     private onComponentAdd(c: Component): void {
         if (c.type !== 'prop') return;
         let prop = c as PropComponent;
-        let propType = this.propTypes.get(prop.propType);
+        let propType = this.getPropType(prop);
 
         this.world.addComponent(c.entity, {
             type: GRAPHIC_TYPE,
@@ -139,7 +152,7 @@ export class PropSystem implements System {
         if (c.type === PROP_TYPE) {
             let prop = c as PropComponent;
 
-            let pType = this.propTypes.get(prop.propType);
+            let pType = this.getPropType(prop);
             let display = (this.world.getComponent(c.entity, GRAPHIC_TYPE) as GraphicComponent).display as ImageElement;
             display.texture = pType.texture;
             this.world.editComponent(c.entity, GRAPHIC_TYPE, { display }, undefined, false);
@@ -164,8 +177,8 @@ export class PropSystem implements System {
         }
 
         let positions = this.world.storages.get(POSITION_TYPE) as SingleEcsStorage<PositionComponent>;
-        let posFrom = positions.getComponent(entity);
-        let posTo = positions.getComponent(teleport.targetProp);
+        let posFrom = positions.getComponent(entity)!;
+        let posTo = positions.getComponent(teleport.targetProp)!;
         let diffX = posTo.x - posFrom.x;
         let diffY = posTo.y - posFrom.y;
 
@@ -177,7 +190,7 @@ export class PropSystem implements System {
 
 
         for (let q of query) {
-            let pos = positions.getComponent(q.entity);
+            let pos = positions.getComponent(q.entity)!;
             this.world.editComponent(
                 q.entity, pos.type, {
                     x: pos.x + diffX,
@@ -295,7 +308,7 @@ export class PropTeleportLinkToolDriver implements ToolDriver {
     readonly name = Tool.PROP_TELEPORT_LINK;
     private readonly sys: PropSystem;
 
-    currentTarget?: number;
+    currentTarget: number = -1;
 
     constructor(sys: PropSystem) {
         this.sys = sys;
@@ -332,12 +345,14 @@ export class PropTeleportLinkToolDriver implements ToolDriver {
             console.warn("Teleporter has been destroyed");
             return;
         }
-        tper.targetProp = target;
-        this.currentTarget = undefined;
+        // If the target is itself then delete the link
+        tper.targetProp = target === this.currentTarget ? -1 : target;
+
+        this.currentTarget = -1;
     }
 
     linkCancel(): void {
-        this.currentTarget = undefined;
+        this.currentTarget = -1;
     }
 
     onStart(): void {

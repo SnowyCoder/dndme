@@ -1,7 +1,7 @@
 import {Phase} from "./phase";
 
 export class Stage extends Phase {
-    phase: Phase | null;
+    phase: Phase | null = null;
 
     constructor(name: string) {
         super(name);

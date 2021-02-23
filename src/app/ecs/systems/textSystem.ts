@@ -13,10 +13,10 @@ export class TextSystem implements System {
     textLayer: PIXI.display.Layer;
 
     constructor() {
+        this.textLayer = new PIXI.display.Layer();
     }
 
     enable() {
-        this.textLayer = new PIXI.display.Layer();
         this.textLayer.zIndex = DisplayPrecedence.TEXT;
         this.textLayer.interactive = false;
         this.textLayer.interactiveChildren = false;

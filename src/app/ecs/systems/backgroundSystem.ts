@@ -83,7 +83,7 @@ export class BackgroundSystem implements System {
         for (let e of entities) {
             let c = this.storage.getComponent(e);
             if (c === undefined) continue;
-            c.visibilityMap = (gstor.getComponent(e).display as ImageElement).visMap;
+            c.visibilityMap = (gstor.getComponent(e)?.display as ImageElement)?.visMap;
         }
     }
 

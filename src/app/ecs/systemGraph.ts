@@ -34,8 +34,8 @@ export class SystemGraph {
             }
         }
 
-        if (this.systemsByName.has(system.name)) {
-            let sys = this.systemsByName.get(system.name);
+        let sys = this.systemsByName.get(system.name);
+        if (sys != null) {
             if (sys.name === system.name) throw 'System name conflict';
             console.warn(`System ${system.name} has been already registered under ${sys.name}, overriding`);
         }
@@ -44,7 +44,7 @@ export class SystemGraph {
         if (system.provides) {
             for (let prov of system.provides) {
                 if (this.systemsByName.has(prov)) {
-                    throw `Service ${prov} is already provided by ${this.systemsByName.get(prov).name}, cannot override with ${system.name}`;
+                    throw `Service ${prov} is already provided by ${this.systemsByName.get(prov)!.name}, cannot override with ${system.name}`;
                 }
                 this.systemsByName.set(prov, system);
             }

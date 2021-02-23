@@ -34,9 +34,9 @@ export class HostEditMapPhase extends EditMapPhase {
         let x = event.pageX;
         let y = event.pageY;
 
-        if (event.dataTransfer.items) {
+        if (event.dataTransfer!.items) {
             let res = [];
-            for (let f of event.dataTransfer.items) {
+            for (let f of event.dataTransfer!.items) {
                 let file = f.getAsFile();
                 if (file != null) {
                     res.push(file);
@@ -45,14 +45,14 @@ export class HostEditMapPhase extends EditMapPhase {
 
             await this.onFileDrop(res, x, y);
         } else {
-            await this.onFileDrop(event.dataTransfer.files, x, y);
+            await this.onFileDrop(event.dataTransfer!.files, x, y);
         }
     }
 
     onDragOver(event: DragEvent) {
         event.stopPropagation();
         event.preventDefault();
-        event.dataTransfer.dropEffect = "copy";
+        event.dataTransfer!.dropEffect = "copy";
         return false;
     }
 
@@ -127,8 +127,8 @@ export class HostEditMapPhase extends EditMapPhase {
         //let ch = this.networkManager.channel.eventEmitter;
         //ch.off("_device_join", this.onDeviceJoin, this);
 
-        app.view.ondrop = undefined;
-        app.view.ondragover = undefined;
+        app.view.ondrop = () => {};
+        app.view.ondragover = () => {};
 
         super.disable();
     }

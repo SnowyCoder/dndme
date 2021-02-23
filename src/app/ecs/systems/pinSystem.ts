@@ -97,7 +97,7 @@ export class PinSystem implements System {
         display.color = pin.color;
 
         if (pin.label !== undefined) {
-            if (display.children.length === 0) {
+            if (display.children!.length === 0) {
                 display._childrenAdd = [{
                     type: ElementType.TEXT,
                     ignore: false,
@@ -110,7 +110,7 @@ export class PinSystem implements System {
                     text: pin.label,
                 } as TextElement];
             } else {
-                (display.children[0] as TextElement).text = pin.label;
+                (display.children![0] as TextElement).text = pin.label;
             }
         } else {
             display._childrenReplace = [];

@@ -28,7 +28,7 @@ export class GridSystem implements System {
     sprite: PIXI.TilingSprite;
 
     private readonly gridRes: GridResource;
-    private internalScale: number;
+    private internalScale: number = 1;
 
     posX: number = 0;
     posY: number = 0;
@@ -230,7 +230,7 @@ function drawSquare(size: number, opt: GridGraphicalOptions): ImageData {
     let canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
-    let ctx = canvas.getContext("2d");
+    let ctx = canvas.getContext("2d")!;
 
     ctx.lineWidth = opt.thick;
     ctx.strokeStyle = colorToHex(opt.color, opt.opacity);
@@ -247,7 +247,7 @@ function drawHex(size: number, opt: GridGraphicalOptions): ImageData {
     let canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = size;
-    let ctx = canvas.getContext("2d");
+    let ctx = canvas.getContext("2d")!;
 
     let d = size;
 

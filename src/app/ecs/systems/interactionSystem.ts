@@ -1,17 +1,21 @@
 import {Component, PositionComponent, TransformComponent} from "../component";
 import {
     intersectSegmentVsSegment,
-    overlapAabbVsAabb, overlapAabbVsLine,
+    overlapAabbVsAabb,
+    overlapAabbVsLine,
     overlapAabbVsPoint,
     overlapCircleVsAabb,
     overlapCircleVsCircle,
     overlapCircleVsPolygon,
-    overlapLineVsCircle, overlapLineVsPolygon,
+    overlapLineVsCircle,
+    overlapLineVsPolygon,
     overlapObbVsPolygon,
     overlapPointVsCircle,
     overlapRotatedRectVsAabb,
-    overlapRotatedRectVsCircle, overlapRotatedRectVsLine,
-    overlapRotatedRectVsPoint, overlapRotatedRectVsRotatedRect,
+    overlapRotatedRectVsCircle,
+    overlapRotatedRectVsLine,
+    overlapRotatedRectVsPoint,
+    overlapRotatedRectVsRotatedRect,
     SegmentVsSegmentRes
 } from "../../geometry/collision";
 import {Aabb} from "../../geometry/aabb";
@@ -25,7 +29,6 @@ import {Line} from "../../geometry/line";
 import {GeomertyQueryType, QueryHitEvent} from "../interaction";
 import {PlayerVisibleComponent} from "./playerSystem";
 import {PointDB} from "../../game/pointDB";
-import {EditMapPhase} from "../../phase/editMap/editMapPhase";
 import {GRID_TYPE, GridSystem} from "./gridSystem";
 import {SELECTION_TYPE, SelectionSystem} from "./selectionSystem";
 
@@ -305,9 +308,9 @@ export type INTERACTION_TYPE = 'interaction';
 export interface InteractionComponent extends Component {
     type: INTERACTION_TYPE;
 
-    selectPriority?: number;// If !== undefined then the item is selectable
-    snapEnabled?: boolean;// if === true then the snapDb registration is available.
-    shape?: Shape;
+    selectPriority: number;// If true then the item is selectable
+    snapEnabled: boolean;// if true then the snapDb registration is available.
+    shape: Shape;
     // Additional checks (not required)
     queryCheck?: (shape: Shape) => boolean;
 
@@ -461,10 +464,10 @@ export class InteractionSystem implements System {
         let bestPrior: number = Number.NEGATIVE_INFINITY;
         let best: number = -1;
 
-        let iter = this.queryVisible(shape, (c) => c.selectPriority > bestPrior);
+        let iter = this.queryVisible(shape, (c) => (c.selectPriority || 0) > bestPrior);
         for (let item of iter) {
             best = item.entity;
-            bestPrior = item.selectPriority;
+            bestPrior = item.selectPriority || 0;
         }
 
         if (best !== -1) {
@@ -500,14 +503,14 @@ export class InteractionSystem implements System {
 
 
     queryVisible(shape: Shape, preCheck?: (c: InteractionComponent) => boolean): Generator<InteractionComponent> {
-        let playerVis: SingleEcsStorage<PlayerVisibleComponent> = undefined;
+        let playerVis: SingleEcsStorage<PlayerVisibleComponent> | undefined = undefined;
         if (!this.world.isMaster) {
             playerVis = this.world.storages.get('player_visible') as SingleEcsStorage<PlayerVisibleComponent>;
         }
 
         if (playerVis === undefined) return this.query(shape, preCheck);
         return this.query(shape, c => {
-            let visC = playerVis.getComponent(c.entity);
+            let visC = playerVis!.getComponent(c.entity);
             if (visC !== undefined && visC.visible) return false;
             return preCheck === undefined ? true : preCheck(c);
         })
@@ -517,11 +520,12 @@ export class InteractionSystem implements System {
         let aabb = shapeToAabb(shape);
 
         for (let c of this.aabbTree.query(aabb)) {
-            if (preCheck && !preCheck(c.tag)) continue;
-            if (!shapeIntersect(c.tag.shape, shape)) continue;
-            let qc = c.tag.queryCheck;
+            let tag = c.tag!;
+            if (preCheck && !preCheck(tag)) continue;
+            if (!shapeIntersect(tag.shape!, shape)) continue;
+            let qc = tag.queryCheck;
             if (qc && !qc(shape)) continue;
-            yield c.tag;
+            yield tag;
         }
     }
 

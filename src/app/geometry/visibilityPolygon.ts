@@ -9,9 +9,9 @@ import PIXI from "../PIXI";
 export const EPSILON = 0.0000001;
 
 class EndPoint extends PIXI.Point {
-    angle: number;
-    dist: number;
-    segment: Segment;
+    angle: number = 0;
+    dist: number = 0;
+    segment?: Segment;
 }
 
 class Segment {
@@ -22,6 +22,7 @@ class Segment {
     constructor(f: EndPoint, t: EndPoint) {
         this.from = f;
         this.to = t;
+        this.used = false;
     }
 }
 
@@ -142,10 +143,10 @@ function compute0(pos: StupidPoint, segments: Segment[]): Array<number> {
 
         let orig = i;// The original point index
         let vertex = points[i];
-        let oldSegment = segmentPriorityQueue.peek();
+        let oldSegment = segmentPriorityQueue.peek()!;
 
         do {
-            let currSegment = points[i].segment
+            let currSegment = points[i].segment!
             if (segmentPriorityQueue.hasElem(currSegment)) {
                 if (currSegment === oldSegment) {
                     extend = true;
@@ -160,12 +161,12 @@ function compute0(pos: StupidPoint, segments: Segment[]): Array<number> {
             if (i === points.length) break;
         } while (points[i].angle < points[orig].angle + EPSILON);
 
-        segmentPriorityQueue.peek().used = true;
+        segmentPriorityQueue.peek()!.used = true;
         if (extend) {
             // Vertex is the first point of the old segment, we need to push this right away
             polygon.push(vertex.x, vertex.y);
             let point = new PIXI.Point();
-            let firstSeg = segmentPriorityQueue.peek();
+            let firstSeg = segmentPriorityQueue.peek()!;
             intersectLineVsLine(firstSeg.from, firstSeg.to, pos, vertex, point);
             if (!(Math.abs(point.x - vertex.x) < EPSILON && Math.abs(point.y - vertex.y) < EPSILON)) {
                 polygon.push(point.x, point.y);
@@ -178,7 +179,7 @@ function compute0(pos: StupidPoint, segments: Segment[]): Array<number> {
             polygon.push(point.x, point.y);
 
             // Then compute where the new segment intersects
-            let newClosest = segmentPriorityQueue.peek();
+            let newClosest = segmentPriorityQueue.peek()!;
             let nPoint;
             if (Math.abs(newClosest.from.angle - points[orig].angle) < EPSILON) {
                 nPoint = newClosest.from;
@@ -243,7 +244,7 @@ function clipSegment(line: Line, aabb: Aabb, light: StupidPoint): Segment | unde
             // from an outside point to an intersection with clip edge
             return undefined;
         } else {
-            let x, y;
+            let x = 0, y = 0;
 
             // At least one endpoint is outside the clip rectangle; pick it.
             let codeOut = code1 > code0 ? code1 : code0;

@@ -85,7 +85,7 @@ export class SelectionSystem implements System {
 
     onComponentRemove(component: Component) {
         if (!this.selectedEntities.has(component.entity)) return;
-        let data = this.dataByType.get(component.type);
+        let data = this.dataByType.get(component.type)!;
         data.entities.delete(component);
         if (data.entities.size === 0) this.dataByType.delete(component.type);
         this.update();
@@ -161,7 +161,7 @@ export class SelectionSystem implements System {
             this.selectedEntities.delete(id)
             let comps = this.ecs.getAllComponents(id);
             for (let c of comps) {
-                let data = this.dataByType.get(c.type);
+                let data = this.dataByType.get(c.type)!;
                 data.entities.delete(c);
                 if (data.entities.size === 0) this.dataByType.delete(c.type);
             }
@@ -177,7 +177,7 @@ export class SelectionSystem implements System {
     }
 
     private initialComponent(type: string): Object {
-        let storage = this.ecs.storages.get(type);
+        let storage = this.ecs.storages.get(type)!;
         return {
             _canDelete: ELIMINABLE_TYPES.indexOf(type) >= 0,
             _isFullscreen: FULLSCREENABLE_TYPES.indexOf(type) >= 0 ? false : undefined,
@@ -190,10 +190,10 @@ export class SelectionSystem implements System {
         let res = new Array<Component>();
         let entity = this.selectedEntities.values().next().value;
 
-        for (let type of this.ecs.storages.keys()) {
+        for (let [type, storage] of this.ecs.storages.entries()) {
             if (type.startsWith('host_')) continue;
 
-            let comps = this.ecs.storages.get(type).getComponents(entity);
+            let comps = storage.getComponents(entity);
             for (let comp of comps) {
                 res.push(removePrivate(this.initialComponent(type), comp));
             }
@@ -225,7 +225,7 @@ export class SelectionSystem implements System {
             if (type === 'host_hidden') continue;
             let component = undefined;
             for (let entity of this.selectedEntities) {
-                let comps = this.ecs.storages.get(type).getComponents(entity);
+                let comps = this.ecs.storages.get(type)!.getComponents(entity);
                 for (let comp of comps) {
                     if (component === undefined) {
                         component = removePrivate(this.initialComponent(type), comp);// copy
@@ -401,7 +401,7 @@ export class SelectionSystem implements System {
     }
 
     private getOrCreateData(type: string): TypeData {
-        let data: TypeData = this.dataByType.get(type);
+        let data = this.dataByType.get(type);
         if (data === undefined) {
             data = {
                 entities: new Set<Component>(),

@@ -1,7 +1,6 @@
 import {System} from "../system";
 import {World} from "../world";
 import {SingleEcsStorage} from "../storage";
-import {EditMapPhase} from "../../phase/editMap/editMapPhase";
 import {Component, HOST_HIDDEN_TYPE, POSITION_TYPE, PositionComponent} from "../component";
 import {VISIBILITY_TYPE, VisibilityComponent, VisibilitySystem} from "./visibilitySystem";
 import * as PointLightRender from "../../game/pointLightRenderer";
@@ -66,10 +65,9 @@ export class PlayerSystem implements System {
 
     storage = new SingleEcsStorage<PlayerComponent>(PLAYER_TYPE, true, true);
     visibleStorage = new SingleEcsStorage<PlayerVisibleComponent>(PLAYER_VISIBLE_TYPE, false, false);
-    phase: EditMapPhase;
 
     // If false a player can see a thing only if it's illuminated by artificial light
-    ambientIlluminated: boolean;
+    ambientIlluminated: boolean = false;
 
     constructor(world: World) {
         this.world = world;
@@ -143,12 +141,12 @@ export class PlayerSystem implements System {
             this.onPlayerVisibleCountersUpdate(playerVisible);
         };
         for (let t of vis._canSee) fun(t);
-        for (let t of vis._canSeeWalls) fun(t);
+        if (vis._canSeeWalls) for (let t of vis._canSeeWalls) fun(t);
     }
 
     private createVisMeshFrom(pos: PIXI.IPointData, vis: VisibilityComponent): PIXI.Mesh {
         let mesh = PointLightRender.createMesh('const');
-        PointLightRender.updateMeshPolygons(mesh, pos, vis.polygon);
+        PointLightRender.updateMeshPolygons(mesh, pos, vis.polygon!);
         let r = vis.range * 50;
         PointLightRender.updateMeshUniforms(mesh, pos, r*r, 0xFFFFFF);
         return mesh;
@@ -157,7 +155,7 @@ export class PlayerSystem implements System {
     private spreadPlayerVisibility(player: number, pos: PIXI.IPointData, vis: VisibilityComponent, nightVision: boolean): void {
         if (this.world.getComponent(player, HOST_HIDDEN_TYPE)) return;// Ignore hidden players
         let playerVis = PointLightRender.createMesh('const');
-        PointLightRender.updateMeshPolygons(playerVis, pos, vis.polygon);
+        PointLightRender.updateMeshPolygons(playerVis, pos, vis.polygon!);
         let r = vis.range * 50;
         PointLightRender.updateMeshUniforms(playerVis, pos, r * r, 0xFFFFFF);
 
@@ -180,14 +178,14 @@ export class PlayerSystem implements System {
             players.push(playerData);
 
             aabb = undefined;
-            for (let c of this.visibilitySystem.aabbTree.query(vis.aabb)) {
-                let visComponent = c.tag;
+            for (let c of this.visibilitySystem.aabbTree.query(vis.aabb!)) {
+                let visComponent = c.tag!;
                 let lightComponent = lightStorage.getComponent(visComponent.entity);
                 if (lightComponent === undefined || visComponent.range <= 0) continue;
-                let pos = posStorage.getComponent(visComponent.entity);
+                let pos = posStorage.getComponent(visComponent.entity)!;
 
-                if (aabb === undefined) aabb = visComponent.aabb.copy();
-                else aabb.combine(visComponent.aabb, aabb);
+                if (aabb === undefined) aabb = visComponent.aabb!.copy();
+                else aabb.combine(visComponent.aabb!, aabb);
 
                let mesh = this.createVisMeshFrom(pos, visComponent);
 
@@ -198,7 +196,7 @@ export class PlayerSystem implements System {
                 } as VisibilitySpreadEntryData);
             }
             if (lights.length === 0) return;// no night vision AND no lights = can't see a thing!
-            aabb.intersect(vis.aabb, aabb);
+            aabb!.intersect(vis.aabb!, aabb!);
         } else {
             nightVisPlayers.push(playerData)
             aabb = vis.aabb;
@@ -227,7 +225,7 @@ export class PlayerSystem implements System {
         let visStorage = this.world.storages.get(VISIBILITY_TYPE) as SingleEcsStorage<VisibilityComponent>;
         let posStorage = this.world.storages.get(POSITION_TYPE) as SingleEcsStorage<PositionComponent>;
 
-        let lightPos = posStorage.getComponent(lightVis.entity);
+        let lightPos = posStorage.getComponent(lightVis.entity)!;
         let lightMesh = this.createVisMeshFrom(lightPos, lightVis);
 
         let lightData = [{
@@ -239,16 +237,16 @@ export class PlayerSystem implements System {
         let aabb = undefined;
 
         let players = [];
-        for (let c of this.visibilitySystem.aabbTree.query(lightVis.aabb)) {
-            let visComponent = c.tag;
+        for (let c of this.visibilitySystem.aabbTree.query(lightVis.aabb!)) {
+            let visComponent = c.tag!;
             let player = this.storage.getComponent(visComponent.entity);
             if (player === undefined || visComponent.range <= 0 || player.nightVision) continue;
 
-            if (aabb === undefined) aabb = visComponent.aabb.copy();
-            else aabb.combine(visComponent.aabb, aabb);
+            if (aabb === undefined) aabb = visComponent.aabb!.copy();
+            else aabb.combine(visComponent.aabb!, aabb);
 
-            let vis = visStorage.getComponent(player.entity);
-            let pos = posStorage.getComponent(player.entity);
+            let vis = visStorage.getComponent(player.entity)!;
+            let pos = posStorage.getComponent(player.entity)!;
 
             let mesh = this.createVisMeshFrom(pos, vis);
 
@@ -261,13 +259,14 @@ export class PlayerSystem implements System {
 
         if (players.length === 0) return;
 
-        aabb.intersect(lightVis.aabb, aabb);
+        aabb!.intersect(lightVis.aabb!, aabb!);
 
         let data = {
             aabb,
             lights: lightData,
             players,
             nightVisPlayers: [],
+            nightVision: false,
         } as VisibilitySpreadData;
 
         this.world.events.emit(EVENT_VISIBILITY_SPREAD, data);
@@ -288,12 +287,12 @@ export class PlayerSystem implements System {
         for (let player of this.storage.allComponents()) {
             if (player.nightVision) continue;
 
-            let vis = visStorage.getComponent(player.entity);
-            let pos = posStorage.getComponent(vis.entity);
+            let vis = visStorage.getComponent(player.entity)!;
+            let pos = posStorage.getComponent(vis.entity)!;
             let mesh = this.createVisMeshFrom(pos, vis);
 
-            if (aabb === undefined) aabb = vis.aabb.copy();
-            else aabb.combine(vis.aabb, aabb);
+            if (aabb === undefined) aabb = vis.aabb!.copy();
+            else aabb.combine(vis.aabb!, aabb);
 
             let data = {mesh, pos, vis} as VisibilitySpreadEntryData;
             players.push(data);
@@ -306,6 +305,7 @@ export class PlayerSystem implements System {
             lights: [],
             players: [],
             nightVisPlayers: players,
+            nightVision: false,
         } as VisibilitySpreadData;
         this.world.events.emit(EVENT_VISIBILITY_SPREAD, data);
 
@@ -322,11 +322,11 @@ export class PlayerSystem implements System {
         let posStorage = this.world.storages.get(POSITION_TYPE) as SingleEcsStorage<PositionComponent>;
 
         for (let c of this.visibilitySystem.aabbTree.query(aabb)) {
-            let vis = c.tag;
+            let vis = c.tag!;
 
             let player = this.storage.getComponent(vis.entity);
             if (player !== undefined) {
-                let pos = posStorage.getComponent(vis.entity);
+                let pos = posStorage.getComponent(vis.entity)!;
                 let mesh = this.createVisMeshFrom(pos, vis);
 
                 let data = {mesh, pos, vis} as VisibilitySpreadEntryData;
@@ -338,7 +338,7 @@ export class PlayerSystem implements System {
             if (lightsNeeded) {
                 let light = lightStorage.getComponent(vis.entity);
                 if (light !== undefined) {
-                    let pos = posStorage.getComponent(vis.entity);
+                    let pos = posStorage.getComponent(vis.entity)!;
                     let mesh = this.createVisMeshFrom(pos, vis);
                     let data = {mesh, pos, vis} as VisibilitySpreadEntryData;
                     lights.push(data);
@@ -371,7 +371,11 @@ export class PlayerSystem implements System {
     private onComponentAdd(comp: Component): void {
         if (comp.type === PLAYER_TYPE) {
             let player = comp as PlayerComponent;
-            let pv = this.visibleStorage.getComponent(comp.entity);
+            let pv = this.visibleStorage.getComponent(comp.entity)!;
+            if (pv === undefined) {
+                console.error("Added player to pin without player visibility!");
+                return;
+            }
             pv._playerNightVisionCount++;// A bit hackish, but it works ;)
             this.onPlayerVisibleCountersUpdate(pv);
 

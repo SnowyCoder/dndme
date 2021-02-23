@@ -73,6 +73,14 @@ export class World {
         this.isMaster = isMaster;
     }
 
+    getStorage(name: string): EcsStorage<Component> {
+        let s = this.storages.get(name);
+        if (s === undefined) {
+            throw "Cannot find storage " + name;
+        }
+        return s;
+    }
+
     spawnEntity(...components: Array<Component>): number {
         let id = -1;
 
@@ -143,13 +151,13 @@ export class World {
 
     removeComponent(cmp: Component): void {
         this.events.emit('component_remove', cmp);
-        let storage = this.storages.get(cmp.type);
+        let storage = this.getStorage(cmp.type);
         storage.unregister(cmp);
         this.events.emit('component_removed', cmp);
     }
 
     removeComponentType(entity: number, type: string): void {
-        for (let c of this.storages.get(type).getComponents(entity)) {
+        for (let c of this.getStorage(type).getComponents(entity)) {
             this.removeComponent(c);
         }
     }
@@ -160,7 +168,7 @@ export class World {
     }
 
     getComponent(entity: number, type: string, multiId?: number): Component | undefined {
-        let storage = this.storages.get(type);
+        let storage = this.getStorage(type);
         return storage.getFirstComponent(entity, multiId);
     }
 
@@ -277,7 +285,7 @@ export class World {
 
         let storages: {[type: string]: any} = {};
 
-        let hostHidden = this.storages.get('host_hidden');
+        let hostHidden = this.getStorage('host_hidden');
 
         for (let storage of this.storages.values()) {
             if (!storage.save || !storage.sync) continue;

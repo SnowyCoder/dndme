@@ -85,19 +85,19 @@ export class VisibilityAwareSystem implements System {
         viewer._canSee = [];
         let posStorage = this.world.storages.get(POSITION_TYPE) as SingleEcsStorage<PositionComponent>;
         let interStorage = this.world.storages.get(INTERACTION_TYPE) as SingleEcsStorage<InteractionComponent>;
-        let viewerPos = posStorage.getComponent(viewer.entity);
+        let viewerPos = posStorage.getComponent(viewer.entity)!;
 
         let viewerPoly = shapePolygon(polygon);
         let viewerCircle = shapeCircle(viewerPos, range);
 
         // Check if old awares can still be seen
         for (let i of oldCanSee) {
-            let shape = interStorage.getComponent(i).shape;
+            let shape = interStorage.getComponent(i)!.shape;
 
             if (shapeIntersect(viewerPoly, shape) && shapeIntersect(viewerCircle, shape)) {
                 viewer._canSee.push(i);
             } else {
-                let target = this.storage.getComponent(i);
+                let target = this.storage.getComponent(i)!;
                 // No need to remove target.entity from player._canSee as it's already been removed
                 arrayRemoveElem(target.visibleBy, viewer.entity);
                 this.events.emit('aware_update', target, [], [viewer.entity]);
@@ -109,10 +109,10 @@ export class VisibilityAwareSystem implements System {
             return  target !== undefined && target.isWall !== true && oldCanSee.indexOf(c.entity) === -1;
         });
         for (let e of iter) {
-            let shape = interStorage.getComponent(e.entity).shape;
+            let shape = interStorage.getComponent(e.entity)!.shape;
             if (!shapeIntersect(viewerCircle, shape)) continue;
 
-            let target = this.storage.getComponent(e.entity);
+            let target = this.storage.getComponent(e.entity)!;
             viewer._canSee.push(e.entity);
             target.visibleBy.push(viewer.entity);
             this.events.emit('aware_update', target, [viewer.entity], []);
@@ -124,7 +124,7 @@ export class VisibilityAwareSystem implements System {
         let posStorage = this.world.storages.get(POSITION_TYPE) as SingleEcsStorage<PositionComponent>;
         let visStorage = this.world.storages.get(VISIBILITY_TYPE) as SingleEcsStorage<VisibilityComponent>;
 
-        let pos = posStorage.getComponent(aware.entity);
+        let pos = posStorage.getComponent(aware.entity)!;
         let shape = (this.world.getComponent(aware.entity, INTERACTION_TYPE) as InteractionComponent).shape;
 
         let oldVisibleBy = aware.visibleBy;
@@ -135,15 +135,15 @@ export class VisibilityAwareSystem implements System {
 
         // Search for new players
         for (let p of this.visibilitySys.aabbTree.query(Aabb.fromPoint(pos))) {
-            let entity = p.tag.entity;
+            let entity = p.tag!.entity;
             let vis = visStorage.getComponent(entity);
             if (vis === undefined || oldVisibleBy.indexOf(entity) !== -1) continue;
 
-            let ppos = posStorage.getComponent(entity);
-            let pvis = visStorage.getComponent(entity);
+            let ppos = posStorage.getComponent(entity)!;
+            let pvis = visStorage.getComponent(entity)!;
 
             let range = pvis.range * 50;
-            if (!shapeIntersect(shapeCircle(ppos, range), shape) || !shapeIntersect(shape, shapePolygon(p.tag.polygon))) continue;
+            if (!shapeIntersect(shapeCircle(ppos, range), shape) || !shapeIntersect(shape, shapePolygon(p.tag?.polygon!))) continue;
 
             vis._canSee.push(aware.entity);
             aware.visibleBy.push(vis.entity);
@@ -152,12 +152,12 @@ export class VisibilityAwareSystem implements System {
 
         // Check for old players
         for (let p of oldVisibleBy) {
-            let vis = visStorage.getComponent(p);
-            let ppos = posStorage.getComponent(p);
-            let pvis = visStorage.getComponent(p);
+            let vis = visStorage.getComponent(p)!;
+            let ppos = posStorage.getComponent(p)!;
+            let pvis = visStorage.getComponent(p)!;
 
             let range = pvis.range * 50;
-            if (shapeIntersect(shapeCircle(ppos, range), shape) && shapeIntersect(shape, shapePolygon(pvis.polygon))) {
+            if (shapeIntersect(shapeCircle(ppos, range), shape) && shapeIntersect(shape, shapePolygon(pvis.polygon!))) {
                 aware.visibleBy.push(p);
                 continue;
             }
@@ -236,7 +236,7 @@ export class VisibilityAwareSystem implements System {
                 this.visibilityChange(vis, vis.polygon, vis.range);
             }
             if ('_canSeeWalls' in changed) {
-                this.onViewBlockerEdited(vis, vis._canSeeWalls, changed.walls);
+                this.onViewBlockerEdited(vis, vis._canSeeWalls!, changed.walls);
             }
         } else if (comp.type === POSITION_TYPE) {
             let visAware = this.storage.getComponent(comp.entity);
@@ -256,7 +256,7 @@ export class VisibilityAwareSystem implements System {
             va.visibleBy
             let visStorage = this.world.storages.get(VISIBILITY_TYPE) as SingleEcsStorage<VisibilityComponent>;
             for (let p of va.visibleBy) {
-                let vis = visStorage.getComponent(p);
+                let vis = visStorage.getComponent(p)!;
                 arrayRemoveElem(vis._canSee, va.entity);
             }
         }

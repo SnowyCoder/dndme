@@ -37,7 +37,8 @@ export class GameMap {
 
     static async loadFromFile(from: File): Promise<GameMap> {
         let zip = await JSZip.loadAsync(from);
-        let file = await zip.file("data.msgpack").async('arraybuffer');
+        // TODO: better error management
+        let file = await zip.file("data.msgpack")!.async('arraybuffer');
         let data = await decode(file) as any;
 
         if (data['version'] !== this.SER_VERSION) {

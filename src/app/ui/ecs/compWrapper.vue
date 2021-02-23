@@ -1,86 +1,87 @@
 <template>
+  <div>
     <div>
-        <div>
-            <div class="component-header">
-                <div @click="visible = !visible" style="width: 100%"> {{ component.type }} </div>
-                <b-button v-if="isAdmin" squared size="sm" style="display: grid;"
-                          :title="component.clientVisible ? 'Hide component' : 'Show component'"
-                          v-show="component.clientVisible !== undefined"
-                          @click="$emit('ecs-property-change', component.type, 'clientVisible', !component.clientVisible)">
-                    <div class="g11" v-show="component.clientVisible"><i class="fas fa-eye"/></div>
-                    <div class="g11" v-show="!component.clientVisible"><i class="fas fa-eye-slash"/></div>
-                </b-button>
-                <b-button v-if="isAdmin" squared size="sm" variant="primary" title="Fullscreen"
-                          v-show="component._isFullscreen !== undefined" @click="component._isFullscreen = true">
-                    <i class="fas fa-expand"/>
-                </b-button>
-                <b-button v-if="isAdmin" squared size="sm" variant="danger" title="Delete" v-show="component._canDelete"
-                          @click="$emit('ecs-property-change', '$', 'removeComponent', component.type, component.multiId)">
-                    <i class="fas fa-trash"/>
-                </b-button>
-            </div>
-        </div>
-        <b-collapse v-model="visible" class="component-body" visible>
-            <component v-bind:is="componentType" v-bind:component="component" v-bind:isAdmin="isAdmin" v-bind:allComps="allComps"
-                       v-on:ecs-property-change="$emit('ecs-property-change', arguments[0], arguments[1], arguments[2], arguments[3])">
-
-            </component>
-        </b-collapse>
+      <div class="component-header">
+        <div @click="visible = !visible" style="width: 100%"> {{ component.type }}</div>
+        <b-button v-if="isAdmin" squared size="sm" style="display: grid;"
+                  :title="component.clientVisible ? 'Hide component' : 'Show component'"
+                  v-show="component.clientVisible !== undefined"
+                  @click="$emit('ecs-property-change', component.type, 'clientVisible', !component.clientVisible)">
+          <div class="g11" v-show="component.clientVisible"><i class="fas fa-eye"/></div>
+          <div class="g11" v-show="!component.clientVisible"><i class="fas fa-eye-slash"/></div>
+        </b-button>
+        <b-button v-if="isAdmin" squared size="sm" variant="primary" title="Fullscreen"
+                  v-show="component._isFullscreen !== undefined" @click="component._isFullscreen = true">
+          <i class="fas fa-expand"/>
+        </b-button>
+        <b-button v-if="isAdmin" squared size="sm" variant="danger" title="Delete" v-show="component._canDelete"
+                  @click="$emit('ecs-property-change', '$', 'removeComponent', component.type, component.multiId)">
+          <i class="fas fa-trash"/>
+        </b-button>
+      </div>
     </div>
+    <b-collapse v-model="visible" class="component-body" visible>
+      <component v-bind:is="componentType" v-bind:component="component" v-bind:isAdmin="isAdmin"
+                 v-bind:allComps="allComps"
+                 v-on:ecs-property-change="$emit('ecs-property-change', arguments[0], arguments[1], arguments[2], arguments[3])">
+
+      </component>
+    </b-collapse>
+  </div>
 </template>
 
 <script lang="ts">
-    import ecsName from "./ecsName.vue";
-    import ecsNote from "./ecsNote.vue";
-    import ecsPosition from "./ecsPosition.vue";
-    import ecsWall from "./ecsWall.vue";
-    import ecsBackgroundImage from "./ecsBackgroundImage.vue";
-    import ecsPin from "./ecsPin.vue";
-    import ecsTransform from "./ecsTransform.vue";
-    import ecsLight from "./ecsLight.vue";
-    import ecsPlayer from "./ecsPlayer.vue";
-    import ecsDoor from "./ecsDoor.vue";
-    import ecsPropTeleport from "./ecsPropTeleport.vue";
+import ecsName from "./ecsName.vue";
+import ecsNote from "./ecsNote.vue";
+import ecsPosition from "./ecsPosition.vue";
+import ecsWall from "./ecsWall.vue";
+import ecsBackgroundImage from "./ecsBackgroundImage.vue";
+import ecsPin from "./ecsPin.vue";
+import ecsTransform from "./ecsTransform.vue";
+import ecsLight from "./ecsLight.vue";
+import ecsPlayer from "./ecsPlayer.vue";
+import ecsDoor from "./ecsDoor.vue";
+import ecsPropTeleport from "./ecsPropTeleport.vue";
+import {Component} from "../../ecs/component"
+import {Vue, VComponent, VProp} from "../vue";
 
-    export default {
-        name: "ecs-component-wrapper",
-        props: ["component", "isAdmin", "allComps"],
-        data: function() {
-            return {
-                visible: true,
-            }
-        },
-        computed: {
-            componentType: function () {
-                return "ecs-" + this.component.type.replace('_', '-');
-            }
-        },
-        components: {
-            ecsName, ecsNote, ecsPosition, ecsWall, ecsBackgroundImage, ecsPin, ecsTransform, ecsLight, ecsPlayer,
-            ecsDoor, ecsPropTeleport
-        }
-    }
+@VComponent({
+  components: {
+    ecsName, ecsNote, ecsPosition, ecsWall, ecsBackgroundImage, ecsPin, ecsTransform, ecsLight, ecsPlayer, ecsDoor,
+    ecsPropTeleport
+  }
+})
+export default class EcsComponentWrapper extends Vue {
+  @VProp({required: true}) component!: Component;
+  @VProp({default: false}) isAdmin!: boolean;
+  @VProp() allComps?: Array<Component>;
+  visible = true;
+
+  get componentType(): string {
+    return 'ecs-' + this.component.type.replace('_', '-');
+  }
+}
 </script>
 
 <style scoped>
-    .component-header {
-        display: flex;
-        align-items: center;
-        margin-left: 5px;
-        margin-bottom: 2px;
-    }
+.component-header {
+  display: flex;
+  align-items: center;
+  margin-left: 5px;
+  margin-bottom: 2px;
+}
 
-    .component-header button:last-child {
-        margin-right: 10px;
-    }
+.component-header button:last-child {
+  margin-right: 10px;
+}
 
-    .component-body {
-        margin-left: 12px;
-        margin-right: 12px;
-    }
+.component-body {
+  margin-left: 12px;
+  margin-right: 12px;
+}
 
-    .g11 {
-        grid-row: 1;
-        grid-column: 1;
-    }
+.g11 {
+  grid-row: 1;
+  grid-column: 1;
+}
 </style>

@@ -11,8 +11,8 @@ export class NetworkManager extends EventEmitter {
 
     channel: Channel;
 
-    // If is host:
-    connections?: Map<number, NetworkConnection>;
+    // Used if is host:
+    connections = new Map<number, NetworkConnection>();
     nextConnectionId: number = 1;
 
     // If client:
@@ -32,7 +32,6 @@ export class NetworkManager extends EventEmitter {
 
         if (this.isHost) {
             this.myId = 0;
-            this.connections = new Map();
         }
 
         this.peer.on('connection', this.onConnection.bind(this));
@@ -88,6 +87,7 @@ export class NetworkManager extends EventEmitter {
     }
 
     private connectReady() {
+        if (this.connectId === undefined) return;
         let conn = this.peer.connect(this.connectId, {
             reliable: true,
         });
@@ -102,7 +102,7 @@ export class NetworkConnection implements P2pConnection {
 
     ondata?: (data: any, conn: P2pConnection) => void;
     channelId: number;
-    nextPacketId: number;
+    nextPacketId: number = -1;
 
     bootstrap: boolean = false;
     buffered: boolean = false;
@@ -110,7 +110,7 @@ export class NetworkConnection implements P2pConnection {
 
     constructor(parent: NetworkManager, chId: number | undefined, connection: Peer.DataConnection) {
         this.parent = parent;
-        this.channelId = chId;
+        this.channelId = chId || 0;
         this.connection = connection;
         if (parent.isHost) {
             this.bootstrap = true;

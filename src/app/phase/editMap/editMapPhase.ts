@@ -23,7 +23,7 @@ import {PixiBoardSystem} from "../../ecs/systems/pixiBoardSystem";
 
 
 export class EditMapPhase extends EcsPhase {
-    networkManager: NetworkManager;
+    networkManager!: NetworkManager;
 
     constructor(name: string, isHost: boolean) {
         super(name, isHost);
@@ -49,8 +49,8 @@ export class EditMapPhase extends EcsPhase {
         w.addSystem(new ToolSystem(w));
         w.addSystem(new GridSystem(w));
         w.addSystem(new InteractionSystem(w));
-        w.addSystem(new PixiGraphicSystem(w));
         w.addSystem(new TextSystem());
+        w.addSystem(new PixiGraphicSystem(w));
         w.addSystem(new LightSystem(w));
 
         w.addSystem(new BackgroundSystem(w));
@@ -84,7 +84,7 @@ export class EditMapPhase extends EcsPhase {
     private onNetworkReady() {
         console.log("Network is ready! side: " + (this.networkManager.isHost ? "master" : "player"));
         if (this.networkManager.isHost) {
-            history.replaceState(null, null, '#p' + this.networkManager.peer.id);
+            history.replaceState(null, "", '#p' + this.networkManager.peer.id);
         }
     }
 
@@ -102,7 +102,7 @@ export class EditMapPhase extends EcsPhase {
 
             alert("Invalid invite link");
 
-            history.replaceState(null, null, ' ');
+            history.replaceState(null, "", ' ');
             if (!this.world.isMaster) {
                 stage.setPhase(new HostEditMapPhase(new GameMap()));
             }

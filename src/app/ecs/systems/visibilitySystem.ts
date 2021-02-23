@@ -148,7 +148,7 @@ export class VisibilitySystem implements System {
 
     private recomputeArea(aabb: Aabb) {
         for (let node of [...this.aabbTree.query(aabb)]) {
-            this.updatePolygon(node.tag);
+            this.updatePolygon(node.tag!);
         }
     }
 

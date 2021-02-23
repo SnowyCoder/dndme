@@ -197,7 +197,7 @@ export class HostNetworkSystem implements System {
     }
 
     private shouldIgnoreComponent0(component: Component): boolean {
-        return ((component as HideableComponent).clientVisible === false) || !this.world.storages.get(component.type).sync;
+        return ((component as HideableComponent).clientVisible === false) || !this.world.storages.get(component.type)?.sync;
     }
 
     private shouldIgnoreEntity(entity: number): boolean {

@@ -88,9 +88,9 @@ export class ToolSystem implements System {
             let toolName = ct.tool || this.standardTool;
 
             let tool = this.tools.get(toolName);
-            if (ct.tool === undefined) {
+            if (tool === undefined) {
                 console.warn("Unregistered tool requested: " + ct.tool);
-                tool = this.tools.get(this.standardTool);
+                tool = this.tools.get(this.standardTool)!;
             }
 
             if (tool === this.currentTool) {
@@ -109,6 +109,7 @@ export class ToolSystem implements System {
     }
 
     private onPointerMove(e: PointerMoveEvent): void {
+        console.log("PMEvent");
         if (this.currentTool !== undefined && this.currentTool.onPointerMove !== undefined) {
             this.currentTool.onPointerMove(e);
         }
