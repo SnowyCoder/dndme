@@ -109,7 +109,6 @@ export class ToolSystem implements System {
     }
 
     private onPointerMove(e: PointerMoveEvent): void {
-        console.log("PMEvent");
         if (this.currentTool !== undefined && this.currentTool.onPointerMove !== undefined) {
             this.currentTool.onPointerMove(e);
         }

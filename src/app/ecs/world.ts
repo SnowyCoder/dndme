@@ -6,12 +6,11 @@
 // so we also have something similar to a "multiple component".
 
 import {EcsStorage} from "./storage";
-import PIXI from "../PIXI";
 import {Component} from "./component";
 import {Resource} from "./resource";
-import EventEmitter = PIXI.utils.EventEmitter;
 import {SystemGraph} from "./systemGraph";
 import {System} from "./system";
+import SafeEventEmitter from "../util/safeEventEmitter";
 
 
 export type SerializedWorld = {
@@ -67,7 +66,7 @@ export class World {
     //      TODO
     // batch_update_begin()
     // batch_update_end()
-    events = new EventEmitter();
+    events = new SafeEventEmitter();
 
     constructor(isMaster: boolean) {
         this.isMaster = isMaster;

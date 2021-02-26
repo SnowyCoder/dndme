@@ -72,8 +72,8 @@ export class PixiBoardSystem implements System {
     constructor(world: World) {
         this.world = world;
 
-        this.world.events.addListener('req_board_center', this.centerBoard, this);
-        this.world.events.addListener('resource_edited', this.onResourceEdited, this);
+        this.world.events.on('req_board_center', this.centerBoard, this);
+        this.world.events.on('resource_edited', this.onResourceEdited, this);
 
         this.world.addResource(
             {

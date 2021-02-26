@@ -484,13 +484,11 @@ export class CreateWallToolDriver implements ToolDriver {
     }
 
     onPointerMove(event: PointerMoveEvent) {
-        console.log("POINTER MOVE");
         let point = getMapPointFromMouseInteraction(this.sys.world, event);
         this.redrawCreationLastLine(point);
     }
 
     onPointerClick(event: PointerClickEvent) {
-        console.log("POINTER CLICK");
         let point = getMapPointFromMouseInteraction(this.sys.world, event);
         this.addVertex(point);
     }

@@ -22,12 +22,12 @@ export default class EcsPin extends Vue {
   isAdmin!: boolean;
 
   color: string;
-  label: string | undefined;
+  label: string;
 
   constructor() {
     super();
     this.color = hex2string(this.component.color);
-    this.label = this.component.label;
+    this.label = this.component.label ?? "";
   }
 
   onChange() {
@@ -35,9 +35,10 @@ export default class EcsPin extends Vue {
     if (this.component.color !== c && this.color !== '') {
       this.$emit('ecs-property-change', 'pin', 'color', c);
     }
-    if (this.label !== this.component.label) {
-      if (!this.label) this.label = undefined;
-      this.$emit('ecs-property-change', 'pin', 'label', this.label);
+    let label: string | undefined = this.label;
+    if (!label) label = undefined;
+    if (label !== this.component.label) {
+      this.$emit('ecs-property-change', 'pin', 'label', label);
     }
   }
 
@@ -48,7 +49,7 @@ export default class EcsPin extends Vue {
 
   @VWatch('component.label')
   onCLabelChanged(val: string | undefined) {
-    this.label = val;
+    this.label = val ?? "";
   }
 }
 </script>
