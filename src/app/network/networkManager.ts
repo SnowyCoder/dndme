@@ -156,7 +156,11 @@ export class NetworkConnection implements P2pConnection {
 
     private updateBuffered() {
         let oldBuffered = this.buffered;
-        this.buffered = (this.connection.bufferSize + this.connection.dataChannel.bufferedAmount) !== 0;
+        let bufferedAmount = this.connection.bufferSize;
+        if (this.connection.dataChannel != null) {
+            bufferedAmount += this.connection.dataChannel.bufferedAmount;
+        }
+        this.buffered = bufferedAmount !== 0;
         if (oldBuffered !== this.buffered && this.onBufferChange !== undefined) {
             this.onBufferChange(this.buffered);
         }
