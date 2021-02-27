@@ -51,7 +51,7 @@ export default class EcsLight extends Vue {
     this.color = hex2string(val);
   }
 
-  @VWatch('component.color')
+  @VWatch('component.range')
   onCRangeChanged(val: number) {
     this.range = val + '';
   }
