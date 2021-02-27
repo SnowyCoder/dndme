@@ -50,7 +50,7 @@ export default class EntityInspect extends Vue {
   selectedAddable!: Array<{name: string}>;
 
   get renderedComponents(): Array<Component> {
-    return this.components.filter((c: any) => c._save);
+    return this.components.filter((c: any) => c._save && c._sync);
   }
 
   get allComponents(): {[key: string]: Component} {
