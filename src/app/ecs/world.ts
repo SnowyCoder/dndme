@@ -23,6 +23,19 @@ export interface EcsEntityLinked {
     _ecs_entity?: number;
 }
 
+export type AnyMapType = {[key: string]: any};
+export type MultiEditType = Array<{
+    type: string,
+    changes: AnyMapType,
+    multiId?: number,
+    clearChanges?: boolean,
+}>;
+type MultiEditTypeWork = MultiEditType & Array<{
+    _skip?: true;
+    _comp?: Component;
+}>;
+
+
 export class World {
     systems = new SystemGraph();
     storages = new Map<string, EcsStorage<any>>();
@@ -181,8 +194,11 @@ export class World {
         return res;
     }
 
-    editComponent(entity: number, type: string, changes: any, multiId?: number, clearCh: boolean = true): void {
+    editComponent(entity: number, type: string, changes: AnyMapType, multiId?: number, clearCh: boolean = true): void {
         let c = this.getComponent(entity, type, multiId);
+        if (c === undefined) {
+            throw 'Cannot find component ' + type + ' of entity: ' + entity;
+        }
 
         if (clearCh && !clearChanges(c, changes)) return;// No real changes
         this.events.emit('component_edit', c, changes);
@@ -190,6 +206,40 @@ export class World {
         let changed = assignSwap(c, changes);
 
         this.events.emit('component_edited', c, changed);
+    }
+
+    editComponentMultiple(entity: number, changes: MultiEditType): void {
+        if (changes.length === 0) return;
+        if (changes.length === 1) {
+            this.editComponent(entity, changes[0].type, changes[0].changes, changes[0].multiId, changes[0].clearChanges);
+            return;
+        }
+        let chs = changes as MultiEditTypeWork;
+        for (let change of chs) {
+            let c = this.getComponent(entity, change.type, change.multiId);
+            if (c === undefined) {
+                throw 'Cannot find component ' + change.type + ' of entity: ' + entity;
+            }
+            change._comp = c;
+
+            if (change.clearChanges && !clearChanges(c, changes)) {
+                change._skip = true;
+            }
+        }
+        for (let change of chs) {
+            if (change._skip) continue;
+
+            this.events.emit('component_edit', change._comp!, change.changes);
+        }
+
+        for (let change of chs) {
+            if (change._skip) continue;
+            assignSwap(change._comp!, change.changes);
+        }
+        for (let change of chs) {
+            if (change._skip) continue;
+            this.events.emit('component_edited', change._comp!, change.changes);
+        }
     }
 
     addResource(resource: Resource, ifPresent: string = 'fail'): void {
@@ -212,8 +262,11 @@ export class World {
         return this.resources.get(type);
     }
 
-    editResource(type: string, changes: any): void {
+    editResource(type: string, changes: AnyMapType): void {
         let res = this.getResource(type);
+        if (res === undefined) {
+            throw 'Cannot find resource ' + type;
+        }
 
         if (!clearChanges(res, changes)) return;// No real changes
         this.events.emit('resource_edit', res, changes);
@@ -373,7 +426,7 @@ function assignSwap(obj: any, changes: any): void {
     return changes;
 }
 
-function clearChanges(from: any, changes: any): boolean {
+function clearChanges(from: AnyMapType, changes: AnyMapType): boolean {
     let changec = 0;
     for (let change in changes) {
         if (from[change] === changes[change]) {

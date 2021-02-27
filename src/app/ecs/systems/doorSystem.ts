@@ -5,7 +5,7 @@ import {Component, HideableComponent, POSITION_TYPE, PositionComponent} from "..
 import {DESTROY_ALL} from "../../util/pixi";
 import PIXI from "../../PIXI";
 import {Line} from "../../geometry/line";
-import {WALL_TYPE, WallComponent} from "./wallSystem";
+import {WALL_TYPE, WallComponent, WallSystem} from "./wallSystem";
 import {rotatePointByOrig} from "../../geometry/collision";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {app} from "../../index";
@@ -41,6 +41,7 @@ export class DoorSystem implements System {
     storage = new SingleEcsStorage<DoorComponent>(DOOR_TYPE, true, true);
 
     pixiBoardSys: PixiBoardSystem;
+    wallSys: WallSystem;
     localLightSettings: LocalLightSettings;
 
     layer: PIXI.display.Layer;
@@ -53,6 +54,7 @@ export class DoorSystem implements System {
         this.displayContainer = new PIXI.Container();
 
         this.pixiBoardSys = ecs.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
+        this.wallSys = ecs.systems.get(WALL_TYPE) as WallSystem;
         this.localLightSettings = ecs.getResource(LOCAL_LIGHT_SETTINGS_TYPE) as LocalLightSettings;
 
         this.world.addStorage(this.storage);
@@ -112,8 +114,8 @@ export class DoorSystem implements System {
         }
     }
 
-    private openDoor(door: DoorComponent, doorType: DoorType, open: boolean): void {
-        if (!this.world.isMaster) return;// This operation should only be done once!
+    private openDoor(door: DoorComponent, doorType: DoorType, open: boolean): boolean {
+        if (!this.world.isMaster) return true;// This operation should only be done once!
         let wall = this.world.getComponent(door.entity, WALL_TYPE) as WallComponent;
         let pos = this.world.getComponent(door.entity, POSITION_TYPE) as PositionComponent;
 
@@ -167,18 +169,41 @@ export class DoorSystem implements System {
             default:
                 console.warn("Unknown door type: " + doorType);
         }
+        let px = newPos?.x ?? pos.x;
+        let py = newPos?.y ?? pos.y;
+        let vx = newVec?.x ?? wall.vec[0];
+        let vy = newVec?.y ?? wall.vec[1];
+        let intersectWith = this.wallSys.queryIntersections(px, py, vx, vy);
+        if (!(intersectWith.length === 0 || (intersectWith.length === 1 && intersectWith[0] === door.entity))) {
+            console.log("Door stuck");
+            // Collision, don't split the door pls.
+            return false;
+        }
+
+        let changes = [];
 
         if (newPos !== undefined) {
-            this.world.editComponent(door.entity, POSITION_TYPE, {
-                x: newPos.x,
-                y: newPos.y,
+            changes.push({
+                type: POSITION_TYPE,
+                changes: {
+                    x: newPos.x,
+                    y: newPos.y,
+                },
             });
         }
         if (newVec !== undefined) {
-            this.world.editComponent(door.entity, WALL_TYPE, {
-                vec: [newVec.x, newVec.y],
+            changes.push({
+                type: WALL_TYPE,
+                changes: {
+                    vec: [newVec.x, newVec.y],
+                },
             });
         }
+        // Commit the edits at the same time to prevent the wall from being split
+        // (if we commit position before rotation it might create an overlap situation that should
+        // not be there).
+        this.world.editComponentMultiple(door.entity, changes);
+        return true;
     }
 
 
@@ -187,9 +212,8 @@ export class DoorSystem implements System {
             let d = comp as DoorComponent;
             d._display = new PIXI.Graphics();
             this.displayContainer.addChild(d._display);
-            if (d.open) {
-                this.openDoor(d, d.doorType, true);
-            }
+            // Do NOT re-open the door, if it is open it means that it has been loaded from file and the wall is
+            // already in the "door open" state. Bad snowy, wtf were you thinking
             this.redrawComponent(d);
 
             let wall = this.world.getComponent(comp.entity, WALL_TYPE) as WallComponent;
@@ -202,12 +226,14 @@ export class DoorSystem implements System {
         if (comp.type === DOOR_TYPE) {
             let d = comp as DoorComponent;
             if ('open' in changed) {
-                this.openDoor(d, d.doorType, d.open);
+                if (!this.openDoor(d, d.doorType, d.open)) {
+                    // TODO: well, this does not work right with the GUI
+                    d.open = !d.open;
+                }
             }
             if ('doorType' in changed) {
                 if (d.open) {
-                    this.openDoor(d, changed['doorType'], false);
-                    this.openDoor(d, d.doorType, true);
+                    this.openDoor(d, changed['doorType'], false) && this.openDoor(d, d.doorType, true);
                 }
             }
             this.redrawComponent(d);

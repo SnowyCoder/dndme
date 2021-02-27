@@ -15,7 +15,7 @@ import {PROP_TELEPORT_TYPE, PropTeleport} from "./propSystem";
 import {System} from "../system";
 
 const MULTI_TYPES = ['name', 'note'];
-const ELIMINABLE_TYPES = ['name', 'note', 'player', 'light'];
+const ELIMINABLE_TYPES = ['name', 'note', 'player', 'light', 'door'];
 const FULLSCREENABLE_TYPES = ['note'];
 
 // name
@@ -66,6 +66,14 @@ export class SelectionSystem implements System {
         this.ecs.events.on('component_edited', this.onComponentUpdate, this);
         this.ecs.events.on('component_removed', this.onComponentRemove, this);
         this.ecs.events.on('entity_despawn', this.onEntityDespawn, this);
+    }
+
+    logSelectionTypes() {
+        console.log("--- SELECTION ---");
+        for (let entity of this.selectedEntities) {
+            let comps = this.ecs.getAllComponents(entity);
+            console.log(entity + ": " + comps.map(x => x.type).join(', '));
+        }
     }
 
     update() {
@@ -245,6 +253,7 @@ export class SelectionSystem implements System {
 
         return {
             hidden: hostHidden !== undefined && hostHidden.entities.size === this.selectedEntities.size,
+            ids: Array.from(this.selectedEntities),
         };
     }
 
@@ -378,7 +387,12 @@ export class SelectionSystem implements System {
             return;
         }
 
-        for (let entity of this.selectedEntities) {
+        if (!this.hasEveryoneType(type)) {
+            this.logSelectionTypes();
+            console.error("Trying to change type of selection when not everyone has that type: " + type);
+        }
+        let oldEntities = Array.from(this.selectedEntities);
+        for (let entity of oldEntities) {
             let changes = {} as any;
             changes[propertyName] = propertyValue;
             this.ecs.editComponent(entity, type, changes, multiId);

@@ -25,6 +25,10 @@ export interface PlayerComponent extends Component {
     range: number;
 }
 
+/**
+ * Added to every object that might be visible by a player, it tracks how many players and how many lights
+ * are seeing it.
+ */
 export const PLAYER_VISIBLE_TYPE = 'player_visible';
 export type PLAYER_VISIBLE_TYPE = typeof PLAYER_VISIBLE_TYPE;
 export interface PlayerVisibleComponent extends Component {

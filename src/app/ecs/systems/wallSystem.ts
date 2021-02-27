@@ -315,7 +315,14 @@ export class WallSystem implements System {
         this.fixWallPostTranslation(walls);
     }
 
-    fixIntersections(strip: number[], start: number, end?: number): number {
+    public queryIntersections(posX: number, posY: number, vecX: number, vecY: number): number[] {
+        let strip = [posX, posY, posX + vecX, posY + vecY];
+        let ids = new Array<number>();
+        this.fixIntersections(strip, 0, undefined, ids);
+        return ids;
+    }
+
+    fixIntersections(strip: number[], start: number, end?: number, wallIds?: number[]): number {
         let aabb = new Aabb(Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
 
         end = end === undefined ? strip.length : end;
@@ -349,6 +356,7 @@ export class WallSystem implements System {
                 strip.splice(i, 0, tmpPoint.x, tmpPoint.y);
                 i += 2;// Skip this point
                 end += 2;
+                wallIds?.push(wall.entity);
             }
         }
         return end;
