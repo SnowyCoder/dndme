@@ -205,9 +205,9 @@ export class PixiGraphicSystem implements System {
             this.updateInteractive(com, pos, trans);
             this.updateElement(com, com.display, pos, trans, true);
             this.updateVisibilityListener(com);
-            let pv = this.world.getComponent(c.entity, PLAYER_VISIBLE_TYPE) as PlayerVisibleComponent;
+            let pv = this.world.getComponent(c.entity, PLAYER_VISIBLE_TYPE) as PlayerVisibleComponent | undefined;
             let remembered = this.rememberStorage.getComponent(c.entity) !== undefined;
-            this.updateElementVisibility(com, com.display, true, pv.visible, remembered);
+            this.updateElementVisibility(com, com.display, true, pv?.visible ?? true, remembered);
             com._bitByBit = this.needsBitByBit(com, com.display);
             spreadVis = com._bitByBit;
 
