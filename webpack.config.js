@@ -2,11 +2,14 @@ const path = require('path');
 
 const {CleanWebpackPlugin} = require('clean-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const GitRevisionPlugin = require('git-revision-webpack-plugin');
 
 const VueLoaderPlugin = require('vue-loader/lib/plugin');
 const DotEnv = require('dotenv-webpack');
 
 const webpack = require('webpack');
+
+const gitRevisionPlugin = new GitRevisionPlugin();
 
 const config = {
     entry: './src/app/index.ts',
@@ -96,8 +99,12 @@ const config = {
             path: './.env',
             safe: true
         }),
+        gitRevisionPlugin,
         new webpack.ProvidePlugin({
             PIXI: 'pixi.js',
+        }),
+        new webpack.DefinePlugin({
+            __COMMIT_HASH__: JSON.stringify(gitRevisionPlugin.version()),
         })
     ]
 };

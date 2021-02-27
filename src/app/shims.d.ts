@@ -24,6 +24,7 @@ declare module "*.ttf" {
     export default value;
 }
 
+declare var __COMMIT_HASH__: string;
 
 /*
 declare const process : {
