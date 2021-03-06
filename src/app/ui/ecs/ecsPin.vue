@@ -1,7 +1,9 @@
 <template>
   <div>
-    <b-input type="color" v-model="color" @change="onChange" :readonly="!isAdmin"></b-input>
-    <b-input v-model="label" :readonly="!isAdmin" placeholder="Label" @change="onChange"/>
+    <template v-if="isAdmin">
+      <b-input type="color" v-model="color" @change="onChange" :readonly="!isAdmin"></b-input>
+      <b-input v-model="label" :readonly="!isAdmin" placeholder="Label" @change="onChange"/>
+    </template>
   </div>
 </template>
 

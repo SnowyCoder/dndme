@@ -2,7 +2,8 @@
   <div>
     <div style="display: flex; align-items: center;">
       Night vision:
-      <b-form-checkbox v-model="nightVision" @input="onChange" :readonly="!isAdmin"></b-form-checkbox>
+      <b-form-checkbox v-if="isAdmin" v-model="nightVision" @input="onChange"></b-form-checkbox>
+      <span v-else style="margin-left: 0.5rem;">{{ nightVision ? "yes" : "no" }}</span>
     </div>
     <div style="display: flex; align-items: center;">
       Visibility Range: <span v-if="!isAdmin" style="margin-left: 0.5rem;">{{ range }}</span>
