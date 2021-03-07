@@ -457,13 +457,13 @@ function biFilterObj(target: any, filter: any): void {
     for (let name in filter) {
         if (name[0] === '_') continue;
         if (target[name] !== filter[name]) {
-            target[name] = null;
+            target[name] = undefined;
         }
     }
     for (let name in target) {
         if (name[0] === '_') continue;
         if (filter[name] === undefined) {
-            target[name] = null;
+            target[name] = undefined;
         }
     }
 }

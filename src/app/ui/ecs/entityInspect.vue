@@ -38,7 +38,10 @@ import {Component, TransformComponent} from "../../ecs/component";
 })
 export default class EntityInspect extends Vue {
   @VProp({required: true})
-  entity!: number;
+  entity!: {
+    hidden: boolean,
+    ids: Array<number>
+  };
 
   @VProp({required: true})
   components!: Array<Component>;

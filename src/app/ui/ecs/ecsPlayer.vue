@@ -14,7 +14,7 @@
 
 <script lang="ts">
 
-import {VComponent, VProp, Vue, VWatch} from "../vue";
+import {VComponent, VWatchImmediate, VProp, Vue} from "../vue";
 import {PlayerComponent} from "../../ecs/systems/playerSystem";
 
 @VComponent
@@ -25,14 +25,8 @@ export default class EcsPlayer extends Vue {
   @VProp({required: true})
   isAdmin!: boolean;
 
-  nightVision: boolean;
-  range: string;
-
-  constructor() {
-    super();
-    this.nightVision = this.component.nightVision;
-    this.range = this.component.range + '';
-  }
+  nightVision: boolean = false;
+  range: string = '';
 
   onChange() {
     if (this.component.nightVision !== this.nightVision) {
@@ -44,12 +38,12 @@ export default class EcsPlayer extends Vue {
     }
   }
 
-  @VWatch('component.nightVision')
+  @VWatchImmediate('component.nightVision')
   onCNightVisionChanged(val: boolean) {
     this.nightVision = val;
   }
 
-  @VWatch('component.range')
+  @VWatchImmediate('component.range')
   onCRangeChanged(val: number) {
     this.range = val + '';
   }

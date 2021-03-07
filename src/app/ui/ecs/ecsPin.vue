@@ -10,7 +10,7 @@
 <script lang="ts">
 import PIXI from "../../PIXI";
 
-import {VComponent, VProp, Vue, VWatch} from "../vue";
+import {VComponent, VWatchImmediate, VProp, Vue} from "../vue";
 import {PinComponent} from "../../ecs/systems/pinSystem";
 import hex2string = PIXI.utils.hex2string;
 import string2hex = PIXI.utils.string2hex;
@@ -23,14 +23,8 @@ export default class EcsPin extends Vue {
   @VProp({required: true})
   isAdmin!: boolean;
 
-  color: string;
-  label: string;
-
-  constructor() {
-    super();
-    this.color = hex2string(this.component.color);
-    this.label = this.component.label ?? "";
-  }
+  color: string = '';
+  label: string = '';
 
   onChange() {
     let c = string2hex(this.color);
@@ -44,12 +38,12 @@ export default class EcsPin extends Vue {
     }
   }
 
-  @VWatch('component.color')
-  onCColorChanged(val: number) {
-    this.color = hex2string(val);
+  @VWatchImmediate('component.color')
+  onCColorChanged(val: number | undefined) {
+    this.color = val === undefined ? "" : hex2string(val);
   }
 
-  @VWatch('component.label')
+  @VWatchImmediate('component.label')
   onCLabelChanged(val: string | undefined) {
     this.label = val ?? "";
   }

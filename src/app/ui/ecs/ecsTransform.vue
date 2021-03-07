@@ -14,7 +14,7 @@
 <script lang="ts">
 import {DEG_TO_RAD, RAD_TO_DEG} from "pixi.js";
 
-import {VComponent, VProp, Vue, VWatch} from "../vue";
+import {VComponent, VWatchImmediate, VProp, Vue} from "../vue";
 import {TransformComponent} from "../../ecs/component";
 
 @VComponent
@@ -25,14 +25,8 @@ export default class EcsTransform extends Vue {
   @VProp({required: true})
   isAdmin!: boolean;
 
-  rotation: string;
-  scale: string;
-
-  constructor() {
-    super();
-    this.rotation = this.component.rotation * RAD_TO_DEG + '';
-    this.scale = this.component.scale + '';
-  }
+  rotation: string = '';
+  scale: string = '';
 
   onChange() {
     if (this.rotation !== '') {
@@ -49,14 +43,14 @@ export default class EcsTransform extends Vue {
     }
   }
 
-  @VWatch('component.rotation')
-  onCRotationChanged(val: number) {
-    this.rotation = val * RAD_TO_DEG + '';
+  @VWatchImmediate('component.rotation')
+  onCRotationChanged(val: number | undefined) {
+    this.rotation = (val ?? 0) * RAD_TO_DEG + '';
   }
 
-  @VWatch('component.scale')
-  onCScaleChanged(val: number) {
-    this.scale = val + '';
+  @VWatchImmediate('component.scale')
+  onCScaleChanged(val: number | undefined) {
+    this.scale = (val ?? 0) + '';
   }
 }
 </script>

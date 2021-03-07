@@ -12,7 +12,7 @@
 </template>
 
 <script lang="ts">
-import {VComponent, VProp, Vue, VWatch} from "../vue";
+import {VComponent, VWatchImmediate, VProp, Vue} from "../vue";
 import {PositionComponent} from "../../ecs/component";
 
 @VComponent
@@ -23,14 +23,8 @@ export default class EcsPosition extends Vue {
   @VProp({required: true})
   isAdmin!: boolean;
 
-  x: string;
-  y: string;
-
-  constructor() {
-    super();
-    this.x = this.component.x + '';
-    this.y = this.component.y + '';
-  }
+  x: string = '';
+  y: string = '';
 
   onChange() {
     let x = parseFloat(this.x);
@@ -43,14 +37,14 @@ export default class EcsPosition extends Vue {
     }
   }
 
-  @VWatch('component.x')
-  onCxChanged(val: number) {
-    this.x = val + '';
+  @VWatchImmediate('component.x')
+  onCxChanged(val: number | undefined) {
+    this.x = (val ?? '') + '';
   }
 
-  @VWatch('component.y')
-  onCyChanged(val: number) {
-    this.y = val + '';
+  @VWatchImmediate('component.y')
+  onCyChanged(val: number | undefined) {
+    this.y = (val ?? '') + '';
   }
 }
 </script>

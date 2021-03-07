@@ -26,23 +26,16 @@
 
 <script lang="ts">
 import {DoorComponent, DoorType} from "../../ecs/systems/doorSystem";
-import {Vue, VComponent, VProp, VWatch} from "../vue";
+import {VComponent, VWatchImmediate, VProp, Vue, VWatch} from "../vue";
 
 @VComponent
 export default class EcsDoor extends Vue {
   @VProp({required: true}) component!: DoorComponent;
   @VProp({required: true}) isAdmin!: boolean;
 
-  doorType: DoorType;
-  open: boolean;
-  locked: boolean;
-
-  constructor() {
-    super();
-    this.doorType = this.component.doorType;
-    this.open = this.component.open;
-    this.locked = this.component.locked;
-  }
+  doorType: DoorType = DoorType.NORMAL_RIGHT;
+  open: boolean = false;
+  locked: boolean = false;
 
   onChange() {
     if (this.component.doorType !== this.doorType) {
@@ -69,17 +62,17 @@ export default class EcsDoor extends Vue {
     }
   }
 
-  @VWatch('component.doorType')
+  @VWatchImmediate('component.doorType')
   onCDoorTypeChanged(val: DoorType) {
     this.doorType = val;
   }
 
-  @VWatch('component.open')
+  @VWatchImmediate('component.open')
   onCOpenChanged(val: boolean) {
     this.open = val;
   }
 
-  @VWatch('component.locked')
+  @VWatchImmediate('component.locked')
   onCLockedChanged(val: boolean) {
     this.locked = val;
   }

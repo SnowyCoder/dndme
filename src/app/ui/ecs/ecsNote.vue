@@ -13,7 +13,7 @@
 </template>
 
 <script lang="ts">
-import {Vue, VComponent, VProp, VWatch} from "../vue";
+import {VComponent, VWatchImmediate, VProp, Vue} from "../vue";
 import {NoteComponent} from "../../ecs/component";
 
 @VComponent
@@ -24,14 +24,9 @@ export default class EcsNote extends Vue {
   @VProp({required: true})
   isAdmin!: boolean;
 
-  note: string;
+  note: string = '';
 
-  constructor() {
-    super();
-    this.note = this.component.note;
-  }
-
-  @VWatch('component.note')
+  @VWatchImmediate('component.note')
   onCNoteChanged(val: string) {
     this.note = val;
   }

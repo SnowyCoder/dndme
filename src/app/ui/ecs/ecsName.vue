@@ -3,7 +3,7 @@
 </template>
 
 <script lang="ts">
-import {Vue, VComponent, VProp, VWatch} from "../vue";
+import {VComponent, VWatchImmediate, VProp, Vue} from "../vue";
 import {NameComponent} from "../../ecs/component";
 
 @VComponent
@@ -14,16 +14,11 @@ export default class EcsName extends Vue {
   @VProp({required: true})
   isAdmin!: boolean;
 
-  name: string;
+  name: string = '';
 
-  constructor() {
-    super();
-    this.name = this.component.name;
-  }
-
-  @VWatch('component.name')
-  onCNameChanged(val: string) {
-    this.name = val;
+  @VWatchImmediate('component.name')
+  onCNameChanged(val: string | undefined) {
+    this.name = val ?? '';
   }
 
   onChange() {

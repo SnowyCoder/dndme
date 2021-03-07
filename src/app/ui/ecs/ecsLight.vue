@@ -2,7 +2,8 @@
   <div>
     <div>
       Color:
-      <b-input type="color" v-model="color" @change="onChange" :readonly="!isAdmin"></b-input>
+      <b-input v-if="isAdmin" type="color" v-model="color" @change="onChange"></b-input>
+      <span v-else>{{ color }}</span>
     </div>
     <div style="display: flex; align-items: center;">
       Visibility Range: <span v-if="!isAdmin" style="margin-left: 0.5rem;">{{ range }}</span>
@@ -13,10 +14,10 @@
 
 <script lang="ts">
 import PIXI from "../../PIXI";
+import {VComponent, VWatchImmediate, VProp, Vue} from "../vue";
+import {LightComponent} from "../../ecs/systems/lightSystem";
 import hex2string = PIXI.utils.hex2string;
 import string2hex = PIXI.utils.string2hex;
-import {Vue, VComponent, VProp, VWatch} from "../vue";
-import {LightComponent} from "../../ecs/systems/lightSystem";
 
 @VComponent
 export default class EcsLight extends Vue {
@@ -26,14 +27,8 @@ export default class EcsLight extends Vue {
   @VProp({required: true})
   isAdmin!: boolean;
 
-  color: string;
-  range: string;
-
-  constructor() {
-    super();
-    this.color = hex2string(this.component.color)
-    this.range = this.component.range + '';
-  }
+  color: string = '';
+  range: string = '';
 
   onChange() {
     let c = string2hex(this.color);
@@ -46,14 +41,14 @@ export default class EcsLight extends Vue {
     }
   }
 
-  @VWatch('component.color')
-  onCColorChanged(val: number) {
-    this.color = hex2string(val);
+  @VWatchImmediate('component.color')
+  onCColorChanged(val: number | undefined) {
+    this.color = val === undefined ? '' : hex2string(val);
   }
 
-  @VWatch('component.range')
-  onCRangeChanged(val: number) {
-    this.range = val + '';
+  @VWatchImmediate('component.range')
+  onCRangeChanged(val: number | undefined) {
+    this.range = (val ?? '') + '';
   }
 }
 </script>

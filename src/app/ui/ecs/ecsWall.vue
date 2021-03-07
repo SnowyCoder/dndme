@@ -1,7 +1,7 @@
 <template>
   <div>
     <div style="display: flex; align-items: center;">
-      W <span v-if="!isAdmin" style="margin-left: 0.5rem;">{{ w }}</span>
+      W: <span v-if="!isAdmin" style="margin-left: 0.5rem;">{{ w }}</span>
       <b-input v-if="isAdmin" type="number" step="0.001" v-model="w" size="sm" @change="onChange"></b-input>
     </div>
     <div style="display: flex; align-items: center;">
@@ -14,7 +14,7 @@
 <script lang="ts">
 
 
-import {VComponent, VProp, Vue, VWatch} from "../vue";
+import {VComponent, VWatchImmediate, VProp, Vue} from "../vue";
 import {WallComponent} from "../../ecs/systems/wallSystem";
 
 @VComponent
@@ -25,14 +25,8 @@ export default class EcsWall extends Vue {
   @VProp({required: true})
   isAdmin!: boolean;
 
-  w: string;
-  h: string;
-
-  constructor() {
-    super();
-    this.w = this.component.vec[0] + '';
-    this.h = this.component.vec[1] + '';
-  }
+  w: string = '';
+  h: string = '';
 
   onChange() {
     let w = parseFloat(this.w);
@@ -42,10 +36,15 @@ export default class EcsWall extends Vue {
     }
   }
 
-  @VWatch('component.vec')
-  onCxChanged(val: [number, number]) {
-    this.w = val[0] + '';
-    this.h = val[1] + '';
+  @VWatchImmediate('component.vec')
+  onCxChanged(vec: [number, number] | undefined) {
+    if (vec === undefined) {
+      this.w = '';
+      this.h = '';
+    } else {
+      this.w = vec[0] + '';
+      this.h = vec[1] + '';
+    }
   }
 }
 </script>
@@ -53,3 +52,4 @@ export default class EcsWall extends Vue {
 <style scoped>
 
 </style>
+
