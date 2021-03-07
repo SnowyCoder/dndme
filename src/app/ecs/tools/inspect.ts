@@ -88,7 +88,7 @@ export class InspectToolDriver implements ToolDriver {
     }
 
     onPointerMove(event: PointerMoveEvent): void {
-        if (!this.isDown || !this.canMoveSelected || this.lastDownEntities.length === 0) return;
+        if (!this.isDown || !this.canMoveSelected || this.lastDownEntities.length === 0 || event.canBecomeClick) return;
         if (!this.isMoving) {
             this.isMoving = true;
             this.world.events.emit('tool_move_begin');

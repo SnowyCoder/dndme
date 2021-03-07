@@ -1,7 +1,7 @@
 import {System} from "../system";
 import PIXI from "../../PIXI";
 import {app} from "../../index";
-import {IHitArea} from "pixi.js";
+import {IHitArea, IPointData} from "pixi.js";
 import {World} from "../world";
 import {Resource} from "../resource";
 import {FOLLOW_MOUSE_TYPE, POSITION_TYPE} from "../component";
@@ -33,8 +33,12 @@ export interface HasLastPosition {
 }
 
 export type PointerDownEvent = PIXI.InteractionEvent & ConsumableEvent;
-export type PointerUpEvent = PIXI.InteractionEvent & HasLastPosition;
-export type PointerMoveEvent = PIXI.InteractionEvent & HasLastPosition;
+export type PointerUpEvent = PIXI.InteractionEvent & HasLastPosition & {
+    isClick: boolean;
+};
+export type PointerMoveEvent = PIXI.InteractionEvent & HasLastPosition & {
+    canBecomeClick: boolean;
+};
 export type PointerRightDownEvent = PIXI.InteractionEvent & ConsumableEvent;
 export type PointerRightUpEvent = PIXI.InteractionEvent;
 export type PointerClickEvent = PIXI.InteractionEvent;
@@ -95,6 +99,18 @@ export class PixiBoardSystem implements System {
         this.board.interactiveChildren = false;
         this.board.position.set(0, 0);
         this.board.sortableChildren = true;
+    }
+
+    canBecomeClick(pdata: PointerData, p: IPointData) {
+        let now = Date.now();
+
+        let timeDiff = now - (this.lastMouseDownTime || 0);
+
+        let diffX = p.x - pdata.firstX;
+        let diffY = p.y - pdata.firstY;
+        let diffPos = Math.sqrt(diffX * diffX + diffY * diffY);
+
+        return diffPos < 5 && timeDiff < 500;
     }
 
     zoom(dScale: number, centerX: number, centerY: number) {
@@ -163,9 +179,12 @@ export class PixiBoardSystem implements System {
 
         let e = event as PointerDownEvent;
         e.consumed = false;
-        this.world.events.emit(PointerEvents.POINTER_DOWN, event);
+        if (!(event.data.pointerType === 'mouse' && event.data.button === 1)) {
+            // If middle button is pressed ignore, we force it to drag the board
+            this.world.events.emit(PointerEvents.POINTER_DOWN, event);
+        }
 
-        if (!e.consumed && this.pointers.size === 1) {// TODO: better tool management
+        if (!e.consumed && this.pointers.size === 1) {
             this.isDraggingBoard = true;
         }
     }
@@ -186,21 +205,14 @@ export class PixiBoardSystem implements System {
         if (this.pointers.size === 0) {
             this.isDraggingBoard = false;
 
-            let now = Date.now();
-
-            let timeDiff = now - this.lastMouseDownTime;
-
-            let diffX = Math.abs(event.data.global.x - pdata.firstX);
-            let diffY = Math.abs(event.data.global.y - pdata.firstY);
-            let diffPos = Math.sqrt(diffX * diffX + diffY * diffY);
-
-            let isClick = diffPos < 5 && timeDiff < 500;
+            let isClick = this.canBecomeClick(pdata, event.data.global);
 
             let pue = event as PointerUpEvent;
             pue.lastPosition = {
                 x: pdata.lastX,
                 y: pdata.lastY
             };
+            pue.isClick = isClick;
             this.world.events.emit(PointerEvents.POINTER_UP, pue);
             if (isClick) {
                 this.world.events.emit(PointerEvents.POINTER_CLICK, event);
@@ -220,18 +232,19 @@ export class PixiBoardSystem implements System {
         let localPos = getMapPointFromMouseInteraction(this.world, e);
         this.updatePointerFollowers(localPos);
 
+        let pdata = this.pointers.get(e.data.pointerId);
 
-        if (e.data.pointerType === 'mouse') {
+        if (this.pointers.size <= 1 && !this.isDraggingBoard) {
             let pme = e as PointerMoveEvent;
             pme.lastPosition = {
                 x: this.mouseLastX, y: this.mouseLastY,
             };
+            pme.canBecomeClick = pdata === undefined ? false : this.canBecomeClick(pdata, pos);
             this.world.events.emit(PointerEvents.POINTER_MOVE, pme);
             this.mouseLastX = pos.x;
             this.mouseLastY = pos.y;
         }
 
-        let pdata = this.pointers.get(e.data.pointerId);
         if (pdata === undefined) return;
 
         if (this.pointers.size === 1) {// Move
