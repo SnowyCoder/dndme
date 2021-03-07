@@ -12,7 +12,7 @@ import {
 import {World} from "../world";
 import {SELECTION_TYPE} from "./selectionSystem";
 import {Resource} from "../resource";
-import {InspectToolDriver, MoveToolDriver} from "../tools/common";
+import {InspectToolDriver} from "../tools/inspect";
 import {Tool} from "../tools/toolType";
 
 export interface ToolDriver {
@@ -74,7 +74,6 @@ export class ToolSystem implements System {
         events.on(PointerEvents.POINTER_CLICK, this.onPointerClick, this);
 
         this.addTool(new InspectToolDriver(world));
-        this.addTool(new MoveToolDriver(world));
     }
 
     addTool(tool: ToolDriver): void {

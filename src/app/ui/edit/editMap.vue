@@ -16,9 +16,6 @@
         <b-button title="Inspect" squared class="toolbar-btn" v-on:click="changeTool('inspect')">
           <i class="fas fa-hand-pointer"></i>
         </b-button>
-        <b-button title="Move" squared class="toolbar-btn" v-on:click="changeTool('move')" v-if="isAdmin">
-          <i class="fas fa-arrows-alt"></i>
-        </b-button>
         <b-button title="Add wall" squared class="toolbar-btn" v-on:click="changeTool('create_wall')" v-if="isAdmin">
           <svg class="svg-inline--fa fa-w-16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 234.809 234.809"
                xml:space="preserve">
