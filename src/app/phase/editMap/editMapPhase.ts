@@ -115,9 +115,15 @@ export class EditMapPhase extends EcsPhase {
 
 
     ui() {
-        let ui = new EditMapComponent();
-        (ui as any).phase = this;
-        (ui as any).isAdmin = this.world.isMaster;
+        let ui = new EditMapComponent({
+            propsData: {
+                phase: this,
+                world: this.world,
+                isAdmin: this.world.isMaster,
+            }
+        });
+        //(ui as any).phase = this;
+        //(ui as any).isAdmin = this.world.isMaster;
         return ui;
     }
 

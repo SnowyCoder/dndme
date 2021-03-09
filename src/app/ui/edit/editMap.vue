@@ -69,67 +69,7 @@
                bg-variant="dark" text-variant="light" right visible no-header shadow
                sidebar-class="under-navbar">
       <!----------------------------------      GRID CONTROL      ---------------------------------->
-      <div class="px-3 py-2" v-show="tool === 'grid'">
-        Type:
-        <b-radio-group id="grid-type-radio" v-model="grid.type" buttons>
-          <b-radio value="none"><i class="fas fa-border-none"></i></b-radio>
-          <b-radio value="square"><i class="far fa-square"></i></b-radio>
-          <b-radio value="hex">
-            <svg role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"
-                 class="svg-inline--fa fa-hexagon fa-w-18">
-              <path fill="currentColor"
-                    d="M441.5 39.8C432.9 25.1 417.1 16 400 16H176c-17.1 0-32.9 9.1-41.5 23.8l-112 192c-8.7 14.9-8.7 33.4 0 48.4l112 192c8.6 14.7 24.4 23.8 41.5 23.8h224c17.1 0 32.9-9.1 41.5-23.8l112-192c8.7-14.9 8.7-33.4 0-48.4l-112-192zM400 448H176L64 256 176 64h224l112 192-112 192z"
-                    class=""></path>
-            </svg>
-          </b-radio>
-        </b-radio-group>
-
-        <div v-if="grid.type !== 'none'">
-          <div class="d-flex flex-row align-items-center">
-            <div class="">Size:</div>
-            <div class="p-2">
-              <b-input type="number" v-model="grid.size" min="10" max="512" size="sm"></b-input>
-            </div>
-          </div>
-          <b-input type="range" min="10" max="512" v-model="grid.size"></b-input>
-
-          <div class="d-flex flex-row align-items-center">
-            <div>Xoffset:</div>
-            <div class="p-2">
-              <b-input type="number" v-model="grid.offX" min="0" max="1" step="0.001" size="sm"></b-input>
-            </div>
-          </div>
-          <b-input type="range" min="0" max="1" step="0.001" v-model="grid.offX"></b-input>
-
-
-          <div class="d-flex flex-row align-items-center">
-            <div class="">Yoffset:</div>
-            <div class="p-2">
-              <b-input type="number" v-model="grid.offY" min="0" max="1" step="0.001" size="sm"></b-input>
-            </div>
-          </div>
-          <b-input type="range" min="0" max="1" step="0.001" v-model="grid.offY"></b-input>
-
-          Color: {{ grid.color }}
-          <b-input type="color" v-model="grid.color"></b-input>
-
-          <div class="d-flex flex-row align-items-center">
-            <div class="">Opacity:</div>
-            <div class="p-2">
-              <b-input type="number" v-model="grid.opacity" min="0" max="1" step="0.001" size="sm"></b-input>
-            </div>
-          </div>
-          <b-input type="range" min="0" max="1" step="0.001" v-model="grid.opacity"></b-input>
-
-          <div class="d-flex flex-row align-items-center">
-            <div class="">Thickness:</div>
-            <div class="p-2">
-              <b-input type="number" v-model="grid.thick" min="1" max="200" size="sm"></b-input>
-            </div>
-          </div>
-          <b-input type="range" min="1" max="200" v-model="grid.thick"></b-input>
-        </div>
-      </div>
+      <grid-edit class="px-3 py-2" v-show="tool === 'grid'" v-bind:world="world"/>
       <!----------------------------------      ENTITY INSPECTOR      ---------------------------------->
       <div v-show="tool === 'inspect'">
         <entity-inspect
@@ -184,11 +124,9 @@
 <script lang="ts">
 import Vue from "vue";
 
-import {GridType} from "../../game/grid";
-import {EditMapPhase} from "../../phase/editMap/editMapPhase";
 import EntityInspect from "../ecs/entityInspect.vue";
 import {Component} from "../../ecs/component";
-import {GridResource, Resource} from "../../ecs/resource";
+import {Resource} from "../../ecs/resource";
 import {AddComponent} from "../../ecs/systems/selectionSystem";
 import {DEFAULT_LIGHT_SETTINGS, LightSettings, LocalLightSettings} from "../../ecs/systems/lightSystem";
 import {SelectionSystem} from "../../ecs/systems/selectionSystem";
@@ -197,25 +135,16 @@ import hex2string = PIXI.utils.hex2string;
 import string2hex = PIXI.utils.string2hex;
 import {Tool} from "../../ecs/tools/toolType";
 import {ToolResource} from "../../ecs/systems/toolSystem";
+import GridEdit from "./gridEdit.vue";
 
 export default Vue.extend({
-  components: {EntityInspect},
+  components: {GridEdit, EntityInspect},
+  props: ['phase', 'world', 'isAdmin'],
   data() {
     return {
       tool: 'inspect',
-      isAdmin: false,
       connectionCount: 0,
       connectionBuffering: false,
-      disableWatchSave: false,
-      grid: {
-        type: "none",
-        size: 1,
-        offX: 0,
-        offY: 0,
-        color: '#000000',
-        opacity: 0.5,
-        thick: 2,
-      },
       light: {
         ambientLight: '#000000',
         needsLight: true,
@@ -225,7 +154,6 @@ export default Vue.extend({
       selectedComponents: new Array<Component>(),
       selectedEntityOpts: {},
       selectedAddable: new Array<AddComponent>(),
-      phase: (null as any) as EditMapPhase,
     };
   },
   methods: {
@@ -260,76 +188,12 @@ export default Vue.extend({
       let llight = this.phase.world.getResource('local_light_settings') as LocalLightSettings;
       this.light.roleplayVision = llight.visionType === 'rp';
     },
-    reloadGrid() {
-      this.disableWatchSave = true;
-
-      let grid = this.phase.world.getResource('grid') as GridResource;
-      switch (grid.gridType) {
-        case GridType.HEXAGON:
-          this.grid.type = 'hex'
-          break;
-        case GridType.SQUARE:
-          this.grid.type = 'square'
-          break;
-      }
-
-      if (!grid.visible) {
-        this.grid.type = 'none';
-      }
-      let opts = grid;
-      this.grid.size = opts.size;
-      this.grid.offX = opts.offX;
-      this.grid.offY = opts.offY;
-      this.grid.color = hex2string(opts.color);
-      this.grid.opacity = opts.opacity;
-      this.grid.thick = opts.thick;
-
-      this.disableWatchSave = false;
-    },
     onResourceEdited(res: Resource) {
-      if (res.type === 'grid') this.reloadGrid();
-      else if (res.type === 'light_settings' || res.type === 'local_light_settings') this.reloadLight();
+      if (res.type === 'light_settings' || res.type === 'local_light_settings') this.reloadLight();
       else if (res.type === 'tool') this.tool = (res as ToolResource).tool!;
     }
   },
   watch: {
-    grid: {
-      handler: function (newGrid) {
-        if (this.disableWatchSave) return;
-        newGrid.offX = Math.min(newGrid.offX, newGrid.size);
-        newGrid.offY = Math.min(newGrid.offY, newGrid.size);
-
-        let type;
-        switch (newGrid.type) {
-          case 'none':
-            type = undefined;
-            break;
-          case 'hex':
-            type = GridType.HEXAGON;
-            break;
-          case 'square':
-            type = GridType.SQUARE;
-            break;
-        }
-        if (type !== undefined) {
-          this.phase.world.editResource('grid', {
-            visible: true,
-            gridType: type,
-            size: newGrid.size,
-            offX: newGrid.offX,
-            offY: newGrid.offY,
-            color: string2hex(newGrid.color),
-            opacity: parseFloat(newGrid.opacity),
-            thick: newGrid.thick,
-          } as GridResource);
-        } else {
-          this.phase.world.editResource('grid', {
-            visible: false,
-          });
-        }
-      },
-      deep: true,
-    },
     'light.roleplayVision': function () {
       let visionType = this.light.roleplayVision ? 'rp' : 'dm';
 
@@ -337,11 +201,14 @@ export default Vue.extend({
     }
   },
   mounted() {
-    this.reloadGrid();
+    //this.world = this.phase.world;
     this.reloadLight();
 
     this.phase.world.events.on('resource_edited', this.onResourceEdited);
   },
+  /*unmounted() {// TODO: vue3
+    this.phase.world.events.off('resource_edited', this.onResourceEdited);
+  },*/
 });
 </script>
 

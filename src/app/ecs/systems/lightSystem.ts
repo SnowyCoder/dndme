@@ -5,7 +5,7 @@ import {CUSTOM_BLEND_MODES, DESTROY_ALL} from "../../util/pixi";
 import {SingleEcsStorage} from "../storage";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {StupidPoint} from "../../geometry/point";
-import {Resource} from "../resource";
+import {GridResource, Resource} from "../resource";
 import PIXI from "../../PIXI";
 import {app} from "../../index";
 import {VISIBILITY_TYPE, VisibilityComponent} from "./visibilitySystem";
@@ -17,6 +17,8 @@ import hex2rgb = PIXI.utils.hex2rgb;
 import {TOOL_TYPE, ToolSystem} from "./toolSystem";
 import {createEmptyDriver} from "../tools/utils";
 import {Tool} from "../tools/toolType";
+import {GRID_TYPE} from "./gridSystem";
+import {STANDARD_GRID_OPTIONS} from "../../game/grid";
 
 export const DEFAULT_BACKGROUND = 0x6e472c;
 
@@ -97,6 +99,8 @@ export class LightSystem implements System {
     lightSettings: LightSettings;
     localLightSettings: LocalLightSettings;
 
+    private gridSize: number;
+
     constructor(world: World) {
         this.world = world;
 
@@ -119,6 +123,8 @@ export class LightSystem implements System {
             _save: true, _sync: false,
         } as LocalLightSettings;
         world.addResource(this.localLightSettings);
+
+        this.gridSize = (this.world.getResource(GRID_TYPE) as GridResource ?? STANDARD_GRID_OPTIONS).size;
 
         world.events.on('component_add', this.onComponentAdd, this);
         world.events.on('component_edited', this.onComponentEdited, this);
@@ -174,7 +180,7 @@ export class LightSystem implements System {
         if (vis.polygon === undefined) {
             this.disableVisMesh(target);
         } else {
-            let range = vis.range * 50;
+            let range = vis.range * this.gridSize;
             this.updateVisMesh(target, pos, vis.polygon);
             this.updateVisUniforms(target, pos, range * range, color);
         }
@@ -235,7 +241,7 @@ export class LightSystem implements System {
                 let pos = this.world.getComponent(c.entity, POSITION_TYPE) as PositionComponent;
                 let vis = this.world.getComponent(c.entity, VISIBILITY_TYPE) as VisibilityComponent;
                 if (vis.polygon !== undefined) {
-                    let range = vis.range * 50;
+                    let range = vis.range * this.gridSize;
                     this.updateVisUniforms(c._lightDisplay!, pos, range * range, c.color);
                 }
             }
@@ -254,18 +260,23 @@ export class LightSystem implements System {
         }
     }
 
-    private onResourceEdited(comp: Resource) {
-        if (comp.type !== LIGHT_SETTINGS_TYPE && comp.type !== LOCAL_LIGHT_SETTINGS_TYPE) {
-            return;
+    private onResourceEdited(comp: Resource, changed: any) {
+        if (comp.type === GRID_TYPE) {
+            if (!('size' in changed)) return;
+            let grid = comp as GridResource;
+            this.gridSize = grid.size;
+
+            // We don't really care, the visibility polygons will change on their own
+        } else if (comp.type === LIGHT_SETTINGS_TYPE || comp.type === LOCAL_LIGHT_SETTINGS_TYPE) {
+            let arr = [0.0, 0.0, 0.0, 0.0];
+            if (this.localLightSettings.visionType === 'dm') arr[3] = 1.0;
+            hex2rgb(this.lightSettings.ambientLight, arr);
+            this.lightLayer.clearColor = arr;
+
+            this.playerContainer.visible = this.localLightSettings.visionType !== 'dm';
+
+            app.renderer.backgroundColor = this.lightSettings.background;
         }
-        let arr = [0.0, 0.0, 0.0, 0.0];
-        if (this.localLightSettings.visionType === 'dm') arr[3] = 1.0;
-        hex2rgb(this.lightSettings.ambientLight, arr);
-        this.lightLayer.clearColor = arr;
-
-        this.playerContainer.visible = this.localLightSettings.visionType !== 'dm';
-
-        app.renderer.backgroundColor = this.lightSettings.background;
     }
 
 
@@ -299,7 +310,7 @@ export class LightSystem implements System {
         this.lightContainer.interactiveChildren = false;
         this.lightContainer.parentLayer = this.lightLayer
 
-        this.onResourceEdited(this.lightSettings);// Update the clearColor
+        this.onResourceEdited(this.lightSettings, {});// Update the clearColor
 
         let lightingSprite = new PIXI.Sprite(this.lightLayer.getRenderTexture());
         lightingSprite.blendMode = CUSTOM_BLEND_MODES.MULTIPLY_COLOR_ONLY;

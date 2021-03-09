@@ -415,6 +415,18 @@ export class World {
         if (this.entities.size !== 0) throw 'Entities spawned while clearing!';
         this.events.emit('cleared');
     }
+
+    /**
+     * TODO: use Vue 3
+     * Overrides the `Object.prototype.toString.call(obj)` result.
+     * This is done to hide this object and its children from observers (see https://github.com/vuejs/vue/issues/2637)
+     * @returns {string} - type name
+     * @see {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/toStringTag}
+     */
+    get [Symbol.toStringTag]() {
+        // Anything can go here really as long as it's not 'Object'
+        return 'ObjectNoObserve';
+    }
 }
 
 function assignSwap(obj: any, changes: any): void {

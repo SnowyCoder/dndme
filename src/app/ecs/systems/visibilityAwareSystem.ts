@@ -14,6 +14,9 @@ import {
 } from "./interactionSystem";
 import {Aabb} from "../../geometry/aabb";
 import EventEmitter = PIXI.utils.EventEmitter;
+import {GRID_TYPE} from "./gridSystem";
+import {GridResource, Resource} from "../resource";
+import {STANDARD_GRID_OPTIONS} from "../../game/grid";
 
 
 export const VISIBILITY_AWARE_TYPE = 'visibility_aware';
@@ -42,6 +45,8 @@ export class VisibilityAwareSystem implements System {
     private visibilitySys: VisibilitySystem;
     private interactionSys: InteractionSystem;
 
+    private gridSize: number;
+
     storage = new SingleEcsStorage<VisibilityAwareComponent>(VISIBILITY_AWARE_TYPE, false, false);
 
     /**
@@ -61,13 +66,16 @@ export class VisibilityAwareSystem implements System {
         this.interactionSys = this.world.systems.get(INTERACTION_TYPE) as InteractionSystem;
         world.addStorage(this.storage);
 
+        this.gridSize = (this.world.getResource(GRID_TYPE) as GridResource ?? STANDARD_GRID_OPTIONS).size;
+
         world.events.on('component_add', this.onComponentAdd, this);
         world.events.on('component_edited', this.onComponentEdited, this);
         world.events.on('component_remove', this.onComponentRemove, this);
+        world.events.on('resource_edited', this.onResourceEdited, this);
     }
 
     private visibilityChange(viewer: VisibilityComponent, polygon: number[] | undefined, range: number): void {
-        range *= 50;
+        range *= this.gridSize;
         if (polygon === undefined) {
             // Player visibility null
             let oldCanSee = viewer._canSee;
@@ -142,7 +150,7 @@ export class VisibilityAwareSystem implements System {
             let ppos = posStorage.getComponent(entity)!;
             let pvis = visStorage.getComponent(entity)!;
 
-            let range = pvis.range * 50;
+            let range = pvis.range * this.gridSize;
             if (!shapeIntersect(shapeCircle(ppos, range), shape) || !shapeIntersect(shape, shapePolygon(p.tag?.polygon!))) continue;
 
             vis._canSee.push(aware.entity);
@@ -156,7 +164,7 @@ export class VisibilityAwareSystem implements System {
             let ppos = posStorage.getComponent(p)!;
             let pvis = visStorage.getComponent(p)!;
 
-            let range = pvis.range * 50;
+            let range = pvis.range * this.gridSize;
             if (shapeIntersect(shapeCircle(ppos, range), shape) && shapeIntersect(shape, shapePolygon(pvis.polygon!))) {
                 aware.visibleBy.push(p);
                 continue;
@@ -262,6 +270,14 @@ export class VisibilityAwareSystem implements System {
         }
     }
 
+    private onResourceEdited(res: Resource, changed: any) {
+        if (res.type === GRID_TYPE && 'size' in changed) {
+            let grid = res as GridResource;
+            this.gridSize = grid.size;
+
+            // We don't really care, the visibility polygons will change on their own
+        }
+    }
 
 
     enable(): void {

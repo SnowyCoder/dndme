@@ -15,13 +15,16 @@ import {
     shapeToAabb,
     ShapeType
 } from "./interactionSystem";
+import {STANDARD_GRID_OPTIONS} from "../../game/grid";
+import {GRID_TYPE} from "./gridSystem";
+import {GridResource, Resource} from "../resource";
 
 
 export const VISIBILITY_TYPE = 'visibility';
 export type VISIBILITY_TYPE = 'visibility';
 export interface VisibilityComponent extends Component {
     type: VISIBILITY_TYPE;
-    range: number;// In grids (by default 1 grid = 50 pixels)
+    range: number;// In grids (by default 1 grid = 128 pixels)
     trackWalls: boolean;
     polygon?: number[];
     aabb?: Aabb;
@@ -64,17 +67,21 @@ export class VisibilitySystem implements System {
     blockerStorage = new SingleEcsStorage<VisibilityBlocker>(VISIBILITY_BLOCKER_TYPE, false, false);
 
     interactionSystem: InteractionSystem;
+    gridSize: number;
     aabbTree = new DynamicTree<VisibilityComponent>();
 
     constructor(world: World) {
         this.world = world;
         this.interactionSystem = this.world.systems.get(INTERACTION_TYPE) as InteractionSystem;
 
+        this.gridSize = (this.world.getResource(GRID_TYPE) as GridResource ?? STANDARD_GRID_OPTIONS).size;
+
         world.addStorage(this.storage);
         world.addStorage(this.blockerStorage);
         world.events.on('component_add', this.onComponentAdd, this);
         world.events.on('component_edited', this.onComponentEdited, this);
         world.events.on('component_removed', this.onComponentRemoved, this);
+        world.events.on('resource_edited', this.onResourceEdited, this);
     }
 
     private removeTreePolygon(c: VisibilityComponent): void {
@@ -103,7 +110,7 @@ export class VisibilitySystem implements System {
             return;
         }
 
-        let range = c.range * 50;
+        let range = c.range * this.gridSize;
 
         let viewport = new Aabb(pos.x - range, pos.y - range, pos.x + range, pos.y + range);
 
@@ -224,6 +231,20 @@ export class VisibilitySystem implements System {
                     this.recomputeArea(shapeToAabb(cmp.shape));
                 }
             }
+        }
+    }
+
+    private onResourceEdited(res: Resource, changed: any) {
+        if (res.type === GRID_TYPE && 'size' in changed) {
+            let grid = res as GridResource;
+            this.gridSize = grid.size;
+
+            // Update everything in the next tick so that everyone sees the changes first
+            PIXI.Ticker.shared.addOnce(() => {
+                for (let c of this.storage.allComponents()) {
+                    this.updatePolygon(c);
+                }
+            });
         }
     }
 

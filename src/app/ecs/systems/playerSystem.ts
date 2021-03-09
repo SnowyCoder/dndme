@@ -14,8 +14,10 @@ import {
 import {LIGHT_SETTINGS_TYPE, LIGHT_TYPE, LightComponent, LightSettings, LightSystem} from "./lightSystem";
 import {Aabb} from "../../geometry/aabb";
 import PIXI from "../../PIXI";
-import {Resource} from "../resource";
+import {GridResource, Resource} from "../resource";
 import {PIN_TYPE} from "./pinSystem";
+import {GRID_TYPE} from "./gridSystem";
+import {STANDARD_GRID_OPTIONS} from "../../game/grid";
 
 export const PLAYER_TYPE = 'player';
 export type PLAYER_TYPE = typeof PLAYER_TYPE;
@@ -70,6 +72,8 @@ export class PlayerSystem implements System {
     storage = new SingleEcsStorage<PlayerComponent>(PLAYER_TYPE, true, true);
     visibleStorage = new SingleEcsStorage<PlayerVisibleComponent>(PLAYER_VISIBLE_TYPE, false, false);
 
+    private gridSize: number;
+
     // If false a player can see a thing only if it's illuminated by artificial light
     ambientIlluminated: boolean = false;
 
@@ -78,6 +82,8 @@ export class PlayerSystem implements System {
 
         this.lightSystem = world.systems.get(LIGHT_TYPE) as LightSystem;
         this.visibilitySystem = world.systems.get(VISIBILITY_TYPE) as VisibilitySystem;
+
+        this.gridSize = (this.world.getResource(GRID_TYPE) as GridResource ?? STANDARD_GRID_OPTIONS).size;
 
         this.world.addStorage(this.storage);
         this.world.addStorage(this.visibleStorage);
@@ -449,8 +455,8 @@ export class PlayerSystem implements System {
         }
     }
 
-    private onResourceEdited(res: Resource, changes: any): void {
-        if (res.type === LIGHT_SETTINGS_TYPE && 'needsLight' in changes) {
+    private onResourceEdited(res: Resource, changed: any): void {
+        if (res.type === LIGHT_SETTINGS_TYPE && 'needsLight' in changed) {
             let light = res as LightSettings;
             this.ambientIlluminated = !light.needsLight;
             for (let comp of this.visibleStorage.allComponents()) {
@@ -460,6 +466,9 @@ export class PlayerSystem implements System {
             if (!light.needsLight) {
                 this.spreadAfterLightNotNeeded();
             }
+        } else if (res.type === GRID_TYPE && 'size' in changed) {
+            let grid = res as GridResource;
+            this.gridSize = grid.size;
         }
     }
 
