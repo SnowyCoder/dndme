@@ -13,10 +13,10 @@ import {
     shapePolygon
 } from "./interactionSystem";
 import {Aabb} from "../../geometry/aabb";
-import EventEmitter = PIXI.utils.EventEmitter;
 import {GRID_TYPE} from "./gridSystem";
 import {GridResource, Resource} from "../resource";
 import {STANDARD_GRID_OPTIONS} from "../../game/grid";
+import SafeEventEmitter from "../../util/safeEventEmitter";
 
 
 export const VISIBILITY_AWARE_TYPE = 'visibility_aware';
@@ -57,7 +57,7 @@ export class VisibilityAwareSystem implements System {
      *   It's easier not to build component diffs.
      *   If you want to track old values do it on your own.
      */
-    events = new EventEmitter();
+    events = new SafeEventEmitter();
 
     constructor(world: World) {
         this.world = world;
