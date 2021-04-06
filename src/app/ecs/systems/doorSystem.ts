@@ -12,6 +12,7 @@ import {app} from "../../index";
 import {REMEMBER_TYPE} from "./pixiGraphicSystem";
 import {LOCAL_LIGHT_SETTINGS_TYPE, LocalLightSettings} from "./lightSystem";
 import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
+import {Resource} from "../resource";
 
 
 export enum DoorType {
@@ -42,7 +43,7 @@ export class DoorSystem implements System {
 
     pixiBoardSys: PixiBoardSystem;
     wallSys: WallSystem;
-    localLightSettings: LocalLightSettings;
+    isMasterView: boolean = false;
 
     layer: PIXI.display.Layer;
     displayContainer: PIXI.Container;
@@ -55,20 +56,19 @@ export class DoorSystem implements System {
 
         this.pixiBoardSys = ecs.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
         this.wallSys = ecs.systems.get(WALL_TYPE) as WallSystem;
-        this.localLightSettings = ecs.getResource(LOCAL_LIGHT_SETTINGS_TYPE) as LocalLightSettings;
 
         this.world.addStorage(this.storage);
         this.world.events.on('component_add', this.onComponentAdd, this);
         this.world.events.on('component_edited', this.onComponentEdited, this);
         this.world.events.on('component_remove', this.onComponentRemove, this);
+        this.world.events.on('resource_edited', this.onResourceEdited, this);
     }
 
     redrawComponent(door: DoorComponent): void {
         let wall = this.world.getComponent(door.entity, WALL_TYPE) as WallComponent;
         let pos = this.world.getComponent(door.entity, POSITION_TYPE) as PositionComponent;
 
-        let visible = this.localLightSettings.visionType === 'dm' ||
-            this.world.getComponent(door.entity, REMEMBER_TYPE) !== undefined;
+        let visible = this.isMasterView || this.world.getComponent(door.entity, REMEMBER_TYPE) !== undefined;
         if (!visible) {
             door._display?.clear();
             return;
@@ -217,6 +217,11 @@ export class DoorSystem implements System {
 
             let wall = this.world.getComponent(comp.entity, WALL_TYPE) as WallComponent;
             if (wall !== undefined) wall._dontMerge++;
+        } else if (comp.type === REMEMBER_TYPE) {
+            let door = this.storage.getComponent(comp.entity);
+            if (door !== undefined) {
+                this.redrawComponent(door);
+            }
         }
     }
 
@@ -260,6 +265,15 @@ export class DoorSystem implements System {
         }
     }
 
+    private onResourceEdited(res: Resource, edited: any) {
+        if (res.type === LOCAL_LIGHT_SETTINGS_TYPE && 'visionType' in edited) {
+            this.isMasterView = (res as LocalLightSettings).visionType !== 'rp';
+            for (let c of this.storage.allComponents()) {
+                this.redrawComponent(c);
+            }
+        }
+    }
+
 
     enable(): void {
         this.layer.zIndex = DisplayPrecedence.WALL + 1;
@@ -270,6 +284,8 @@ export class DoorSystem implements System {
         this.displayContainer.interactive = false;
         this.displayContainer.interactiveChildren = false;
         this.pixiBoardSys.board.addChild(this.displayContainer);
+
+        this.isMasterView = (this.world.getResource(LOCAL_LIGHT_SETTINGS_TYPE) as LocalLightSettings)?.visionType !== 'rp';
     }
 
     destroy(): void {
