@@ -6,6 +6,9 @@ import {GameMap} from "../../map/gameMap";
 import {MapLevel} from "../../map/mapLevel";
 import {PIXI_BOARD_TYPE, PixiBoardSystem} from "../../ecs/systems/pixiBoardSystem";
 import {HostNetworkSystem} from "../../ecs/systems/networkSystem";
+import {SelectionSystem} from "../../ecs/systems/selectionSystem";
+import {SpawnCommand} from "../../ecs/systems/command/spawnCommand";
+import {executeAndLogCommand} from "../../ecs/systems/command/command";
 
 export class HostEditMapPhase extends EditMapPhase {
     map: GameMap;
@@ -19,12 +22,23 @@ export class HostEditMapPhase extends EditMapPhase {
             this.map.levels.set(42, new MapLevel(42));
         }
         this.currentLevel = this.map.levels.values().next().value;
+
+
+        this.world.events.on('command_history_change', (canUndo: boolean, canRedo: boolean) => {
+            this.vue.canUndo = canUndo;
+            this.vue.canRedo = canRedo;
+        });
+
+        this.world.events.on('selection_update', (group: SelectionSystem) => {
+            this.vue.selectedEntityOpts = group.getCommonEntityOpts();
+            this.vue.selectedComponents = group.getCommonComponents();
+            this.vue.selectedAddable = group.getAddableComponents();
+        })
     }
 
     registerSystems() {
-        super.registerSystems();
-
         this.world.addSystem(new HostNetworkSystem(this.world, this.networkManager.channel));
+        super.registerSystems();
     }
 
     async onDrop(event: DragEvent) {
@@ -69,28 +83,35 @@ export class HostEditMapPhase extends EditMapPhase {
         pixiBoard.board.transform.worldTransform.applyInverse(p, p);
 
         if (firstFile.type.startsWith("image/")) {
-            this.world.spawnEntity(
-                {
-                    type: 'name',
-                    name: firstFile.name,
-                    clientVisible: false,
-                } as NameComponent,
-                {
-                    type: "position",
-                    x: p.x,
-                    y: p.y,
-                } as PositionComponent,
-                {
-                    type: "transform",
-                    rotation: 0,
-                    scale: 1,
-                } as TransformComponent,
-                {
-                    type: "background_image",
-                    imageType: firstFile.type,
-                    image: new Uint8Array(await firstFile.arrayBuffer()),
-                } as BackgroundImageComponent,
-            );
+            let cmd = {
+                kind: 'spawn',
+                entities: [{
+                    id: -1,
+                    components: [
+                        {
+                            type: 'name',
+                            name: firstFile.name,
+                            clientVisible: false,
+                        } as NameComponent,
+                        {
+                            type: "position",
+                            x: p.x,
+                            y: p.y,
+                        } as PositionComponent,
+                        {
+                            type: "transform",
+                            rotation: 0,
+                            scale: 1,
+                        } as TransformComponent,
+                        {
+                            type: "background_image",
+                            imageType: firstFile.type,
+                            image: new Uint8Array(await firstFile.arrayBuffer()),
+                        } as BackgroundImageComponent,
+                    ]
+                }]
+            } as SpawnCommand;
+            executeAndLogCommand(this.world, cmd);
             console.log("Image loaded")
         }
     }

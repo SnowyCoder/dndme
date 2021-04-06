@@ -1,6 +1,6 @@
 import {World} from "../world";
 import {
-    Component,
+    Component, HOST_HIDDEN_TYPE, MultiComponent,
     NAME_TYPE,
     NameComponent,
     NOTE_TYPE,
@@ -13,6 +13,10 @@ import {PlayerComponent} from "./playerSystem";
 import {DoorComponent, DoorType} from "./doorSystem";
 import {PROP_TELEPORT_TYPE, PropTeleport} from "./propSystem";
 import {System} from "../system";
+import {componentEditCommand, ComponentEditCommand} from "./command/componentEdit";
+import {DeSpawnCommand} from "./command/despawnCommand";
+import {Command} from "./command/command";
+import {EVENT_COMMAND_LOG, EVENT_COMMAND_PARTIAL_END} from "./command/commandSystem";
 
 const MULTI_TYPES = ['name', 'note'];
 const ELIMINABLE_TYPES = ['name', 'note', 'player', 'light', 'door'];
@@ -59,12 +63,21 @@ export class SelectionSystem implements System {
             this.isTranslating = false;
             if (this.translateDirty) {
                 this.translateDirty = false;
+                this.ecs.events.emit(EVENT_COMMAND_PARTIAL_END);
                 this.update();
             }
         });
         this.ecs.events.on('component_add', this.onComponentAdd, this);
         this.ecs.events.on('component_edited', this.onComponentUpdate, this);
         this.ecs.events.on('component_removed', this.onComponentRemove, this);
+        this.ecs.events.on('entity_despawn', this.onEntityDespawn, this);
+        if (ecs.isMaster) {
+            this.ecs.events.on('command_post_execute', (c: Command | undefined) => {
+                // a spawn command has been executed
+                if (c === undefined || c.kind !== 'despawn') return;
+                this.setOnlyEntities((c as DeSpawnCommand).entities);
+            });
+        }
         this.ecs.events.on('entity_despawn', this.onEntityDespawn, this);
     }
 
@@ -297,27 +310,43 @@ export class SelectionSystem implements System {
         if (type === '$') {
             // Special management
             switch (propertyName) {
-                case 'hidden':
+                case 'hidden': {
+                    let add = [];
+                    let remove = [];
                     for (let entity of this.selectedEntities) {
-                        let cmp = this.ecs.getComponent(entity, 'host_hidden');
+                        let cmp = this.ecs.getComponent(entity, HOST_HIDDEN_TYPE);
 
                         if (cmp !== undefined) {
+                            remove.push({
+                                type: HOST_HIDDEN_TYPE,
+                                entity: entity,
+                            });
                             this.ecs.removeComponent(cmp);
                         } else {
-                            this.ecs.addComponent(entity, {
-                                type: 'host_hidden',
-                                entity: -1,
+                            add.push({
+                                type: HOST_HIDDEN_TYPE,
+                                entity: entity,
                             });
                         }
                     }
+                    let cmd = {
+                        kind: "cedit",
+                        add, remove,
+                        edit: [],
+                    } as ComponentEditCommand;
+                    this.ecs.events.emit("command_log", cmd);
                     break;
-                case 'delete':
-                    for (let entity of [...this.selectedEntities]) {
-                        this.ecs.despawnEntity(entity);
-                    }
+                }
+                case 'delete': {
+                    let cmd = {
+                        kind: 'despawn',
+                        entities: [...this.selectedEntities],
+                    } as DeSpawnCommand;
                     this.clear();
+                    this.ecs.events.emit("command_log", cmd);
                     break;
-                case 'addComponent':
+                }
+                case 'addComponent': {
                     let comp: Component;
                     switch (propertyValue) {
                         case 'name':
@@ -364,18 +393,28 @@ export class SelectionSystem implements System {
                                 targetProp: -1,
                             } as PropTeleport;
                             break;
-                        default: throw 'Cannot add unknown component: ' + propertyValue;
+                        default:
+                            throw 'Cannot add unknown component: ' + propertyValue;
                     }
+                    let cmd = componentEditCommand();
                     for (let entity of [...this.selectedEntities]) {
-                        this.ecs.addComponent(entity, Object.assign({}, comp));
+                        cmd.add.push(Object.assign({ entity }, comp));
                     }
+                    this.ecs.events.emit("command_log", cmd);
                     break;
+                }
                 case 'removeComponent':
+                    let cmd = componentEditCommand();
                     for (let entity of [...this.selectedEntities]) {
                         let comp = this.ecs.getComponent(entity, propertyValue, multiId);
                         if (comp === undefined) continue;
-                        this.ecs.removeComponent(comp);
+                        cmd.remove.push({
+                            type: comp.type,
+                            entity: comp.entity,
+                            multiId: multiId,
+                        } as MultiComponent);
                     }
+                    this.ecs.events.emit("command_log", cmd);
                     break;
                 default:
                     console.warn("Unknown special event: " + propertyName);
@@ -383,6 +422,7 @@ export class SelectionSystem implements System {
             return;
         } else if (type === '@') {
             // Event call (yeah I know this is ugly) TODO please next me clean it up
+            // TODO: command log
             this.ecs.events.emit(propertyName, propertyValue, multiId);
             return;
         }
@@ -392,24 +432,39 @@ export class SelectionSystem implements System {
             console.error("Trying to change type of selection when not everyone has that type: " + type);
         }
         let oldEntities = Array.from(this.selectedEntities);
+        let cmd = componentEditCommand();
         for (let entity of oldEntities) {
             let changes = {} as any;
             changes[propertyName] = propertyValue;
-            this.ecs.editComponent(entity, type, changes, multiId);
+            cmd.edit.push({
+                type,
+                entity,
+                multiId,
+                changes
+            });
         }
+        this.ecs.events.emit("command_log", cmd);
         this.update();
     }
 
     moveAll(diffX: number, diffY: number) {
+        let cmd = componentEditCommand();
+
         for (let entity of this.selectedEntities) {
             let pos = this.ecs.getComponent(entity, POSITION_TYPE) as PositionComponent;
             if (pos === undefined) continue;
 
-            this.ecs.editComponent(entity, POSITION_TYPE, {
-                x: pos.x + diffX,
-                y: pos.y + diffY,
+            cmd.edit.push({
+                type: POSITION_TYPE,
+                entity: entity,
+                changes: {
+                    x: pos.x + diffX,
+                    y: pos.y + diffY,
+                },
             });
         }
+        // partial = isTranslating (and ignore the results)
+        this.ecs.events.emit(EVENT_COMMAND_LOG, cmd, undefined, this.isTranslating);
         if (this.isTranslating) this.translateDirty = true;
         else this.update();
     }

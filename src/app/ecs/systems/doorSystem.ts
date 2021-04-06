@@ -10,7 +10,7 @@ import {rotatePointByOrig} from "../../geometry/collision";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {app} from "../../index";
 import {REMEMBER_TYPE} from "./pixiGraphicSystem";
-import {LIGHT_TYPE, LOCAL_LIGHT_SETTINGS_TYPE, LocalLightSettings} from "./lightSystem";
+import {LOCAL_LIGHT_SETTINGS_TYPE, LocalLightSettings} from "./lightSystem";
 import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
 
 
@@ -36,7 +36,7 @@ export interface DoorComponent extends Component, HideableComponent {
 export class DoorSystem implements System {
     readonly world: World;
     readonly name = DOOR_TYPE;
-    readonly dependencies = [PIXI_BOARD_TYPE, WALL_TYPE, LIGHT_TYPE];
+    readonly dependencies = [PIXI_BOARD_TYPE, WALL_TYPE];
 
     storage = new SingleEcsStorage<DoorComponent>(DOOR_TYPE, true, true);
 
@@ -115,7 +115,6 @@ export class DoorSystem implements System {
     }
 
     private openDoor(door: DoorComponent, doorType: DoorType, open: boolean): boolean {
-        if (!this.world.isMaster) return true;// This operation should only be done once!
         let wall = this.world.getComponent(door.entity, WALL_TYPE) as WallComponent;
         let pos = this.world.getComponent(door.entity, POSITION_TYPE) as PositionComponent;
 

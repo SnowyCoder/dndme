@@ -1,6 +1,6 @@
 import PIXI from "../../PIXI";
 import {System} from "../system";
-import {World} from "../world";
+import {FrozenEntity, World} from "../world";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {SingleEcsStorage} from "../storage";
 import {
@@ -30,6 +30,9 @@ import {PointerClickEvent} from "./pixiBoardSystem";
 import {getMapPointFromMouseInteraction} from "../tools/utils";
 import {SELECTION_TYPE, SelectionSystem} from "./selectionSystem";
 import {Tool} from "../tools/toolType";
+import {SpawnCommand} from "./command/spawnCommand";
+import {executeAndLogCommand} from "./command/command";
+import {componentEditCommand} from "./command/componentEdit";
 
 
 export const PROP_TYPE = 'prop';
@@ -220,6 +223,36 @@ export class CreatePropToolDriver implements ToolDriver {
         this.sys = sys;
     }
 
+    private createFrozenProp(propType: PropType, prepend: Component[]): FrozenEntity {
+        return {
+            id: this.sys.world.allocateId(),
+            components: [
+                ...prepend,
+                {
+                    type: TRANSFORM_TYPE,
+                    rotation: 0,
+                    scale: 1,
+                } as TransformComponent,
+                {
+                    type: GRAPHIC_TYPE,
+                    entity: -1,
+                    interactive: false,
+                    display: {
+                        type: ElementType.IMAGE,
+                        ignore: false,
+                        priority: DisplayPrecedence.PROP,
+                        scale: ImageScaleMode.GRID,
+                        visib: VisibilityType.ALWAYS_VISIBLE,
+                        texture: propType.texture,
+                        sharedTexture: true,// DONT DELETE MY TEXTURE
+                        anchor: {x: 0.5, y: 0.5},
+                        tint: 0xFFFFFF,
+                    } as ImageElement,
+                } as GraphicComponent
+            ]
+        }
+    }
+
     initCreation() {
         this.cancelCreation();
 
@@ -229,7 +262,7 @@ export class CreatePropToolDriver implements ToolDriver {
 
         this.createProp = this.sys.world.spawnEntity(
             {
-                type: HOST_HIDDEN_TYPE
+                type: HOST_HIDDEN_TYPE,
             } as HostHiddenComponent,
             {
                 type: POSITION_TYPE,
@@ -253,7 +286,7 @@ export class CreatePropToolDriver implements ToolDriver {
                     visib: VisibilityType.ALWAYS_VISIBLE,
                     texture: propType.texture,
                     sharedTexture: true,// DONT DELETE MY TEXTURE
-                    anchor: { x: 0.5, y: 0.5 },
+                    anchor: {x: 0.5, y: 0.5},
                     tint: 0xFFFFFF,
                 } as ImageElement,
             } as GraphicComponent,
@@ -275,19 +308,39 @@ export class CreatePropToolDriver implements ToolDriver {
 
         const id = this.createProp;
         const world = this.sys.world;
-        world.removeComponentType(id, FOLLOW_MOUSE_TYPE);
-        world.removeComponentType(id, GRAPHIC_TYPE);
-        world.addComponent(id, {
-            type: PROP_TYPE,
-            propType: this.createPropType,
-        } as PropComponent);
-        world.removeComponentType(id, HOST_HIDDEN_TYPE);
-
+        let loc = world.getComponent(id, POSITION_TYPE) as PositionComponent;
+        let tran = world.getComponent(id, TRANSFORM_TYPE) as TransformComponent;
+        world.despawnEntity(id);
         this.createProp = -1;
+
+        let frozenEntity = {
+            id: world.allocateId(),
+            components: [
+                {
+                    type: POSITION_TYPE,
+                    x: loc.x,
+                    y: loc.y,
+                } as PositionComponent,
+                {
+                    type: TRANSFORM_TYPE,
+                    scale: tran.scale,
+                    rotation: tran.rotation,
+                } as TransformComponent,
+                {
+                    type: PROP_TYPE,
+                    propType: this.createPropType,
+                } as PropComponent,
+            ]
+        } as FrozenEntity;
+        let cmd = {
+            kind: 'spawn',
+            entities: [frozenEntity]
+        } as SpawnCommand;
+
         this.sys.world.editResource(TOOL_TYPE, {
             tool: Tool.INSPECT,
-        })
-        this.sys.selectionSys.setOnlyEntity(id);
+        });
+        executeAndLogCommand(world, cmd);
     }
 
 
@@ -346,8 +399,15 @@ export class PropTeleportLinkToolDriver implements ToolDriver {
             return;
         }
         // If the target is itself then delete the link
-        tper.targetProp = target === this.currentTarget ? -1 : target;
-
+        let cmd = componentEditCommand();
+        cmd.edit.push({
+            entity: tper.entity,
+            type: tper.type,
+            changes: {
+                targetProp: target === this.currentTarget ? -1 : target
+            }
+        });
+        executeAndLogCommand(this.sys.world, cmd);
         this.currentTarget = -1;
     }
 

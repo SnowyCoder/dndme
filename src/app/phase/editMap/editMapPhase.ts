@@ -20,6 +20,8 @@ import {ToolSystem} from "../../ecs/systems/toolSystem";
 import {GridSystem} from "../../ecs/systems/gridSystem";
 import {EcsPhase} from "../ecsPhase";
 import {PixiBoardSystem} from "../../ecs/systems/pixiBoardSystem";
+import {CommandSystem} from "../../ecs/systems/command/commandSystem";
+import {CommandHistorySystem} from "../../ecs/systems/command/commandHistorySystem";
 
 
 export class EditMapPhase extends EcsPhase {
@@ -44,6 +46,10 @@ export class EditMapPhase extends EcsPhase {
     registerSystems() {
         super.registerSystems();
         let w = this.world;
+        w.addSystem(new CommandSystem(w));
+        if (w.isMaster) {
+            w.addSystem(new CommandHistorySystem(w));
+        }
         w.addSystem(new PixiBoardSystem(w));
         w.addSystem(new SelectionSystem(w));
         w.addSystem(new ToolSystem(w));
@@ -51,7 +57,6 @@ export class EditMapPhase extends EcsPhase {
         w.addSystem(new InteractionSystem(w));
         w.addSystem(new TextSystem());
         w.addSystem(new PixiGraphicSystem(w));
-        w.addSystem(new LightSystem(w));
 
         w.addSystem(new BackgroundSystem(w));
         w.addSystem(new WallSystem(w));
@@ -61,6 +66,7 @@ export class EditMapPhase extends EcsPhase {
         w.addSystem(new PinSystem(w));
         w.addSystem(new PropSystem(w));
         w.addSystem(new PlayerSystem(w));
+        w.addSystem(new LightSystem(w));
     }
 
     setupNetworkManager() {

@@ -1,8 +1,8 @@
 <template>
-  <div class="phase-container text-center">
-    <div class="title-container">
-      <h1 class="title h1">DrawNDice</h1>
-      <p class="">Dnd made ez!</p>
+  <div class="phase-container text-center flex-column align-items-center justify-content-center row" style="height: 100vh; margin: 0;">
+    <div class="text-white">
+      <p class="title" style="font-size: 3.5em; margin: 0;">DRAW&DICE</p>
+      <p class="" style="font-size: 2em;">Dnd made ez!</p>
     </div>
 
     <div>
@@ -71,7 +71,15 @@ export default class HomeComponent extends Vue implements PhaseVue {
 }
 </script>
 
-<style scoped>
+<style>
+.s-home-container {
+  color: white;
+}
+
+.s-home-text {
+  color: white;
+}
+
 .btn-entry {
   margin-bottom: 10px;
 }

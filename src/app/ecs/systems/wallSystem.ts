@@ -1,6 +1,6 @@
 import PIXI from "../../PIXI";
 import {System} from "../system";
-import {World} from "../world";
+import {FrozenEntity, World} from "../world";
 import {DESTROY_ALL} from "../../util/pixi";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {SingleEcsStorage} from "../storage";
@@ -20,9 +20,13 @@ import {
     PointerMoveEvent,
     PointerRightDownEvent
 } from "./pixiBoardSystem";
-import { getMapPointFromMouseInteraction } from "../tools/utils";
+import {getMapPointFromMouseInteraction} from "../tools/utils";
 import {SELECTION_TYPE, SelectionSystem} from "./selectionSystem";
 import {Tool} from "../tools/toolType";
+import {executeAndLogCommand} from "./command/command";
+import {SpawnCommand} from "./command/spawnCommand";
+import {arrayRemoveElem} from "../../util/array";
+import {DeSpawnCommand} from "./command/despawnCommand";
 
 export const WALL_TYPE = 'wall';
 export type WALL_TYPE = 'wall';
@@ -77,11 +81,6 @@ export class WallSystem implements System {
         wall._dontMerge = 0;
 
         this.world.addComponent(component.entity, {
-            type: VISIBILITY_BLOCKER_TYPE,
-            entity: -1
-        } as VisibilityBlocker);
-
-        this.world.addComponent(component.entity, {
             type: GRAPHIC_TYPE,
             entity: -1,
             display: {
@@ -94,6 +93,11 @@ export class WallSystem implements System {
             interactive: true,
             isWall: true,
         } as GraphicComponent);
+
+        this.world.addComponent(component.entity, {
+            type: VISIBILITY_BLOCKER_TYPE,
+            entity: -1
+        } as VisibilityBlocker);
     }
 
     fixWallPreTranslation(walls: WallComponent[]) {
@@ -213,12 +217,16 @@ export class WallSystem implements System {
 
             let plen = points.length;
             let cIds = [];
+            let entities = [];
             for (let i = 4; i < plen; i += 2) {
-                cIds.push(this.createWall(
+                let entity = this.createWall(
                     points[i - 2], points[i - 1],
                     points[i], points[i + 1]
-                ));
+                )
+                cIds.push(entity.id);
+                entities.push(entity);
             }
+            this.world.respawnEntities(entities);
             if (cIds.length > 0) {
                 this.selectionSys.addEntities(cIds);
                 // TODO: optimization, update the selection only once!
@@ -362,19 +370,23 @@ export class WallSystem implements System {
         return end;
     }
 
-    createWall(minX: number, minY: number, maxX: number, maxY: number): number {
-        return this.world.spawnEntity(
+    createWall(minX: number, minY: number, maxX: number, maxY: number): FrozenEntity {
+        let components = [
             {
-                type: POSITION_TYPE,
                 entity: -1,
                 x: minX,
                 y: minY,
+                type: POSITION_TYPE,
             } as PositionComponent,
             {
                 type: WALL_TYPE,
                 vec: [maxX - minX, maxY - minY],
             } as WallComponent,
-        );
+        ];
+        return {
+            id: this.world.allocateId(),
+            components,
+        };
     }
 
     enable(): void {
@@ -395,10 +407,23 @@ export class CreateWallToolDriver implements ToolDriver {
     createdLastPos?: Point;
     createLastLineDisplay: PIXI.Graphics;
 
+    isActive = false;
+    mouseLastPos: PIXI.Point = new PIXI.Point();
+
     constructor(sys: WallSystem) {
         this.sys = sys;
         this.createLastLineDisplay = new PIXI.Graphics();
         this.pixiBoardSys = sys.world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
+        sys.world.events.on('component_add', (c: Component) => {
+            if (this.isActive && c.type === 'wall') {
+                this.createdIds.push(c.entity);
+            }
+        });
+        sys.world.events.on('component_remove', (c: Component) => {
+            if (this.isActive && c.type === 'wall' && arrayRemoveElem(this.createdIds, c.entity)) {
+                this.recomputeCreatedLastPos();
+            }
+        });
     }
 
     initCreation(): void {
@@ -419,6 +444,7 @@ export class CreateWallToolDriver implements ToolDriver {
     }
 
     redrawCreationLastLine(pos: PIXI.Point): void {
+        this.mouseLastPos = pos;
         let g = this.createLastLineDisplay;
         g.clear();
 
@@ -449,10 +475,15 @@ export class CreateWallToolDriver implements ToolDriver {
             let plen = points.length;
 
             for (let i = 2; i < plen; i += 2) {
-                this.createdIds.push(this.sys.createWall(
+                let entity = this.sys.createWall(
                     points[i - 2], points[i - 1],
                     points[i    ], points[i + 1]
-                ));
+                );
+                let cmd = {
+                    kind: 'spawn',
+                    entities: [entity]
+                } as SpawnCommand;
+                executeAndLogCommand(this.sys.world, cmd);
             }
             this.createdLastPos = [point.x, point.y];
         }
@@ -460,34 +491,39 @@ export class CreateWallToolDriver implements ToolDriver {
 
     undoVertex(point: PIXI.Point): void {
         if (this.createdLastPos === undefined) return;
+        this.mouseLastPos = point;
 
         if (this.createdIds.length === 0) {
             this.createdLastPos = undefined;
         } else {
-            let lastCreated = this.createdIds.pop()!;
+            let cmd = {
+                kind: 'despawn',
+                entities: [this.createdIds.pop()],
+            } as DeSpawnCommand;
+            executeAndLogCommand(this.sys.world, cmd);
+        }
+        this.recomputeCreatedLastPos();
+    }
 
-            let wallPos = this.sys.world.getComponent(lastCreated, POSITION_TYPE)! as PositionComponent;
-            let wall = this.sys.storage.getComponent(lastCreated)!;
+    recomputeCreatedLastPos() {
+        if (this.createdIds.length === 0) {
+            this.createdLastPos = undefined;
+        } else {
+            let id = this.createdIds[this.createdIds.length - 1];
+            let wallPos = this.sys.world.getComponent(id, POSITION_TYPE)! as PositionComponent;
+            let wall = this.sys.storage.getComponent(id)!;
 
-            if (wallPos.x === this.createdLastPos[0] && wallPos.y == this.createdLastPos[1]) {
-                this.createdLastPos = [
-                    wallPos.x + wall.vec[0],
-                    wallPos.y + wall.vec[1],
-                ];
-            } else {
-                this.createdLastPos = [
-                    wallPos.x,
-                    wallPos.y,
-                ];
-            }
-
-            this.sys.world.despawnEntity(lastCreated);
+            this.createdLastPos = [
+                wallPos.x + wall.vec[0],
+                wallPos.y + wall.vec[1],
+            ];
         }
 
-        this.redrawCreationLastLine(point);
+        this.redrawCreationLastLine(this.mouseLastPos);
     }
 
     onStart(): void {
+        this.isActive = true;
         this.initCreation();
     }
 
@@ -508,6 +544,7 @@ export class CreateWallToolDriver implements ToolDriver {
 
     onEnd(): void {
         this.endCreation();
+        this.isActive = false;
     }
 
     initialize(): void {

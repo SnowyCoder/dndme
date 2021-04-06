@@ -2,6 +2,7 @@ import {Packet} from "./packet";
 import {SerializedWorld} from "../ecs/world";
 import {Component} from "../ecs/component";
 import {Resource} from "../ecs/resource";
+import {Command} from "../ecs/systems/command/command";
 
 /**
  * Host -> Device
@@ -33,6 +34,11 @@ export interface DeviceLeft extends Packet {
     id: number;
 }
 */
+
+export interface CommandPacket extends Packet {
+    type: "cmd";
+    data: Command[];
+}
 
 export interface EcsBootrstrap extends Packet {
     type: "ecs_bootstrap";

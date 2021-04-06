@@ -9,7 +9,7 @@ export class ClientEditMapPhase extends EditMapPhase {
     }
 
     registerSystems() {
-        super.registerSystems();
         this.world.addSystem(new ClientNetworkSystem(this.world, this.networkManager.channel));
+        super.registerSystems();
     }
 }

@@ -20,17 +20,15 @@ body {
 .phase-container {
 }
 
-
-@media screen and (max-height: 890px) {
-    .footer {
-        position: static;
-    }
+.footer {
+    position: fixed;
+    bottom: 0;
 }
 
-@media screen and (min-height: 890px) {
+
+@media screen and (max-height: 600px) {
     .footer {
-        position: fixed;
-        bottom: 0;
+        position: static;
     }
 }
 

@@ -11,6 +11,7 @@ import {Resource} from "./resource";
 import {SystemGraph} from "./systemGraph";
 import {System} from "./system";
 import SafeEventEmitter from "../util/safeEventEmitter";
+import {filterComponent} from "./ecsUtil";
 
 
 export type SerializedWorld = {
@@ -34,6 +35,13 @@ type MultiEditTypeWork = MultiEditType & Array<{
     _skip?: true;
     _comp?: Component;
 }>;
+
+export type FrozenEntity = {
+    id: number,
+    components: Array<{ type: string; }>,
+};
+
+export type FrozenEntities = Array<FrozenEntity>;
 
 
 export class World {
@@ -93,12 +101,18 @@ export class World {
         return s;
     }
 
-    spawnEntity(...components: Array<Component>): number {
+    allocateId(): number {
         let id = -1;
 
         do {
             id = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
         } while (this.entities.has(id))
+
+        return id;
+    }
+
+    spawnEntity(...components: Array<Component>): number {
+        let id = this.allocateId();
 
         this.spawnEntityManual(id, components);
 
@@ -115,6 +129,45 @@ export class World {
         }
 
         this.events.emit('entity_spawned', id);
+    }
+
+    // TODO: deal with entity links
+    respawnEntities(data: FrozenEntities) {
+        for (let entity of data) {
+            if (entity.id === -1) {
+                entity.id = this.allocateId();
+            }
+            this.entities.add(entity.id);
+
+            this.events.emit('entity_spawn', entity.id);
+        }
+
+        for (let entity of data) {
+            for (let c of entity.components) {
+                this.addComponent(entity.id, c as Component);
+            }
+        }
+
+        for (let entity of data) {
+            this.events.emit('entity_spawned', entity.id);
+        }
+    }
+
+    despawnEntitiesSave(entities: number[]): FrozenEntities {
+        let res = [] as FrozenEntities;
+
+        for (let entity of entities) {
+            let comp = this.saveAllComponents(entity);
+
+            res.push({
+                id: entity,
+                components: comp,
+            });
+        }
+        for (let entity of entities) {
+            this.despawnEntity(entity);
+        }
+        return res;
     }
 
     despawnEntity(entity: number): void {
@@ -182,6 +235,17 @@ export class World {
     getComponent(entity: number, type: string, multiId?: number): Component | undefined {
         let storage = this.getStorage(type);
         return storage.getFirstComponent(entity, multiId);
+    }
+
+    saveAllComponents(entity: number): Component[] {
+        let res = new Array<Component>();
+
+        for (let storage of this.storages.values()) {
+            if (!storage.save) continue;
+            res.push(...storage.getComponents(entity));
+        }
+
+        return res.map(filterComponent);
     }
 
     getAllComponents(entity: number): Component[] {

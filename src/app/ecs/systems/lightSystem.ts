@@ -88,7 +88,7 @@ export interface LocalLightSettings extends Resource {
 export class LightSystem implements System {
     readonly world: World;
     readonly name = LIGHT_TYPE;
-    readonly dependencies = [PIXI_BOARD_TYPE];
+    readonly dependencies = [PIXI_BOARD_TYPE, PLAYER_TYPE];
 
     storage = new SingleEcsStorage<LightComponent>(LIGHT_TYPE);
 
@@ -191,7 +191,10 @@ export class LightSystem implements System {
     }
 
     updatePlayerVisPolygon(player: CustomPlayerComponent, pos?: PositionComponent, vis?: VisibilityComponent): void {
-        this.updateVisPolygon(player.entity, player._lightVisionDisplay!, 0, pos, vis);
+        if (player._lightVisionDisplay === undefined) {
+            player._lightVisionDisplay = this.createPlayerVisMesh();
+        }
+        this.updateVisPolygon(player.entity, player._lightVisionDisplay, 0, pos, vis);
     }
 
     private onComponentAdd(comp: Component): void {
@@ -199,34 +202,24 @@ export class LightSystem implements System {
             let light = comp as LightComponent;
             light._lightDisplay = this.createLightVisMesh();
 
-            let vis = this.world.getComponent(light.entity, VISIBILITY_TYPE) as VisibilityComponent;
-            if (vis === undefined) {
-                // We need a visibility component, create one if it does not already exist
-                vis = {
-                    type: VISIBILITY_TYPE,
-                    range: light.range,
-                    trackWalls: true,
-                } as VisibilityComponent;
-                this.world.addComponent(comp.entity, vis);
-            } else {
-                this.updateLightVisPolygon(light, undefined, vis);
-            }
+            let vis = {
+                type: VISIBILITY_TYPE,
+                range: light.range,
+                trackWalls: true,
+            } as VisibilityComponent;
+            this.world.addComponent(comp.entity, vis);
+            this.updateLightVisPolygon(light, undefined, vis);
         } else if (comp.type === PLAYER_TYPE) {
             let player = comp as CustomPlayerComponent;
-            player._lightVisionDisplay = this.createPlayerVisMesh();
+            if (player._lightVisionDisplay === undefined) {
+                player._lightVisionDisplay = this.createPlayerVisMesh();
+            }
 
             let vis = this.world.getComponent(player.entity, VISIBILITY_TYPE) as VisibilityComponent;
             if (vis === undefined) {
-                // We need a visibility component, create one if it does not already exist
-                vis = {
-                    type: VISIBILITY_TYPE,
-                    range: player.range,
-                    trackWalls: true,
-                } as VisibilityComponent;
-                this.world.addComponent(comp.entity, vis);
-            } else {
-                this.updatePlayerVisPolygon(player, undefined, vis);
+                console.error("Player does not have a visibility type")
             }
+            this.updatePlayerVisPolygon(player, undefined, vis);
         }
     }
 
@@ -284,6 +277,13 @@ export class LightSystem implements System {
         if (comp.type === LIGHT_TYPE) {
             let light = comp as LightComponent;
             light._lightDisplay?.destroy(DESTROY_ALL);
+
+            let vis = this.world.getComponent(comp.entity, VISIBILITY_TYPE);
+            if (vis !== undefined) {
+                this.world.removeComponent(vis);
+            } else {
+                console.warn("No light visibility found on removal");
+            }
         } else if (comp.type === PLAYER_TYPE) {
             let player = comp as CustomPlayerComponent;
             player._lightVisionDisplay?.destroy(DESTROY_ALL);

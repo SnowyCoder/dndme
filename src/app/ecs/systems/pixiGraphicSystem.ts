@@ -127,7 +127,7 @@ export class PixiGraphicSystem implements System {
 
     world: World;
     storage = new SingleEcsStorage<CustomGraphicComponent>(GRAPHIC_TYPE, false, false);
-    rememberStorage = new FlagEcsStorage(REMEMBER_TYPE, false, true);
+    rememberStorage = new FlagEcsStorage(REMEMBER_TYPE, true, true);
 
     textSystem: TextSystem;
     pixiBoardSystem: PixiBoardSystem;
@@ -170,7 +170,10 @@ export class PixiGraphicSystem implements System {
             this.updateInteractive(com, pos, trans);
             this.updateElement(com, com.display, pos, trans, true);
             this.updateVisibilityListener(com);
-            this.updateElementVisibility(com, com.display, true, false, false);
+
+            let pv = this.world.getComponent(c.entity, PLAYER_VISIBLE_TYPE) as PlayerVisibleComponent | undefined;
+            let remembered = this.world.getComponent(c.entity, REMEMBER_TYPE) !== undefined;
+            this.updateElementVisibility(com, com.display, true, !!pv?.visible, remembered);
             com._bitByBit = this.needsBitByBit(com, com.display);
             spreadVis = com._bitByBit;
         } else if (c.type === TRANSFORM_TYPE) {
@@ -204,7 +207,6 @@ export class PixiGraphicSystem implements System {
             this.runMethods(com, com.display);// run delayed methods (like _childrenAdd, _childrenReplace & co).
             this.updateInteractive(com, pos, trans);
             this.updateElement(com, com.display, pos, trans, true);
-            this.updateVisibilityListener(com);
             let pv = this.world.getComponent(c.entity, PLAYER_VISIBLE_TYPE) as PlayerVisibleComponent | undefined;
             let remembered = this.rememberStorage.getComponent(c.entity) !== undefined;
             this.updateElementVisibility(com, com.display, true, pv?.visible ?? true, remembered);
@@ -841,12 +843,17 @@ export class PixiGraphicSystem implements System {
             case VisibListenerLevel.PERSISTENT: oldListenerNeeded = true;          break;
         }
 
+        // Why before? good question!
+        // when we add the listener we could discover instantly that the visibility is present, thus calling
+        // a callback to this system saying "hi, this element in which there's a visibility listener is visible"
+        // if we set the listener after this the system will say "oh really, but there's no listener on this element"
+        // (yeah I spent way too much time to debug this)
+        el._visibListener = listLevel;
         if (listenerNeeded && !oldListenerNeeded) {
             this.playerSystem!.addPlayerVisListener(el.entity, el.isWall);
         } else if (!listenerNeeded && oldListenerNeeded) {
             this.playerSystem!.removePlayerVisListener(el.entity);
         }
-        el._visibListener = listLevel;
     }
 
     private runMethods(par: CustomGraphicComponent, el: CustomDisplayElement) {
@@ -855,6 +862,7 @@ export class PixiGraphicSystem implements System {
                 for (let c of el.children) {
                     this.destroyElement(c, true);
                 }
+                el.children.length = 0;
             }
             el._childrenAdd = el._childrenReplace;
             el._childrenReplace = undefined;

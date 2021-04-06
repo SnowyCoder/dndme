@@ -5,6 +5,7 @@ import {PointerClickEvent, PointerDownEvent, PointerMoveEvent, PointerUpEvent} f
 import {ToolDriver} from "../systems/toolSystem";
 import {findEntitiesAt, getBoardPosFromOrigin, getMapPointFromMouseInteraction} from "./utils";
 import {Tool} from "./toolType";
+import {EVENT_COMMAND_PARTIAL_END} from "../systems/command/commandSystem";
 
 
 export class InspectToolDriver implements ToolDriver {
@@ -54,7 +55,9 @@ export class InspectToolDriver implements ToolDriver {
         this.lastDownEntities = entities;
 
         if (this.lastDownEntities.length !== 0) {
-            event.consumed = true;
+            // Clients can't move anything (TODO: this should be false)
+            event.consumed ||= this.world.isMaster;
+            // event.consumed = true;
 
             if (!ctrlPressed) {
                 this.selectionSys.setOnlyEntity(entities[0]);

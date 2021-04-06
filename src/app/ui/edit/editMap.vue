@@ -4,10 +4,10 @@
     <b-button-toolbar type="dark" variant="info" class="bg-dark"
                       style="width: 100%; height: var(--topbar-height); z-index: 1000;" justify>
       <b-button-group v-if="isAdmin" style="margin-right: 2rem">
-        <b-button title="Undo" squared class="toolbar-btn">
+        <b-button title="Undo" squared class="toolbar-btn undo-redo-btn" :disabled="!this.canUndo" v-on:click="undo()">
           <i class="fas fa-undo"></i>
         </b-button>
-        <b-button title="Redo" squared disabled class="toolbar-btn">
+        <b-button title="Redo" squared class="toolbar-btn undo-redo-btn" :disabled="!this.canRedo" v-on:click="redo()">
           <i class="fas fa-redo"></i>
         </b-button>
       </b-button-group>
@@ -154,6 +154,8 @@ export default Vue.extend({
       selectedComponents: new Array<Component>(),
       selectedEntityOpts: {},
       selectedAddable: new Array<AddComponent>(),
+      canUndo: false,
+      canRedo: false,
     };
   },
   methods: {
@@ -191,6 +193,12 @@ export default Vue.extend({
     onResourceEdited(res: Resource) {
       if (res.type === 'light_settings' || res.type === 'local_light_settings') this.reloadLight();
       else if (res.type === 'tool') this.tool = (res as ToolResource).tool!;
+    },
+    undo() {
+      this.phase.world.events.emit('command_undo');
+    },
+    redo() {
+      this.phase.world.events.emit('command_redo');
     }
   },
   watch: {
@@ -227,5 +235,11 @@ export default Vue.extend({
   display: flex;
   align-items: center;
   justify-content: right;
+}
+
+.undo-redo-btn.disabled, .undo-redo-btn:disabled {
+  background-color: #343a40;
+  border-color: #343a40;
+  box-shadow: none;
 }
 </style>

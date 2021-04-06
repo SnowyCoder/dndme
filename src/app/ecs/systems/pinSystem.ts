@@ -17,6 +17,9 @@ import {TOOL_TYPE, ToolDriver, ToolSystem} from "./toolSystem";
 import {PointerClickEvent} from "./pixiBoardSystem";
 import {SELECTION_TYPE, SelectionSystem} from "./selectionSystem";
 import {Tool} from "../tools/toolType";
+import {SpawnCommand} from "./command/spawnCommand";
+import {CommandResult} from "./command/commandSystem";
+import {executeAndLogCommand} from "./command/command";
 
 export const PIN_TYPE = 'pin';
 export type PIN_TYPE = typeof PIN_TYPE;
@@ -179,21 +182,34 @@ export class CreatePinToolDriver implements ToolDriver {
 
         const world = this.sys.world;
         let id = this.createPin;
-        world.removeComponentType(id, FOLLOW_MOUSE_TYPE);
         let g = world.getComponent(id, GRAPHIC_TYPE) as GraphicComponent;
-        world.removeComponent(g);
-        world.addComponent(id, {
-            type: PIN_TYPE,
-            entity: id,
-            color: (g.display as PointElement).color,
-        } as PinComponent);
-        world.removeComponentType(id, HOST_HIDDEN_TYPE);
+        let loc = world.getComponent(id, POSITION_TYPE) as PositionComponent;
+        world.despawnEntity(id);
+
+        let cmd = {
+            kind: 'spawn',
+            entities: [{
+                id: world.allocateId(),
+                components: [
+                    {
+                        type: 'position',
+                        x: loc.x,
+                        y: loc.y,
+                    } as PositionComponent,
+                    {
+                        type: PIN_TYPE,
+                        color: (g.display as PointElement).color,
+                    } as PinComponent,
+                ]
+            }]
+        } as SpawnCommand;
 
         this.createPin = -1;
         this.sys.world.editResource(TOOL_TYPE, {
             tool: Tool.INSPECT,
         });
-        this.sys.selectionSys.setOnlyEntity(id);
+        executeAndLogCommand(world, cmd);
+        //this.sys.selectionSys.setOnlyEntity(id);
     }
 
 

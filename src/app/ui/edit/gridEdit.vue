@@ -70,6 +70,7 @@ import {GridResource, Resource} from "../../ecs/resource";
 import string2hex = PIXI.utils.string2hex;
 import {World} from "../../ecs/world";
 import hex2string = PIXI.utils.hex2string;
+import {ResourceEditCommand} from "../../ecs/systems/command/resourceEditCommand";
 
 type RenderGridOpts = {
   type: string;
@@ -156,8 +157,13 @@ export default class GridEdit extends Vue {
         type = GridType.SQUARE;
         break;
     }
+    let cmd = {
+      kind: 'redit',
+      add: [], remove: [],
+      edit: {},
+    } as ResourceEditCommand;
     if (type !== undefined) {
-      this.world.editResource('grid', {
+      cmd.edit['grid'] = {
         visible: true,
         gridType: type,
         size: newGrid.size,
@@ -166,12 +172,13 @@ export default class GridEdit extends Vue {
         color: string2hex(newGrid.color),
         opacity: parseFloat(newGrid.opacity),
         thick: newGrid.thick,
-      } as GridResource);
+      } as GridResource;
     } else {
-      this.world.editResource('grid', {
+      cmd.edit['grid'] = {
         visible: false,
-      });
+      };
     }
+    this.world.events.emit('command_log', cmd);
   }
 }
 </script>
