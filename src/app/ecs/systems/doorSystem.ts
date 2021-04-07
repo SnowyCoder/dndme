@@ -13,8 +13,8 @@ import {REMEMBER_TYPE} from "./pixiGraphicSystem";
 import {LOCAL_LIGHT_SETTINGS_TYPE, LocalLightSettings} from "./lightSystem";
 import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
 import {Resource} from "../resource";
-import {ComponentEditCommand} from "./command/componentEdit";
-import {emitCommand} from "./command/command";
+import {componentEditCommand, ComponentEditCommand, singleEditCommand} from "./command/componentEdit";
+import {emitCommand, executeAndLogCommand} from "./command/command";
 
 
 export enum DoorType {
@@ -64,6 +64,9 @@ export class DoorSystem implements System {
         this.world.events.on('component_edited', this.onComponentEdited, this);
         this.world.events.on('component_remove', this.onComponentRemove, this);
         this.world.events.on('resource_edited', this.onResourceEdited, this);
+        if (ecs.isMaster) {
+            this.world.events.on('interact', this.onInteract, this);
+        }
     }
 
     redrawComponent(door: DoorComponent): void {
@@ -269,10 +272,6 @@ export class DoorSystem implements System {
         if (comp.type === DOOR_TYPE) {
             let d = comp as DoorComponent;
 
-            if (d.open) {
-                this.openDoor(d, d.doorType, false);
-            }
-
             d._display?.destroy(DESTROY_ALL);
 
             let wall = this.world.getComponent(comp.entity, WALL_TYPE) as WallComponent;
@@ -286,6 +285,21 @@ export class DoorSystem implements System {
             for (let c of this.storage.allComponents()) {
                 this.redrawComponent(c);
             }
+        }
+    }
+
+    private onInteract(entities: number[]) {
+        for (let entity of entities) {
+            let door = this.storage.getComponent(entity);
+            if (door === undefined) continue;
+            let cmd = singleEditCommand({
+                entity,
+                type: DOOR_TYPE,
+                changes: {
+                    open: !door.open,
+                }
+            });
+            executeAndLogCommand(this.world, cmd);
         }
     }
 

@@ -5,7 +5,6 @@ import {PointerClickEvent, PointerDownEvent, PointerMoveEvent, PointerUpEvent} f
 import {ToolDriver} from "../systems/toolSystem";
 import {findEntitiesAt, getBoardPosFromOrigin, getMapPointFromMouseInteraction} from "./utils";
 import {Tool} from "./toolType";
-import {EVENT_COMMAND_PARTIAL_END} from "../systems/command/commandSystem";
 
 
 export class InspectToolDriver implements ToolDriver {
@@ -21,12 +20,25 @@ export class InspectToolDriver implements ToolDriver {
     private movingStart = new PIXI.Point();
     private lastMove = new PIXI.Point();
 
+    private lastClick: number = 0;
+
     constructor(world: World) {
         this.world = world;
         this.selectionSys = world.systems.get(SELECTION_TYPE) as SelectionSystem;
     }
 
     onPointerClick(event: PointerClickEvent) {
+        let now = Date.now();
+
+        if (now - this.lastClick < 800) {
+            // double click!
+            this.lastClick = 0;
+
+            this.world.events.emit("interact", this.lastDownEntities);
+            return;
+        }
+        this.lastClick = now;
+
         let ctrlPressed = !!event.data.originalEvent.ctrlKey;
 
         let entities = this.lastDownEntities;

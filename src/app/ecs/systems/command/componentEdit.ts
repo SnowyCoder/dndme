@@ -20,6 +20,10 @@ export function componentEditCommand(
     };
 }
 
+export function singleEditCommand(edit: EditType) {
+    return componentEditCommand(undefined, [edit]);
+}
+
 export interface EditType {
     entity: number;
     type: string;
