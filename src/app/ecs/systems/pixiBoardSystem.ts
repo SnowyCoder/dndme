@@ -66,6 +66,7 @@ export class PixiBoardSystem implements System {
 
     board: PIXI.Container;
 
+    private keyDownListener: any;
     private wheelListener: any;
     pointers = new Map<number, PointerData>();
     mouseLastX: number = 0;
@@ -99,6 +100,28 @@ export class PixiBoardSystem implements System {
         this.board.interactiveChildren = false;
         this.board.position.set(0, 0);
         this.board.sortableChildren = true;
+    }
+
+    onKeyDown(event: KeyboardEvent) {
+        if (event.target instanceof HTMLInputElement) {
+            return;
+        }
+        if (event.ctrlKey) {
+            let event_name = undefined;
+            console.log(event.key, event.ctrlKey, event.shiftKey);
+            switch (event.key.toLowerCase()) {
+                case 'z':
+                    if (event.shiftKey) event_name = 'command_redo';
+                    else event_name = 'command_undo';
+                    break;
+                case 'y': event_name = 'command_redo';  break;
+                case 'c': console.log("copy");          break;
+                case 'v': console.log("paste");         break;
+            }
+            if (event_name !== undefined) {
+                this.world.events.emit(event_name);
+            }
+        }
     }
 
     canBecomeClick(pdata: PointerData, p: IPointData) {
@@ -364,6 +387,9 @@ export class PixiBoardSystem implements System {
         app.stage.on("pointerup", this.onPointerUp, this);
         app.stage.on("pointerupoutside", this.onPointerUpOutside, this);
 
+        this.keyDownListener = this.onKeyDown.bind(this);
+        document.addEventListener('keydown', this.keyDownListener);
+
         this.wheelListener = this.onMouseWheel.bind(this);
         canvas.addEventListener("wheel", this.wheelListener);
     }
@@ -374,6 +400,7 @@ export class PixiBoardSystem implements System {
         app.stage.off("pointerup", this.onPointerUp, this);
         app.stage.off("pointerupoutside", this.onPointerUpOutside, this);
 
+        app.view.removeEventListener('keydown', this.keyDownListener);
         app.view.removeEventListener('wheel', this.wheelListener);
 
         let cnt = document.getElementById('canvas-container');
