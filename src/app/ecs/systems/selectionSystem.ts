@@ -10,13 +10,14 @@ import {
 } from "../component";
 import {LightComponent} from "./lightSystem";
 import {PlayerComponent} from "./playerSystem";
-import {DoorComponent, DoorType} from "./doorSystem";
+import {DOOR_TYPE, DoorComponent, DoorType} from "./doorSystem";
 import {PROP_TELEPORT_TYPE, PropTeleport} from "./propSystem";
 import {System} from "../system";
-import {componentEditCommand, ComponentEditCommand} from "./command/componentEdit";
+import {componentEditCommand, ComponentEditCommand, EditType} from "./command/componentEdit";
 import {DeSpawnCommand} from "./command/despawnCommand";
 import {Command} from "./command/command";
 import {EVENT_COMMAND_LOG, EVENT_COMMAND_PARTIAL_END} from "./command/commandSystem";
+import {WALL_TYPE} from "./wallSystem";
 
 const MULTI_TYPES = ['name', 'note'];
 const ELIMINABLE_TYPES = ['name', 'note', 'player', 'light', 'door'];
@@ -89,6 +90,23 @@ export class SelectionSystem implements System {
         }
     }
 
+    canSelect(entity: number): boolean {
+        if (this.ecs.isMaster) {
+            return true;
+        }
+
+        // Make walls not selectable unless a known door is present, this
+        // prevents players from bruteforcing wall structures to find doors
+        // TODO: other options: merge adiacent walls when possible
+        let wallC = this.ecs.getComponent(entity, WALL_TYPE);
+        if (wallC !== undefined) {
+            let door = this.ecs.getComponent(entity, DOOR_TYPE);
+            return door !== undefined;
+        }
+
+        return true;
+    }
+
     update() {
         if (this.isTranslating) this.translateDirty = true;
         else this.ecs.events.emit('selection_update', this);
@@ -96,12 +114,22 @@ export class SelectionSystem implements System {
 
     onComponentAdd(component: Component) {
         if (!this.selectedEntities.has(component.entity)) return;
+        if (!this.canSelect(component.entity)) {
+            this.removeEntities([component.entity]);
+            return;
+        }
         this.getOrCreateData(component.type).entities.add(component);
         this.update();
     }
 
     onComponentUpdate(component: Component) {
-        if (this.selectedEntities.has(component.entity)) this.update();
+        if (this.selectedEntities.has(component.entity)) {
+            if (!this.canSelect(component.entity)) {
+                this.removeEntities([component.entity]);
+                return;
+            }
+            this.update();
+        }
     }
 
     onComponentRemove(component: Component) {
@@ -109,6 +137,12 @@ export class SelectionSystem implements System {
         let data = this.dataByType.get(component.type)!;
         data.entities.delete(component);
         if (data.entities.size === 0) this.dataByType.delete(component.type);
+
+        if (!this.canSelect(component.entity)) {
+            this.removeEntities([component.entity]);
+            return;
+        }
+
         this.update();
     }
 
@@ -162,6 +196,9 @@ export class SelectionSystem implements System {
         let count = 0;
         for (let id of ids) {
             if (this.selectedEntities.has(id)) continue;
+            if (!this.canSelect(id)) {
+                continue;
+            }
             count++;
             this.selectedEntities.add(id);
 
@@ -396,24 +433,25 @@ export class SelectionSystem implements System {
                         default:
                             throw 'Cannot add unknown component: ' + propertyValue;
                     }
-                    let cmd = componentEditCommand();
+                    let add = [];
                     for (let entity of [...this.selectedEntities]) {
-                        cmd.add.push(Object.assign({ entity }, comp));
+                        add.push(Object.assign({ entity }, comp));
                     }
-                    this.ecs.events.emit("command_log", cmd);
+                    this.ecs.events.emit("command_log", componentEditCommand(add));
                     break;
                 }
                 case 'removeComponent':
-                    let cmd = componentEditCommand();
+                    let remove = [];
                     for (let entity of [...this.selectedEntities]) {
                         let comp = this.ecs.getComponent(entity, propertyValue, multiId);
                         if (comp === undefined) continue;
-                        cmd.remove.push({
+                        remove.push({
                             type: comp.type,
                             entity: comp.entity,
                             multiId: multiId,
                         } as MultiComponent);
                     }
+                    let cmd = componentEditCommand(undefined, undefined, remove);
                     this.ecs.events.emit("command_log", cmd);
                     break;
                 default:
@@ -432,29 +470,33 @@ export class SelectionSystem implements System {
             console.error("Trying to change type of selection when not everyone has that type: " + type);
         }
         let oldEntities = Array.from(this.selectedEntities);
-        let cmd = componentEditCommand();
+        let edit = [];
         for (let entity of oldEntities) {
             let changes = {} as any;
             changes[propertyName] = propertyValue;
-            cmd.edit.push({
+            edit.push({
                 type,
                 entity,
                 multiId,
                 changes
             });
         }
+        let cmd = {
+            kind: 'cedit',
+            edit,
+        } as ComponentEditCommand;
         this.ecs.events.emit("command_log", cmd);
         this.update();
     }
 
     moveAll(diffX: number, diffY: number) {
-        let cmd = componentEditCommand();
+        let edit = [];
 
         for (let entity of this.selectedEntities) {
             let pos = this.ecs.getComponent(entity, POSITION_TYPE) as PositionComponent;
             if (pos === undefined) continue;
 
-            cmd.edit.push({
+            edit.push({
                 type: POSITION_TYPE,
                 entity: entity,
                 changes: {
@@ -463,6 +505,11 @@ export class SelectionSystem implements System {
                 },
             });
         }
+
+        let cmd = {
+            kind: 'cedit',
+            edit,
+        } as ComponentEditCommand;
         // partial = isTranslating (and ignore the results)
         this.ecs.events.emit(EVENT_COMMAND_LOG, cmd, undefined, this.isTranslating);
         if (this.isTranslating) this.translateDirty = true;

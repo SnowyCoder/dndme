@@ -18,7 +18,6 @@ import {PointerClickEvent} from "./pixiBoardSystem";
 import {SELECTION_TYPE, SelectionSystem} from "./selectionSystem";
 import {Tool} from "../tools/toolType";
 import {SpawnCommand} from "./command/spawnCommand";
-import {CommandResult} from "./command/commandSystem";
 import {executeAndLogCommand} from "./command/command";
 
 export const PIN_TYPE = 'pin';

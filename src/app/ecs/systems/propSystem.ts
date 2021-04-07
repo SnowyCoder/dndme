@@ -399,15 +399,15 @@ export class PropTeleportLinkToolDriver implements ToolDriver {
             return;
         }
         // If the target is itself then delete the link
-        let cmd = componentEditCommand();
-        cmd.edit.push({
+        let edit = [];
+        edit.push({
             entity: tper.entity,
             type: tper.type,
             changes: {
                 targetProp: target === this.currentTarget ? -1 : target
             }
         });
-        executeAndLogCommand(this.sys.world, cmd);
+        executeAndLogCommand(this.sys.world, componentEditCommand(undefined, edit));
         this.currentTarget = -1;
     }
 

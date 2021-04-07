@@ -13,6 +13,8 @@ import {REMEMBER_TYPE} from "./pixiGraphicSystem";
 import {LOCAL_LIGHT_SETTINGS_TYPE, LocalLightSettings} from "./lightSystem";
 import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
 import {Resource} from "../resource";
+import {ComponentEditCommand} from "./command/componentEdit";
+import {emitCommand} from "./command/command";
 
 
 export enum DoorType {
@@ -183,6 +185,7 @@ export class DoorSystem implements System {
 
         if (newPos !== undefined) {
             changes.push({
+                entity: door.entity,
                 type: POSITION_TYPE,
                 changes: {
                     x: newPos.x,
@@ -192,16 +195,28 @@ export class DoorSystem implements System {
         }
         if (newVec !== undefined) {
             changes.push({
+                entity: door.entity,
                 type: WALL_TYPE,
                 changes: {
                     vec: [newVec.x, newVec.y],
                 },
             });
         }
-        // Commit the edits at the same time to prevent the wall from being split
+
+        // Commit the edits at the same time to prevent the wall from being split (multi = true)
         // (if we commit position before rotation it might create an overlap situation that should
         // not be there).
-        this.world.editComponentMultiple(door.entity, changes);
+        let cmd = {
+            kind: 'cedit',
+            edit: changes,
+            multi: true,
+        } as ComponentEditCommand;
+        // Why are we using share?
+        // We're editing another synced component, but this (the door) might be hidden.
+        // If the master opens a hidden door the "open" message will not be shared but the door should still open for
+        // the roleplayers.
+        // Addendum: what if the entity is hidden? Then the command will edit a hidden entity so it will be stripped away.
+        emitCommand(this.world, cmd, !door.clientVisible);
         return true;
     }
 
