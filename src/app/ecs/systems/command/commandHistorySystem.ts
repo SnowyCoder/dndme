@@ -3,6 +3,8 @@ import {World} from "../../world";
 import {Command} from "./command";
 import {COMMAND_TYPE, CommandResult, CommandSystem, EVENT_COMMAND_EMIT} from "./commandSystem";
 
+const HISTORY_LIMIT = 128;
+
 export const COMMAND_HISTORY_TYPE = 'command_history';
 export type COMMAND_HISTORY_TYPE = typeof COMMAND_HISTORY_TYPE;
 export class CommandHistorySystem implements System {
@@ -11,18 +13,57 @@ export class CommandHistorySystem implements System {
     readonly dependencies = [COMMAND_TYPE];
 
     commandSys: CommandSystem;
-    history: Command[] = [];
+    history: Array<Command>;
     isLastPartial: boolean = false;
     index: number = 0;
 
     constructor(world: World) {
         this.world = world;
 
+        this.history = new Array<Command>();
+
         this.commandSys = this.world.systems.get(COMMAND_TYPE) as CommandSystem;
         this.commandSys.logger = this.addLog.bind(this);
 
         this.world.events.on("command_undo", this.onUndo, this);
         this.world.events.on("command_redo", this.onRedo, this);
+    }
+
+    private historyPush(cmd: Command) {
+        if (this.history.length !== this.index) {
+            this.history.length = this.index;
+        }
+        this.history.push(cmd);
+        this.index++;
+        if (this.index > HISTORY_LIMIT) {
+            this.index--;
+            // TODO: use some kind of random-access splice-able deque?
+            this.history.shift();
+        }
+    }
+
+    private historyReplacePrev(cmd: Command) {
+        this.history[this.index - 1] = cmd;
+    }
+
+    private historyUndo(replace: Command) {
+        this.historyReplacePrev(replace);
+        this.index--;
+    }
+
+    private historyRedo(replace: Command) {
+        this.index++;
+        this.historyReplacePrev(replace);
+    }
+
+    private historyPeekPrev(): Command | undefined {
+        if (this.index <= 0) return undefined;
+        return this.history[this.index - 1];
+    }
+
+    private historyPeekNext(): Command | undefined {
+        if (this.index >= this.history.length) return undefined;
+        return this.history[this.index];
     }
 
     notifyHistoryChange() {
@@ -48,7 +89,7 @@ export class CommandHistorySystem implements System {
                 return false;
             }
         }
-        let lastCmd = this.history[this.index - 1];
+        let lastCmd = this.historyPeekPrev()!;
         if (cmd.kind !== lastCmd.kind) {
             console.warn("Warning: processing a partial with a wrong last kind, did you forget to log the last partial command");
             return false;
@@ -56,7 +97,7 @@ export class CommandHistorySystem implements System {
 
         let kind = this.commandSys.getKind(cmd.kind)!;
         kind.merge(cmd, lastCmd);
-        this.history[this.index - 1] = cmd;
+        this.historyReplacePrev(cmd);
 
         return true;
     }
@@ -73,11 +114,7 @@ export class CommandHistorySystem implements System {
         if (this.processPartial(cmd, partial)) {
             return;
         }
-        if (this.history.length !== this.index) {
-            this.history.length = this.index;// Clear redo commands
-        }
-        this.history.push(cmd);
-        this.index += 1;
+        this.historyPush(cmd);
         this.notifyHistoryChange();
     }
 
@@ -88,32 +125,25 @@ export class CommandHistorySystem implements System {
     }
 
     private onUndo() {
-        if (this.index === 0) {
+        let cmd = this.historyPeekPrev();
+
+        if (cmd === undefined) {
             console.log("Nothing to undo");
             return;
         }
 
-        let i = this.index - 1;
-        let cmd = this.history[i];
-        //console.log("PRE_UNDO", JSON.stringify(this.history[i]));
-        this.history[i] = this.executeEmit(cmd);
-        //console.log("POST_UNDO", JSON.stringify(this.history[i]));
-        this.index = i;
+        this.historyUndo(this.executeEmit(cmd));
         this.notifyHistoryChange();
     }
 
     private onRedo() {
-        if (this.index === this.history.length) {
+        let cmd = this.historyPeekNext();
+        if (cmd === undefined) {
             console.log("Nothing to redo");
             return;
         }
 
-        let i = this.index;
-        let cmd = this.history[i];
-        //console.log("PRE_REDO", JSON.stringify(this.history[i]));
-        this.history[i] = this.executeEmit(cmd);
-        //console.log("POST_REDO", JSON.stringify(this.history[i]));
-        this.index = i + 1;
+        this.historyRedo(this.executeEmit(cmd));
         this.notifyHistoryChange();
     }
 
