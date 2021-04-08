@@ -12,11 +12,11 @@
         </b-button>
       </b-button-group>
 
-      <b-button-group>
-        <b-button title="Inspect" squared class="toolbar-btn" v-on:click="changeTool('inspect')">
+      <b-radio-group buttons v-model="tool">
+        <b-radio title="Inspect" value="inspect" squared class="toolbar-btn">
           <i class="fas fa-hand-pointer"></i>
-        </b-button>
-        <b-button title="Add wall" squared class="toolbar-btn" v-on:click="changeTool('create_wall')" v-if="isAdmin">
+        </b-radio>
+        <b-radio v-if="isAdmin" title="Add wall" value="create_wall" squared class="toolbar-btn">
           <svg class="svg-inline--fa fa-w-16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 234.809 234.809"
                xml:space="preserve">
                     <path fill="currentColor" d="M7.5,53.988c-4.135,0-7.5-3.364-7.5-7.5V20.571c0-4.136,3.365-7.5,7.5-7.5h94.904c4.135,0,7.5,3.364,7.5,7.5v25.917
@@ -32,21 +32,21 @@
                       H164.856z M39.952,221.738c4.136,0,7.5-3.364,7.5-7.5v-25.917c0-4.136-3.364-7.5-7.5-7.5H8.048c-4.136,0-7.5,3.364-7.5,7.5v25.917
                       c0,4.136,3.364,7.5,7.5,7.5H39.952z M226.761,221.738c4.136,0,7.5-3.364,7.5-7.5v-25.917c0-4.136-3.364-7.5-7.5-7.5h-31.904
                       c-4.136,0-7.5,3.364-7.5,7.5v25.917c0,4.136,3.364,7.5,7.5,7.5H226.761z"/>
-                  </svg>
-        </b-button>
-        <b-button title="Add prop" squared class="toolbar-btn" v-on:click="changeTool('create_prop')" v-if="isAdmin">
+          </svg>
+        </b-radio>
+        <b-radio v-if="isAdmin" title="Add prop" value="create_prop" squared class="toolbar-btn">
           <i class="fas fa-couch"></i>
-        </b-button>
-        <b-button title="Add pin" squared class="toolbar-btn" v-on:click="changeTool('create_pin')" v-if="isAdmin">
+        </b-radio>
+        <b-radio v-if="isAdmin" title="Add pin" value="create_pin" squared class="toolbar-btn">
           <i class="fas fa-thumbtack"></i>
-        </b-button>
-        <b-button title="Edit grid" squared class="toolbar-btn" v-on:click="changeTool('grid')" v-if="isAdmin">
+        </b-radio>
+        <b-radio v-if="isAdmin" title="Edit grid" value="grid" squared class="toolbar-btn">
           <i class="fas fa-border-all"/>
-        </b-button>
-        <b-button title="Light settings" squared class="toolbar-btn" v-on:click="changeTool('light')" v-if="isAdmin">
+        </b-radio>
+        <b-radio v-if="isAdmin" title="Light settings" value="light" squared class="toolbar-btn">
           <i class="fas fa-lightbulb"/>
-        </b-button>
-      </b-button-group>
+        </b-radio>
+      </b-radio-group>
       <b-button title="Export map" squared variant="success" class="btn-xs" v-on:click="phase.exportMap()"
                 v-if="isAdmin">
         <i class="fas fa-download"/>
@@ -159,10 +159,6 @@ export default Vue.extend({
     };
   },
   methods: {
-    changeTool(tool: Tool) {
-      this.phase.world.editResource('tool', {tool});
-    },
-
     onEcsPropertyChange(type: string, property: string, value: any, multiId: number) {
       let selectionSys = this.phase.world.systems.get('selection') as SelectionSystem;
       selectionSys.setProperty(type, property, value, multiId);
@@ -206,6 +202,9 @@ export default Vue.extend({
       let visionType = this.light.roleplayVision ? 'rp' : 'dm';
 
       this.phase.world.editResource('local_light_settings', {visionType});
+    },
+    tool: function (tool: Tool) {
+      this.phase.world.editResource('tool', {tool});
     }
   },
   mounted() {
