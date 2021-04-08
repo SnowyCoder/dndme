@@ -34,8 +34,8 @@
                       c-4.136,0-7.5,3.364-7.5,7.5v25.917c0,4.136,3.364,7.5,7.5,7.5H226.761z"/>
                   </svg>
         </b-button>
-        <b-button title="Add object" squared class="toolbar-btn" v-on:click="changeTool('create_prop')" v-if="isAdmin">
-          <i class="fas fa-plus"></i>
+        <b-button title="Add prop" squared class="toolbar-btn" v-on:click="changeTool('create_prop')" v-if="isAdmin">
+          <i class="fas fa-couch"></i>
         </b-button>
         <b-button title="Add pin" squared class="toolbar-btn" v-on:click="changeTool('create_pin')" v-if="isAdmin">
           <i class="fas fa-thumbtack"></i>
