@@ -32,11 +32,11 @@ import {SELECTION_TYPE, SelectionSystem} from "./selectionSystem";
 import {Tool} from "../tools/toolType";
 import {SpawnCommand} from "./command/spawnCommand";
 import {executeAndLogCommand} from "./command/command";
-import {componentEditCommand} from "./command/componentEdit";
+import {componentEditCommand, EditType} from "./command/componentEdit";
 
 
 export const PROP_TYPE = 'prop';
-export type PROP_TYPE = 'prop';
+export type PROP_TYPE = typeof PROP_TYPE;
 export interface PropComponent extends Component {
     type: PROP_TYPE;
     propType: string;
@@ -49,7 +49,7 @@ export interface PropType {
 }
 
 export const PROP_TELEPORT_TYPE = 'prop_teleport';
-export type PROP_TELEPORT_TYPE = 'prop_teleport';
+export type PROP_TELEPORT_TYPE = typeof PROP_TELEPORT_TYPE;
 export interface PropTeleport extends Component {
     type: PROP_TELEPORT_TYPE;
     targetProp: number;
@@ -192,15 +192,20 @@ export class PropSystem implements System {
         });
 
 
+        let edit = [] as EditType[];
         for (let q of query) {
             let pos = positions.getComponent(q.entity)!;
-            this.world.editComponent(
-                q.entity, pos.type, {
+            edit.push({
+                entity: q.entity,
+                type: pos.type,
+                changes: {
                     x: pos.x + diffX,
                     y: pos.y + diffY,
                 }
-            );
+            });
         }
+        let cmd = componentEditCommand(undefined, edit);
+        executeAndLogCommand(this.world, cmd);
     }
 
     enable() {
@@ -221,36 +226,6 @@ export class CreatePropToolDriver implements ToolDriver {
 
     constructor(sys: PropSystem) {
         this.sys = sys;
-    }
-
-    private createFrozenProp(propType: PropType, prepend: Component[]): FrozenEntity {
-        return {
-            id: this.sys.world.allocateId(),
-            components: [
-                ...prepend,
-                {
-                    type: TRANSFORM_TYPE,
-                    rotation: 0,
-                    scale: 1,
-                } as TransformComponent,
-                {
-                    type: GRAPHIC_TYPE,
-                    entity: -1,
-                    interactive: false,
-                    display: {
-                        type: ElementType.IMAGE,
-                        ignore: false,
-                        priority: DisplayPrecedence.PROP,
-                        scale: ImageScaleMode.GRID,
-                        visib: VisibilityType.ALWAYS_VISIBLE,
-                        texture: propType.texture,
-                        sharedTexture: true,// DONT DELETE MY TEXTURE
-                        anchor: {x: 0.5, y: 0.5},
-                        tint: 0xFFFFFF,
-                    } as ImageElement,
-                } as GraphicComponent
-            ]
-        }
     }
 
     initCreation() {

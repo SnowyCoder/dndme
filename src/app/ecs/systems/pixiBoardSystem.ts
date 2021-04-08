@@ -108,7 +108,6 @@ export class PixiBoardSystem implements System {
         }
         if (event.ctrlKey) {
             let event_name = undefined;
-            console.log(event.key, event.ctrlKey, event.shiftKey);
             switch (event.key.toLowerCase()) {
                 case 'z':
                     if (event.shiftKey) event_name = 'command_redo';

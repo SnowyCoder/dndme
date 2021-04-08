@@ -426,7 +426,6 @@ export class SelectionSystem implements System {
                         case 'prop_teleport':
                             comp = {
                                 type: PROP_TELEPORT_TYPE,
-                                entity: -1,
                                 targetProp: -1,
                             } as PropTeleport;
                             break;

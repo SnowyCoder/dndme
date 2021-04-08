@@ -41,6 +41,7 @@ import ecsTransform from "./ecsTransform.vue";
 import ecsLight from "./ecsLight.vue";
 import ecsPlayer from "./ecsPlayer.vue";
 import ecsDoor from "./ecsDoor.vue";
+import ecsProp from "./ecsProp.vue";
 import ecsPropTeleport from "./ecsPropTeleport.vue";
 import {Component} from "../../ecs/component"
 import {Vue, VComponent, VProp} from "../vue";
@@ -48,7 +49,7 @@ import {Vue, VComponent, VProp} from "../vue";
 @VComponent({
   components: {
     ecsName, ecsNote, ecsPosition, ecsWall, ecsBackgroundImage, ecsPin, ecsTransform, ecsLight, ecsPlayer, ecsDoor,
-    ecsPropTeleport
+    ecsProp, ecsPropTeleport
   }
 })
 export default class EcsComponentWrapper extends Vue {
