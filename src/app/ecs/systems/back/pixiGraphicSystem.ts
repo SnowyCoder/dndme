@@ -5,10 +5,10 @@ import {
     PositionComponent,
     TRANSFORM_TYPE,
     TransformComponent
-} from "../component";
-import {FlagEcsStorage, SingleEcsStorage} from "../storage";
-import {World} from "../world";
-import {System} from "../system";
+} from "../../component";
+import {FlagEcsStorage, SingleEcsStorage} from "../../storage";
+import {World} from "../../world";
+import {System} from "../../system";
 import {
     DisplayElement,
     ElementType,
@@ -21,13 +21,13 @@ import {
     PointElement,
     TextElement,
     VisibilityType
-} from "../../graphics";
-import {GridResource, Resource} from "../resource";
-import PIXI from "../../PIXI";
-import {app} from "../../index";
+} from "../../../graphics";
+import {GridResource, Resource} from "../../resource";
+import PIXI from "../../../PIXI";
+import {app} from "../../../index";
 import {BLEND_MODES, IPointData, Matrix, RenderTexture, RenderTexturePool, Texture} from "pixi.js";
-import {DESTROY_ALL, DESTROY_MIN} from "../../util/pixi";
-import {STANDARD_GRID_OPTIONS} from "../../game/grid";
+import {DESTROY_ALL, DESTROY_MIN} from "../../../util/pixi";
+import {STANDARD_GRID_OPTIONS} from "../../../game/grid";
 import {
     EVENT_VISIBILITY_SPREAD,
     PLAYER_TYPE,
@@ -35,8 +35,8 @@ import {
     PlayerSystem,
     PlayerVisibleComponent,
     VisibilitySpreadData
-} from "./playerSystem";
-import {LIGHT_TYPE, LightSystem, LocalLightSettings} from "./lightSystem";
+} from "../playerSystem";
+import {LIGHT_TYPE, LightSystem, LocalLightSettings} from "../lightSystem";
 import {
     INTERACTION_TYPE,
     InteractionComponent,
@@ -48,12 +48,12 @@ import {
     shapePoint,
     shapeToAabb
 } from "./interactionSystem";
-import {BitSet} from "../../util/bitSet";
-import {Aabb} from "../../geometry/aabb";
-import {Obb} from "../../geometry/obb";
-import {Line} from "../../geometry/line";
-import {arrayRemoveElem} from "../../util/array";
-import {GRID_TYPE} from "./gridSystem";
+import {BitSet} from "../../../util/bitSet";
+import {Aabb} from "../../../geometry/aabb";
+import {Obb} from "../../../geometry/obb";
+import {Line} from "../../../geometry/line";
+import {arrayRemoveElem} from "../../../util/array";
+import {GRID_TYPE} from "../gridSystem";
 import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
 import {TEXT_TYPE, TextSystem} from "./textSystem";
 

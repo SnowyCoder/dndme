@@ -1,11 +1,11 @@
-import {Component, HOST_HIDDEN_TYPE, POSITION_TYPE, PositionComponent} from "../component";
-import {Aabb} from "../../geometry/aabb";
-import {SingleEcsStorage} from "../storage";
-import {DynamicTree} from "../../geometry/dynamicTree";
-import {World} from "../world";
-import {Line} from "../../geometry/line";
-import {computeViewport} from "../../geometry/visibilityPolygon";
-import {System} from "../system";
+import {Component, HOST_HIDDEN_TYPE, POSITION_TYPE, PositionComponent} from "../../component";
+import {Aabb} from "../../../geometry/aabb";
+import {SingleEcsStorage} from "../../storage";
+import {DynamicTree} from "../../../geometry/dynamicTree";
+import {World} from "../../world";
+import {Line} from "../../../geometry/line";
+import {computeViewport} from "../../../geometry/visibilityPolygon";
+import {System} from "../../system";
 import {
     INTERACTION_TYPE,
     InteractionComponent,
@@ -15,9 +15,9 @@ import {
     shapeToAabb,
     ShapeType
 } from "./interactionSystem";
-import {STANDARD_GRID_OPTIONS} from "../../game/grid";
-import {GRID_TYPE} from "./gridSystem";
-import {GridResource, Resource} from "../resource";
+import {STANDARD_GRID_OPTIONS} from "../../../game/grid";
+import {GRID_TYPE} from "../gridSystem";
+import {GridResource, Resource} from "../../resource";
 
 
 export const VISIBILITY_TYPE = 'visibility';
@@ -124,7 +124,10 @@ export class VisibilitySystem implements System {
         for (let entry of query) {
             let s = entry.shape;
             if (s.type !== ShapeType.LINE) throw 'Only line is supported as light blocker shape'
-            lines.push((s as LineShape).data);
+            let lineData = (s as LineShape).data;
+            // TODO: check if entity is IN wall.
+
+            lines.push(lineData);
             blockerIds.push(entry.entity);
         }
         let usedBlockers;

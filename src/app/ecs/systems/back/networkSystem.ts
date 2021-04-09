@@ -1,9 +1,9 @@
-import {System} from "../system";
-import {World} from "../world";
-import {Channel} from "../../network/channel";
-import * as P from "../../protocol/game";
-import {PacketContainer} from "../../protocol/packet";
-import {Command} from "./command/command";
+import {System} from "../../system";
+import {World} from "../../world";
+import {Channel} from "../../../network/channel";
+import * as P from "../../../protocol/game";
+import {PacketContainer} from "../../../protocol/packet";
+import {Command} from "../command/command";
 
 export const NETWORK_TYPE = 'network';
 export type NETWORK_TYPE = typeof NETWORK_TYPE;

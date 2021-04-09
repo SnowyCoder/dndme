@@ -1,5 +1,5 @@
 import {EditMapPhase} from "./editMapPhase";
-import {ClientNetworkSystem} from "../../ecs/systems/networkSystem";
+import {ClientNetworkSystem} from "../../ecs/systems/back/networkSystem";
 
 export class ClientEditMapPhase extends EditMapPhase {
     constructor(id: string) {

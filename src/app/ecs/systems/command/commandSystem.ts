@@ -7,7 +7,7 @@ import {ComponentEditCommandKind} from "./componentEdit";
 import {ResourceEditCommandKind} from "./resourceEditCommand";
 import {EventCommandKind} from "./eventCommand";
 import {NoneCommandKind} from "./noneCommand";
-import {NETWORK_TYPE, NetworkSystem} from "../networkSystem";
+import {NETWORK_TYPE, NetworkSystem} from "../back/networkSystem";
 
 export interface CommandResult {
     inverted?: Command;
@@ -16,6 +16,14 @@ export interface CommandResult {
 export const EVENT_COMMAND_EMIT = 'command_emit';
 export const EVENT_COMMAND_LOG = 'command_log';
 export const EVENT_COMMAND_PARTIAL_END = 'command_partial_end';
+export const EVENT_COMMAND_ADD_PRE_CONSEQUENCE = 'command_add_precons';
+export const EVENT_COMMAND_ADD_POST_CONSEQUENCE = 'command_add_poscons';
+
+export interface LogHook {
+    logPrepare(partial: boolean): void;
+
+    logCommit(cmd: Command | undefined, partial: boolean): void;
+}
 
 
 export const COMMAND_TYPE = 'command';
@@ -26,7 +34,7 @@ export class CommandSystem implements System {
     readonly dependencies = [];
     readonly optionalDependencies = [NETWORK_TYPE]
 
-    logger: (cmd: Command | undefined, partial: boolean) => void = x => {};
+    logger?: LogHook;
 
     private commands = new Map<string, CommandKind>();
     private networkSys: NetworkSystem | undefined;
@@ -96,13 +104,15 @@ export class CommandSystem implements System {
                 return;
             }
             if (!kind.isNull(inv)) {
-                this.logger(result.inverted, partial);
+                this.logger?.logCommit(result.inverted, partial);
+            } else {
+                this.logger?.logCommit(undefined, partial);
             }
         }
     }
 
     private onPartialEnd() {
-        this.logger(undefined, false);
+        this.logger?.logCommit(undefined, false);
     }
 
     getKind(kind: string): CommandKind | undefined {

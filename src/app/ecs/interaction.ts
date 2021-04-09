@@ -10,7 +10,7 @@ export class QueryHitEvent {
     readonly aabb: Aabb;// If it's a point minX = maxX && minY = maxY
     readonly data: PIXI.IPointData | Aabb;
 
-    hits = new Set<number>();
+    hits = new Map<number, number>();
 
     private constructor(type: GeomertyQueryType, multi: boolean, aabb: Aabb, data?: PIXI.IPointData) {
         this.type = type;
@@ -23,9 +23,17 @@ export class QueryHitEvent {
         return this.multi || this.hits.size === 0;
     }
 
-    addHit(entity: number): void {
+    addHit(entity: number, priority: number): void {
         if (!this.shouldContinue()) return;
-        this.hits.add(entity);
+        if (this.hits.has(entity)) {
+            let oldPrior = this.hits.get(entity)!;
+            if (oldPrior >= priority) return;
+        }
+        this.hits.set(entity, priority);
+    }
+
+    getSorted(): Array<number> {
+        return [...this.hits.entries()].sort(x => -x[1]).map(x => x[0]);
     }
 
     static queryPoint(point: PIXI.IPointData, multi: boolean): QueryHitEvent {

@@ -1,35 +1,44 @@
 import {System} from "../../system";
 import {World} from "../../world";
 import {Command} from "./command";
-import {COMMAND_TYPE, CommandResult, CommandSystem, EVENT_COMMAND_EMIT} from "./commandSystem";
+import {COMMAND_TYPE, CommandResult, CommandSystem, EVENT_COMMAND_EMIT, LogHook} from "./commandSystem";
+import {NoneCommand} from "./noneCommand";
 
 const HISTORY_LIMIT = 128;
 
+interface HistoryEntry {
+    cmd: Command,
+    // Manages dependencies and relations
+    //pre: Command[],
+    //post: Command[],
+}
+
 export const COMMAND_HISTORY_TYPE = 'command_history';
 export type COMMAND_HISTORY_TYPE = typeof COMMAND_HISTORY_TYPE;
-export class CommandHistorySystem implements System {
+export class CommandHistorySystem implements System, LogHook {
     readonly world: World;
     readonly name = COMMAND_HISTORY_TYPE;
     readonly dependencies = [COMMAND_TYPE];
 
+    //private prepared?: HistoryEntry;
     commandSys: CommandSystem;
-    history: Array<Command>;
+    history: Array<HistoryEntry>;
     isLastPartial: boolean = false;
     index: number = 0;
 
     constructor(world: World) {
         this.world = world;
 
-        this.history = new Array<Command>();
+        this.history = new Array<HistoryEntry>();
 
         this.commandSys = this.world.systems.get(COMMAND_TYPE) as CommandSystem;
-        this.commandSys.logger = this.addLog.bind(this);
+        this.commandSys.logger = this;
 
         this.world.events.on("command_undo", this.onUndo, this);
         this.world.events.on("command_redo", this.onRedo, this);
     }
 
-    private historyPush(cmd: Command) {
+    private historyPush(cmd: HistoryEntry) {
         if (this.history.length !== this.index) {
             this.history.length = this.index;
         }
@@ -42,26 +51,26 @@ export class CommandHistorySystem implements System {
         }
     }
 
-    private historyReplacePrev(cmd: Command) {
+    private historyReplacePrev(cmd: HistoryEntry) {
         this.history[this.index - 1] = cmd;
     }
 
-    private historyUndo(replace: Command) {
+    private historyUndo(replace: HistoryEntry) {
         this.historyReplacePrev(replace);
         this.index--;
     }
 
-    private historyRedo(replace: Command) {
+    private historyRedo(replace: HistoryEntry) {
         this.index++;
         this.historyReplacePrev(replace);
     }
 
-    private historyPeekPrev(): Command | undefined {
+    private historyPeekPrev(): HistoryEntry | undefined {
         if (this.index <= 0) return undefined;
         return this.history[this.index - 1];
     }
 
-    private historyPeekNext(): Command | undefined {
+    private historyPeekNext(): HistoryEntry | undefined {
         if (this.index >= this.history.length) return undefined;
         return this.history[this.index];
     }
@@ -90,19 +99,30 @@ export class CommandHistorySystem implements System {
             }
         }
         let lastCmd = this.historyPeekPrev()!;
-        if (cmd.kind !== lastCmd.kind) {
+        if (cmd.kind !== lastCmd.cmd.kind) {
             console.warn("Warning: processing a partial with a wrong last kind, did you forget to log the last partial command");
             return false;
         }
 
         let kind = this.commandSys.getKind(cmd.kind)!;
-        kind.merge(cmd, lastCmd);
-        this.historyReplacePrev(cmd);
+        kind.merge(cmd, lastCmd.cmd);
+        this.historyReplacePrev({
+            cmd,
+        });
 
         return true;
     }
 
-    addLog(cmd: Command | undefined, partial: boolean) {
+    logPrepare(partial: boolean): void {
+        // TODO
+        /*this.prepared = {
+            cmd: { kind: 'none'} as NoneCommand,
+            post: [], pre: [],
+        };*/
+    }
+
+
+    logCommit(cmd: Command | undefined, partial: boolean): void {
         //console.log("LOG", JSON.stringify(cmd));
         if (cmd === undefined) {
             if (!partial) {
@@ -114,7 +134,7 @@ export class CommandHistorySystem implements System {
         if (this.processPartial(cmd, partial)) {
             return;
         }
-        this.historyPush(cmd);
+        this.historyPush({ cmd });
         this.notifyHistoryChange();
     }
 
@@ -132,7 +152,7 @@ export class CommandHistorySystem implements System {
             return;
         }
 
-        this.historyUndo(this.executeEmit(cmd));
+        this.historyUndo({ cmd: this.executeEmit(cmd.cmd)});
         this.notifyHistoryChange();
     }
 
@@ -143,7 +163,7 @@ export class CommandHistorySystem implements System {
             return;
         }
 
-        this.historyRedo(this.executeEmit(cmd));
+        this.historyRedo({ cmd: this.executeEmit(cmd.cmd) });
         this.notifyHistoryChange();
     }
 

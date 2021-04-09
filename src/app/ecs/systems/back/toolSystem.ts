@@ -1,4 +1,4 @@
-import {System} from "../system";
+import {System} from "../../system";
 import {
     PIXI_BOARD_TYPE,
     PointerClickEvent,
@@ -9,11 +9,11 @@ import {
     PointerRightUpEvent,
     PointerUpEvent
 } from "./pixiBoardSystem";
-import {World} from "../world";
+import {World} from "../../world";
 import {SELECTION_TYPE} from "./selectionSystem";
-import {Resource} from "../resource";
-import {InspectToolDriver} from "../tools/inspect";
-import {Tool} from "../tools/toolType";
+import {Resource} from "../../resource";
+import {InspectToolDriver} from "../../tools/inspect";
+import {Tool} from "../../tools/toolType";
 
 export interface ToolDriver {
     readonly name: string;

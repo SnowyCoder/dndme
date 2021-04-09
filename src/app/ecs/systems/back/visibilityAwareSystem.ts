@@ -1,9 +1,9 @@
-import {Component, POSITION_TYPE, PositionComponent} from "../component";
-import {System} from "../system";
-import {World} from "../world";
+import {Component, POSITION_TYPE, PositionComponent} from "../../component";
+import {System} from "../../system";
+import {World} from "../../world";
 import {VISIBILITY_TYPE, VisibilityComponent, VisibilitySystem} from "./visibilitySystem";
-import {SingleEcsStorage} from "../storage";
-import {arrayRemoveElem} from "../../util/array";
+import {SingleEcsStorage} from "../../storage";
+import {arrayRemoveElem} from "../../../util/array";
 import {
     INTERACTION_TYPE,
     InteractionComponent,
@@ -12,11 +12,11 @@ import {
     shapeIntersect,
     shapePolygon
 } from "./interactionSystem";
-import {Aabb} from "../../geometry/aabb";
-import {GRID_TYPE} from "./gridSystem";
-import {GridResource, Resource} from "../resource";
-import {STANDARD_GRID_OPTIONS} from "../../game/grid";
-import SafeEventEmitter from "../../util/safeEventEmitter";
+import {Aabb} from "../../../geometry/aabb";
+import {GRID_TYPE} from "../gridSystem";
+import {GridResource, Resource} from "../../resource";
+import {STANDARD_GRID_OPTIONS} from "../../../game/grid";
+import SafeEventEmitter from "../../../util/safeEventEmitter";
 
 
 export const VISIBILITY_AWARE_TYPE = 'visibility_aware';

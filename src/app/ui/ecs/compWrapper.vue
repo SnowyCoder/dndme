@@ -2,7 +2,7 @@
   <div>
     <div>
       <div class="component-header">
-        <div @click="visible = !visible" style="width: 100%"> {{ component.type }}</div>
+        <div @click="visible = !visible" style="width: 100%"> {{ component.typeName }}</div>
         <b-button v-if="isAdmin" squared size="sm" style="display: grid;"
                   :title="component.clientVisible ? 'Hide component' : 'Show component'"
                   v-show="component.clientVisible !== undefined"

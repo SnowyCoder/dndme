@@ -1,5 +1,5 @@
 import {World} from "../../world";
-import {CommandResult, EVENT_COMMAND_EMIT, EVENT_COMMAND_LOG} from "./commandSystem";
+import {CommandResult, EVENT_COMMAND_ADD_PRE_CONSEQUENCE, EVENT_COMMAND_EMIT, EVENT_COMMAND_LOG} from "./commandSystem";
 
 export interface Command {
     kind: string;
@@ -31,5 +31,13 @@ export function emitCommand(world: World, command: Command, share: boolean = fal
     let res = {} as CommandResult;
     world.events.emit(EVENT_COMMAND_EMIT, command, res, share);
     return res.inverted;
+}
+
+export function commandRegisterPreConsequence(world: World, command: Command): void {
+    world.events.emit(EVENT_COMMAND_ADD_PRE_CONSEQUENCE, command);
+}
+
+export function commandRegisterPostConsequence(world: World, command: Command): void {
+    world.events.emit(EVENT_COMMAND_ADD_PRE_CONSEQUENCE, command);
 }
 

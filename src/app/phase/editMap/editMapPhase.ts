@@ -1,27 +1,30 @@
 import EditMapComponent from "../../ui/edit/editMap.vue";
 import {stage} from "../../index";
-import {BackgroundSystem} from "../../ecs/systems/backgroundSystem";
-import {SelectionSystem} from "../../ecs/systems/selectionSystem";
+import {BackgroundImageSystem} from "../../ecs/systems/backgroundImageSystem";
+import {SelectionSystem} from "../../ecs/systems/back/selectionSystem";
 import {NetworkManager} from "../../network/networkManager";
 import {HostEditMapPhase} from "./hostEditMapPhase";
 import {GameMap} from "../../map/gameMap";
 import {PinSystem} from "../../ecs/systems/pinSystem";
 import {WallSystem} from "../../ecs/systems/wallSystem";
 import {LightSystem} from "../../ecs/systems/lightSystem";
-import {TextSystem} from "../../ecs/systems/textSystem";
-import {VisibilitySystem} from "../../ecs/systems/visibilitySystem";
-import {InteractionSystem} from "../../ecs/systems/interactionSystem";
+import {TextSystem} from "../../ecs/systems/back/textSystem";
+import {VisibilitySystem} from "../../ecs/systems/back/visibilitySystem";
+import {InteractionSystem} from "../../ecs/systems/back/interactionSystem";
 import {PlayerSystem} from "../../ecs/systems/playerSystem";
-import {VisibilityAwareSystem} from "../../ecs/systems/visibilityAwareSystem";
+import {VisibilityAwareSystem} from "../../ecs/systems/back/visibilityAwareSystem";
 import {DoorSystem} from "../../ecs/systems/doorSystem";
 import {PropSystem} from "../../ecs/systems/propSystem";
-import {PixiGraphicSystem} from "../../ecs/systems/pixiGraphicSystem";
-import {ToolSystem} from "../../ecs/systems/toolSystem";
+import {PixiGraphicSystem} from "../../ecs/systems/back/pixiGraphicSystem";
+import {ToolSystem} from "../../ecs/systems/back/toolSystem";
 import {GridSystem} from "../../ecs/systems/gridSystem";
 import {EcsPhase} from "../ecsPhase";
-import {PixiBoardSystem} from "../../ecs/systems/pixiBoardSystem";
+import {PixiBoardSystem} from "../../ecs/systems/back/pixiBoardSystem";
 import {CommandSystem} from "../../ecs/systems/command/commandSystem";
 import {CommandHistorySystem} from "../../ecs/systems/command/commandHistorySystem";
+import {LayerSystem} from "../../ecs/systems/back/layerSystem";
+import {PixiRectSelectionSystem} from "../../ecs/systems/back/pixiRectSelectionSystem";
+import {WebKeyboardSystem} from "../../ecs/systems/back/keyboardSystem";
 
 
 export class EditMapPhase extends EcsPhase {
@@ -50,15 +53,18 @@ export class EditMapPhase extends EcsPhase {
         if (w.isMaster) {
             w.addSystem(new CommandHistorySystem(w));
         }
+        w.addSystem(new WebKeyboardSystem(w));
+        w.addSystem(new LayerSystem(w));
         w.addSystem(new PixiBoardSystem(w));
         w.addSystem(new SelectionSystem(w));
+        w.addSystem(new PixiRectSelectionSystem(w));
         w.addSystem(new ToolSystem(w));
         w.addSystem(new GridSystem(w));
         w.addSystem(new InteractionSystem(w));
         w.addSystem(new TextSystem());
         w.addSystem(new PixiGraphicSystem(w));
 
-        w.addSystem(new BackgroundSystem(w));
+        w.addSystem(new BackgroundImageSystem(w));
         w.addSystem(new WallSystem(w));
         w.addSystem(new DoorSystem(w));
         w.addSystem(new VisibilitySystem(w));

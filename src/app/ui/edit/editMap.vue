@@ -13,7 +13,9 @@
       </b-button-group>
 
       <b-radio-group buttons v-model="tool">
-        <b-radio title="Inspect" value="inspect" squared class="toolbar-btn">
+        <b-radio ref="radioinspect" title="Inspect" value="inspect" squared
+                 :class="{'toolbar-btn': this.backgroundLocked, 'btn-warning': !this.backgroundLocked}"
+                 v-on:click="inspectClick()">
           <i class="fas fa-hand-pointer"></i>
         </b-radio>
         <b-radio v-if="isAdmin" title="Add wall" value="create_wall" squared class="toolbar-btn">
@@ -127,15 +129,16 @@ import Vue from "vue";
 import EntityInspect from "../ecs/entityInspect.vue";
 import {Component} from "../../ecs/component";
 import {Resource} from "../../ecs/resource";
-import {AddComponent} from "../../ecs/systems/selectionSystem";
+import {AddComponent} from "../../ecs/systems/back/selectionSystem";
 import {DEFAULT_LIGHT_SETTINGS, LightSettings, LocalLightSettings} from "../../ecs/systems/lightSystem";
-import {SelectionSystem} from "../../ecs/systems/selectionSystem";
+import {SelectionSystem} from "../../ecs/systems/back/selectionSystem";
 import PIXI from "../../PIXI";
 import hex2string = PIXI.utils.hex2string;
 import string2hex = PIXI.utils.string2hex;
 import {Tool} from "../../ecs/tools/toolType";
-import {ToolResource} from "../../ecs/systems/toolSystem";
+import {ToolResource} from "../../ecs/systems/back/toolSystem";
 import GridEdit from "./gridEdit.vue";
+import {BACKGROUND_LAYER_TYPE, BackgroundLayerResource} from "../../ecs/systems/back/layerSystem";
 
 export default Vue.extend({
   components: {GridEdit, EntityInspect},
@@ -154,6 +157,7 @@ export default Vue.extend({
       selectedComponents: new Array<Component>(),
       selectedEntityOpts: {},
       selectedAddable: new Array<AddComponent>(),
+      backgroundLocked: true,
       canUndo: false,
       canRedo: false,
     };
@@ -189,6 +193,9 @@ export default Vue.extend({
     onResourceEdited(res: Resource) {
       if (res.type === 'light_settings' || res.type === 'local_light_settings') this.reloadLight();
       else if (res.type === 'tool') this.tool = (res as ToolResource).tool!;
+      if (res.type === BACKGROUND_LAYER_TYPE) {
+        this.backgroundLocked = (res as BackgroundLayerResource).locked;
+      }
     },
     undo() {
       this.phase.world.events.emit('command_undo');
@@ -212,6 +219,13 @@ export default Vue.extend({
     this.reloadLight();
 
     this.phase.world.events.on('resource_edited', this.onResourceEdited);
+    let x = (this.$refs.radioinspect as Vue);
+    x.$el.addEventListener('click', (e) => {
+      if (!(e.target instanceof HTMLInputElement)) return;
+      if (this.tool === 'inspect') {
+        this.world.events.emit('layer_lock_toggle');
+      }
+    });
   },
   /*unmounted() {// TODO: vue3
     this.phase.world.events.off('resource_edited', this.onResourceEdited);

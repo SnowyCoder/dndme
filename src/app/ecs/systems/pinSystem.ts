@@ -11,14 +11,15 @@ import {
     PositionComponent
 } from "../component";
 import {ElementType, GRAPHIC_TYPE, GraphicComponent, PointElement, TextElement, VisibilityType} from "../../graphics";
-import {POINT_RADIUS} from "./pixiGraphicSystem";
+import {POINT_RADIUS} from "./back/pixiGraphicSystem";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
-import {TOOL_TYPE, ToolDriver, ToolSystem} from "./toolSystem";
-import {PointerClickEvent} from "./pixiBoardSystem";
-import {SELECTION_TYPE, SelectionSystem} from "./selectionSystem";
+import {TOOL_TYPE, ToolDriver, ToolSystem} from "./back/toolSystem";
+import {PointerClickEvent} from "./back/pixiBoardSystem";
+import {SELECTION_TYPE, SelectionSystem} from "./back/selectionSystem";
 import {Tool} from "../tools/toolType";
 import {SpawnCommand} from "./command/spawnCommand";
 import {executeAndLogCommand} from "./command/command";
+import {findForeground, PARENT_LAYER_TYPE, ParentLayerComponent} from "./back/layerSystem";
 
 export const PIN_TYPE = 'pin';
 export type PIN_TYPE = typeof PIN_TYPE;
@@ -191,7 +192,7 @@ export class CreatePinToolDriver implements ToolDriver {
                 id: world.allocateId(),
                 components: [
                     {
-                        type: 'position',
+                        type: POSITION_TYPE,
                         x: loc.x,
                         y: loc.y,
                     } as PositionComponent,
@@ -199,6 +200,10 @@ export class CreatePinToolDriver implements ToolDriver {
                         type: PIN_TYPE,
                         color: (g.display as PointElement).color,
                     } as PinComponent,
+                    {
+                        type: PARENT_LAYER_TYPE,
+                        layer: findForeground(this.sys.world),
+                    } as ParentLayerComponent,
                 ]
             }]
         } as SpawnCommand;

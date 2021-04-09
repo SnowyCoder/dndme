@@ -9,19 +9,19 @@ import {distSquared2d, Point} from "../../util/geometry";
 import {Aabb} from "../../geometry/aabb";
 import {Line} from "../../geometry/line";
 import {intersectSegmentVsSegment, lineSameSlope, SegmentVsSegmentRes} from "../../geometry/collision";
-import {INTERACTION_TYPE, InteractionSystem, LineShape, shapeAabb, shapeLine} from "./interactionSystem";
-import {VISIBILITY_BLOCKER_TYPE, VisibilityBlocker} from "./visibilitySystem";
+import {INTERACTION_TYPE, InteractionSystem, LineShape, shapeAabb, shapeLine} from "./back/interactionSystem";
+import {VISIBILITY_BLOCKER_TYPE, VisibilityBlocker} from "./back/visibilitySystem";
 import {ElementType, GRAPHIC_TYPE, GraphicComponent, LineElement, VisibilityType} from "../../graphics";
-import {TOOL_TYPE, ToolDriver, ToolSystem} from "./toolSystem";
+import {TOOL_TYPE, ToolDriver, ToolSystem} from "./back/toolSystem";
 import {
     PIXI_BOARD_TYPE,
     PixiBoardSystem,
     PointerClickEvent,
     PointerMoveEvent,
     PointerRightDownEvent
-} from "./pixiBoardSystem";
+} from "./back/pixiBoardSystem";
 import {getMapPointFromMouseInteraction} from "../tools/utils";
-import {SELECTION_TYPE, SelectionSystem} from "./selectionSystem";
+import {SELECTION_TYPE, SelectionSystem} from "./back/selectionSystem";
 import {Tool} from "../tools/toolType";
 import {executeAndLogCommand} from "./command/command";
 import {SpawnCommand} from "./command/spawnCommand";

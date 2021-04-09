@@ -14,7 +14,7 @@ import {
     TRANSFORM_TYPE,
     TransformComponent
 } from "../component";
-import {INTERACTION_TYPE, InteractionComponent, InteractionSystem, shapePoint} from "./interactionSystem";
+import {INTERACTION_TYPE, InteractionComponent, InteractionSystem, shapePoint} from "./back/interactionSystem";
 import {Texture} from "pixi.js";
 import {PinComponent} from "./pinSystem";
 import {
@@ -25,10 +25,10 @@ import {
     ImageScaleMode,
     VisibilityType
 } from "../../graphics";
-import {TOOL_TYPE, ToolDriver, ToolSystem} from "./toolSystem";
-import {PointerClickEvent} from "./pixiBoardSystem";
+import {TOOL_TYPE, ToolDriver, ToolSystem} from "./back/toolSystem";
+import {PointerClickEvent} from "./back/pixiBoardSystem";
 import {getMapPointFromMouseInteraction} from "../tools/utils";
-import {SELECTION_TYPE, SelectionSystem} from "./selectionSystem";
+import {SELECTION_TYPE, SelectionSystem} from "./back/selectionSystem";
 import {Tool} from "../tools/toolType";
 import {SpawnCommand} from "./command/spawnCommand";
 import {executeAndLogCommand} from "./command/command";

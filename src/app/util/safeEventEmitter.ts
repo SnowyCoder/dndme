@@ -21,7 +21,8 @@ export default class SafeEventEmitter {
             try {
                 listener.cb.call(listener.self, ...args);
             } catch (b) {
-                console.error("Error while calling event " + event, b);
+                console.error("Error while calling event " + event);
+                console.error(b)
             }
             if (listener.once) {
                 listeners.splice(i, 1);

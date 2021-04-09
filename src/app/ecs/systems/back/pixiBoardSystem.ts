@@ -1,12 +1,13 @@
-import {System} from "../system";
-import PIXI from "../../PIXI";
-import {app} from "../../index";
+import {System} from "../../system";
+import PIXI from "../../../PIXI";
+import {app} from "../../../index";
 import {IHitArea, IPointData} from "pixi.js";
-import {World} from "../world";
-import {Resource} from "../resource";
-import {FOLLOW_MOUSE_TYPE, POSITION_TYPE} from "../component";
-import {FlagEcsStorage} from "../storage";
-import {getMapPointFromMouseInteraction} from "../tools/utils";
+import {World} from "../../world";
+import {Resource} from "../../resource";
+import {FOLLOW_MOUSE_TYPE, POSITION_TYPE} from "../../component";
+import {FlagEcsStorage} from "../../storage";
+import {getMapPointFromMouseInteraction} from "../../tools/utils";
+import {KEYBOARD_TYPE, KeyboardResource} from "./keyboardSystem";
 
 interface PointerData {
     firstX: number,
@@ -66,7 +67,6 @@ export class PixiBoardSystem implements System {
 
     board: PIXI.Container;
 
-    private keyDownListener: any;
     private wheelListener: any;
     pointers = new Map<number, PointerData>();
     mouseLastX: number = 0;
@@ -79,6 +79,7 @@ export class PixiBoardSystem implements System {
 
         this.world.events.on('req_board_center', this.centerBoard, this);
         this.world.events.on('resource_edited', this.onResourceEdited, this);
+        this.world.events.on('key_down', this.onKeyDown, this);
 
         this.world.addResource(
             {
@@ -102,24 +103,26 @@ export class PixiBoardSystem implements System {
         this.board.sortableChildren = true;
     }
 
-    onKeyDown(event: KeyboardEvent) {
-        if (event.target instanceof HTMLInputElement) {
-            return;
+    onKeyDown(key: string) {
+        let keyboard = this.world.getResource(KEYBOARD_TYPE) as KeyboardResource | undefined;
+        if (keyboard === undefined) return;
+
+        let ctrl = keyboard.ctrl;
+        let shift = keyboard.shift;
+        if (!ctrl) return;
+
+        let event_name = undefined;
+        switch (key) {
+            case 'z':
+                if (shift) event_name = 'command_redo';
+                else event_name = 'command_undo';
+                break;
+            case 'y': event_name = 'command_redo';  break;
+            case 'c': console.log("copy");          break;
+            case 'v': console.log("paste");         break;
         }
-        if (event.ctrlKey) {
-            let event_name = undefined;
-            switch (event.key.toLowerCase()) {
-                case 'z':
-                    if (event.shiftKey) event_name = 'command_redo';
-                    else event_name = 'command_undo';
-                    break;
-                case 'y': event_name = 'command_redo';  break;
-                case 'c': console.log("copy");          break;
-                case 'v': console.log("paste");         break;
-            }
-            if (event_name !== undefined) {
-                this.world.events.emit(event_name);
-            }
+        if (event_name !== undefined) {
+            this.world.events.emit(event_name);
         }
     }
 
@@ -386,9 +389,6 @@ export class PixiBoardSystem implements System {
         app.stage.on("pointerup", this.onPointerUp, this);
         app.stage.on("pointerupoutside", this.onPointerUpOutside, this);
 
-        this.keyDownListener = this.onKeyDown.bind(this);
-        document.addEventListener('keydown', this.keyDownListener);
-
         this.wheelListener = this.onMouseWheel.bind(this);
         canvas.addEventListener("wheel", this.wheelListener);
     }
@@ -399,7 +399,6 @@ export class PixiBoardSystem implements System {
         app.stage.off("pointerup", this.onPointerUp, this);
         app.stage.off("pointerupoutside", this.onPointerUpOutside, this);
 
-        app.view.removeEventListener('keydown', this.keyDownListener);
         app.view.removeEventListener('wheel', this.wheelListener);
 
         let cnt = document.getElementById('canvas-container');

@@ -208,7 +208,7 @@ export class World {
         cmp.entity = entity;
         let storage = this.storages.get(cmp.type);
         if (storage === undefined) {
-            throw 'Cannot register component of type ' + cmp.type + ', no storage found';
+            throw new Error('Cannot register component of type ' + cmp.type + ', no storage found');
         }
         storage.register(cmp);
         this.events.emit('component_add', cmp);

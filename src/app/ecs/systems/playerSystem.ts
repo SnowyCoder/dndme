@@ -2,7 +2,7 @@ import {System} from "../system";
 import {World} from "../world";
 import {SingleEcsStorage} from "../storage";
 import {Component, HOST_HIDDEN_TYPE, POSITION_TYPE, PositionComponent} from "../component";
-import {VISIBILITY_TYPE, VisibilityComponent, VisibilitySystem} from "./visibilitySystem";
+import {VISIBILITY_TYPE, VisibilityComponent, VisibilitySystem} from "./back/visibilitySystem";
 import * as PointLightRender from "../../game/pointLightRenderer";
 import {DESTROY_ALL} from "../../util/pixi";
 import {
@@ -10,7 +10,7 @@ import {
     VISIBILITY_AWARE_TYPE,
     VisibilityAwareComponent,
     VisibilityAwareSystem
-} from "./visibilityAwareSystem";
+} from "./back/visibilityAwareSystem";
 import {LIGHT_SETTINGS_TYPE, LIGHT_TYPE, LightComponent, LightSettings, LightSystem} from "./lightSystem";
 import {Aabb} from "../../geometry/aabb";
 import PIXI from "../../PIXI";

@@ -1,16 +1,16 @@
 import PIXI from "../../PIXI";
 import {QueryHitEvent} from "../interaction";
 import {World} from "../world";
-import {PIXI_BOARD_TYPE, PixiBoardSystem} from "../systems/pixiBoardSystem";
-import {INTERACTION_TYPE, InteractionSystem} from "../systems/interactionSystem";
+import {PIXI_BOARD_TYPE, PixiBoardSystem} from "../systems/back/pixiBoardSystem";
+import {INTERACTION_TYPE, InteractionSystem} from "../systems/back/interactionSystem";
 import {WALL_TYPE, WallSystem} from "../systems/wallSystem";
-import {ToolDriver} from "../systems/toolSystem";
+import {ToolDriver} from "../systems/back/toolSystem";
 
 export function findEntitiesAt(world: World, point: PIXI.Point, multi: boolean): number[] {
     let event = QueryHitEvent.queryPoint(point, multi);
 
     world.events.emit('query_hit', event);
-    return [...event.hits];
+    return event.getSorted();
 }
 
 export function getBoardPosFromOrigin(world: World, event: PIXI.InteractionEvent, orig?: PIXI.Point): PIXI.Point {

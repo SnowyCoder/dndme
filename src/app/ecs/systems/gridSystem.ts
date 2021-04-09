@@ -7,9 +7,9 @@ import {GridResource, Resource} from "../resource";
 import {World} from "../world";
 import {System} from "../system";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
-import {BOARD_TRANSFORM_TYPE, BoardTransformResource, PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
-import {TOOL_TYPE, ToolSystem} from "./toolSystem";
-import {SELECTION_TYPE} from "./selectionSystem";
+import {BOARD_TRANSFORM_TYPE, BoardTransformResource, PIXI_BOARD_TYPE, PixiBoardSystem} from "./back/pixiBoardSystem";
+import {TOOL_TYPE, ToolSystem} from "./back/toolSystem";
+import {SELECTION_TYPE} from "./back/selectionSystem";
 import {createEmptyDriver} from "../tools/utils";
 import {Tool} from "../tools/toolType";
 

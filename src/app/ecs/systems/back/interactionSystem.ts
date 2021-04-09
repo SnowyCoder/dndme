@@ -1,4 +1,4 @@
-import {Component, PositionComponent, TransformComponent} from "../component";
+import {Component, PositionComponent, TransformComponent} from "../../component";
 import {
     intersectSegmentVsSegment,
     overlapAabbVsAabb,
@@ -17,19 +17,19 @@ import {
     overlapRotatedRectVsPoint,
     overlapRotatedRectVsRotatedRect,
     SegmentVsSegmentRes
-} from "../../geometry/collision";
-import {Aabb} from "../../geometry/aabb";
-import {polygonPointIntersect} from "../../util/geometry";
-import {Obb} from "../../geometry/obb";
-import {World} from "../world";
-import {DynamicTree} from "../../geometry/dynamicTree";
-import {SingleEcsStorage} from "../storage";
-import {System} from "../system";
-import {Line} from "../../geometry/line";
-import {GeomertyQueryType, QueryHitEvent} from "../interaction";
-import {PlayerVisibleComponent} from "./playerSystem";
-import {PointDB} from "../../game/pointDB";
-import {GRID_TYPE, GridSystem} from "./gridSystem";
+} from "../../../geometry/collision";
+import {Aabb} from "../../../geometry/aabb";
+import {polygonPointIntersect} from "../../../util/geometry";
+import {Obb} from "../../../geometry/obb";
+import {World} from "../../world";
+import {DynamicTree} from "../../../geometry/dynamicTree";
+import {SingleEcsStorage} from "../../storage";
+import {System} from "../../system";
+import {Line} from "../../../geometry/line";
+import {GeomertyQueryType, QueryHitEvent} from "../../interaction";
+import {PlayerVisibleComponent} from "../playerSystem";
+import {PointDB} from "../../../game/pointDB";
+import {GRID_TYPE, GridSystem} from "../gridSystem";
 import {SELECTION_TYPE, SelectionSystem} from "./selectionSystem";
 
 export enum ShapeType {
@@ -471,14 +471,14 @@ export class InteractionSystem implements System {
         }
 
         if (best !== -1) {
-            event.addHit(best);
+            event.addHit(best, bestPrior);
         }
     }
 
     private multiHitQuery(shape: Shape, event: QueryHitEvent): void {
         let iter = this.queryVisible(shape, (c) => c.selectPriority !== undefined);
         for (let item of iter) {
-            event.addHit(item.entity);
+            event.addHit(item.entity, item.selectPriority);
             if (!event.shouldContinue()) return;
         }
     }

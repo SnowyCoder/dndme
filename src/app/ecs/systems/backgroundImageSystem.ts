@@ -15,7 +15,7 @@ import {
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 
 export type BACKGROUND_TYPE = 'background_image';
-export const BACKGROUND_TYPE = 'background_image';
+export const BACKGROUND_IMAGE_TYPE = 'background_image';
 
 export interface BackgroundImageComponent extends Component {
     type: BACKGROUND_TYPE;
@@ -26,8 +26,8 @@ export interface BackgroundImageComponent extends Component {
 }
 
 
-export class BackgroundSystem implements System {
-    readonly name = BACKGROUND_TYPE;
+export class BackgroundImageSystem implements System {
+    readonly name = BACKGROUND_IMAGE_TYPE;
     readonly dependencies = [GRAPHIC_TYPE];
 
     readonly world: World;
@@ -35,7 +35,7 @@ export class BackgroundSystem implements System {
 
     constructor(world: World) {
         this.world = world;
-        this.storage = new SingleEcsStorage<BackgroundImageComponent>(BACKGROUND_TYPE, true, true);
+        this.storage = new SingleEcsStorage<BackgroundImageComponent>(BACKGROUND_IMAGE_TYPE, true, true);
 
         this.world.addStorage(this.storage);
         this.world.events.on('component_add', this.onComponentAdd, this);
@@ -43,7 +43,7 @@ export class BackgroundSystem implements System {
     }
 
     private async onComponentAdd(c: Component): Promise<void> {
-        if (c.type !== BACKGROUND_TYPE) return;
+        if (c.type !== BACKGROUND_IMAGE_TYPE) return;
         let bkgImg = c as BackgroundImageComponent;
 
         if (bkgImg.image.byteOffset !== 0) {

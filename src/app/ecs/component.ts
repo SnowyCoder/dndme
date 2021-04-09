@@ -15,7 +15,7 @@ export interface HideableComponent extends Component {
 }
 
 export const POSITION_TYPE = "position";
-export type POSITION_TYPE = "position";
+export type POSITION_TYPE = typeof POSITION_TYPE;
 export interface PositionComponent extends Component {
     type: POSITION_TYPE;
 
@@ -24,7 +24,7 @@ export interface PositionComponent extends Component {
 }
 
 export const TRANSFORM_TYPE = "transform";
-export type TRANSFORM_TYPE = "transform";
+export type TRANSFORM_TYPE = typeof TRANSFORM_TYPE;
 export interface TransformComponent extends Component {
     type: TRANSFORM_TYPE;
 
@@ -33,7 +33,7 @@ export interface TransformComponent extends Component {
 }
 
 export const NAME_TYPE = "name";
-export type NAME_TYPE = "name";
+export type NAME_TYPE = typeof NAME_TYPE;
 export interface NameComponent extends HideableComponent, MultiComponent {
     type: NAME_TYPE;
 
@@ -42,7 +42,7 @@ export interface NameComponent extends HideableComponent, MultiComponent {
 
 
 export const NOTE_TYPE = "note";
-export type NOTE_TYPE = "note";
+export type NOTE_TYPE = typeof NOTE_TYPE;
 export interface NoteComponent extends HideableComponent, MultiComponent {
     type: NOTE_TYPE;
 
@@ -50,13 +50,13 @@ export interface NoteComponent extends HideableComponent, MultiComponent {
 }
 
 export const FOLLOW_MOUSE_TYPE = "follow_mouse";
-export type FOLLOW_MOUSE_TYPE = "follow_mouse";
+export type FOLLOW_MOUSE_TYPE = typeof FOLLOW_MOUSE_TYPE;
 export interface FollowMouseComponent extends Component {
     type: FOLLOW_MOUSE_TYPE;
 }
 
 export const HOST_HIDDEN_TYPE = "host_hidden";
-export type HOST_HIDDEN_TYPE = "host_hidden";
+export type HOST_HIDDEN_TYPE = typeof HOST_HIDDEN_TYPE;
 export interface HostHiddenComponent extends Component {
     type: HOST_HIDDEN_TYPE;
 }

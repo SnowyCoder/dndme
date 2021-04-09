@@ -1,4 +1,4 @@
-import {World} from "../world";
+import {World} from "../../world";
 import {
     Component, HOST_HIDDEN_TYPE, MultiComponent,
     NAME_TYPE,
@@ -7,20 +7,23 @@ import {
     NoteComponent,
     POSITION_TYPE,
     PositionComponent
-} from "../component";
-import {LightComponent} from "./lightSystem";
-import {PlayerComponent} from "./playerSystem";
-import {DOOR_TYPE, DoorComponent, DoorType} from "./doorSystem";
-import {PROP_TELEPORT_TYPE, PropTeleport} from "./propSystem";
-import {System} from "../system";
-import {componentEditCommand, ComponentEditCommand, EditType} from "./command/componentEdit";
-import {DeSpawnCommand} from "./command/despawnCommand";
-import {Command} from "./command/command";
-import {EVENT_COMMAND_LOG, EVENT_COMMAND_PARTIAL_END} from "./command/commandSystem";
-import {WALL_TYPE} from "./wallSystem";
+} from "../../component";
+import {LIGHT_TYPE, LightComponent} from "../lightSystem";
+import {PLAYER_TYPE, PlayerComponent} from "../playerSystem";
+import {DOOR_TYPE, DoorComponent, DoorType} from "../doorSystem";
+import {PROP_TELEPORT_TYPE, PROP_TYPE, PropTeleport} from "../propSystem";
+import {System} from "../../system";
+import {componentEditCommand, ComponentEditCommand, EditType} from "../command/componentEdit";
+import {DeSpawnCommand} from "../command/despawnCommand";
+import {Command} from "../command/command";
+import {EVENT_COMMAND_LOG, EVENT_COMMAND_PARTIAL_END} from "../command/commandSystem";
+import {WALL_TYPE} from "../wallSystem";
+import {SingleEcsStorage} from "../../storage";
+import {PIN_TYPE} from "../pinSystem";
+import {findForeground, PARENT_LAYER_TYPE, ParentLayerComponent} from "./layerSystem";
 
 const MULTI_TYPES = ['name', 'note'];
-const ELIMINABLE_TYPES = ['name', 'note', 'player', 'light', 'door'];
+const ELIMINABLE_TYPES = ['name', 'note', 'player', 'light', 'door', PARENT_LAYER_TYPE];
 const FULLSCREENABLE_TYPES = ['note'];
 
 // name
@@ -53,6 +56,7 @@ export class SelectionSystem implements System {
 
     selectedEntities = new Set<number>();
     dataByType = new Map<string, TypeData>();
+    translations: {[type: string]: string} = {};
 
     private isTranslating: boolean = false;
     private translateDirty: boolean = false;
@@ -80,6 +84,12 @@ export class SelectionSystem implements System {
             });
         }
         this.ecs.events.on('entity_despawn', this.onEntityDespawn, this);
+
+        this.setupTranslations();
+    }
+
+    setupTranslations() {
+        this.translations[PARENT_LAYER_TYPE] = 'foreground';
     }
 
     logSelectionTypes() {
@@ -195,6 +205,10 @@ export class SelectionSystem implements System {
     addEntities(ids: number[], update: boolean=true): void {
         let count = 0;
         for (let id of ids) {
+            if (id === undefined) {
+                console.warn("Trying to add undefined entity");
+                continue;
+            }
             if (this.selectedEntities.has(id)) continue;
             if (!this.canSelect(id)) {
                 continue;
@@ -244,6 +258,18 @@ export class SelectionSystem implements System {
         };
     }
 
+    private addTranslations(cmps: Component[]): Component[] {
+        for (let cmp of cmps) {
+            let trans = this.translations[cmp.type];
+            if (trans === undefined) {
+                trans = cmp.type;
+            }
+
+            (cmp as any).typeName = trans;
+        }
+        return cmps;
+    }
+
     private getSingleComponents(): Component[] {
         let res = new Array<Component>();
         let entity = this.selectedEntities.values().next().value;
@@ -257,7 +283,7 @@ export class SelectionSystem implements System {
             }
         }
 
-        return res;
+        return this.addTranslations(res);
     }
 
     getCommonComponents(): Component[] {
@@ -295,7 +321,7 @@ export class SelectionSystem implements System {
             res.push(component);
         }
 
-        return res;
+        return this.addTranslations(res);
     }
 
     getCommonEntityOpts(): any {
@@ -312,30 +338,38 @@ export class SelectionSystem implements System {
 
         res.push(
             {
-                type: 'name',
+                type: NAME_TYPE,
                 name: 'Name'
             }, {
-               type: 'note',
+               type: NOTE_TYPE,
                name: 'Note'
             }
         );
 
-        if (this.hasEveryoneType('pin') && !(this.hasComponentType('light') || this.hasComponentType('player'))) {
+        if (!this.hasComponentType(PARENT_LAYER_TYPE)) {
+            // TODO: foreground
             res.push({
-                type: 'light',
+                type: PARENT_LAYER_TYPE,
+                name: 'Foreground'
+            });
+        }
+
+        if (this.hasEveryoneType(PIN_TYPE) && !(this.hasComponentType(LIGHT_TYPE) || this.hasComponentType(PLAYER_TYPE))) {
+            res.push({
+                type: LIGHT_TYPE,
                 name: 'Light'
             }, {
-                type: 'player',
+                type: PLAYER_TYPE,
                 name: 'Player',
             });
-        } else if (this.hasEveryoneType('wall') && !this.hasComponentType('door')) {
+        } else if (this.hasEveryoneType(WALL_TYPE) && !this.hasComponentType(DOOR_TYPE)) {
             res.push({
-                type: "door",
+                type: DOOR_TYPE,
                 name: "Door"
             });
-        } else if (this.hasEveryoneType('prop') && !this.hasComponentType('prop_teleport')) {
+        } else if (this.hasEveryoneType(PROP_TYPE) && !this.hasComponentType(PROP_TELEPORT_TYPE)) {
             res.push({
-                type: 'prop_teleport',
+                type: PROP_TELEPORT_TYPE,
                 name: "Teleporter",
             });
         }
@@ -386,44 +420,50 @@ export class SelectionSystem implements System {
                 case 'addComponent': {
                     let comp: Component;
                     switch (propertyValue) {
-                        case 'name':
+                        case NAME_TYPE:
                             comp = {
                                 type: NAME_TYPE,
                                 name: '',
                                 clientVisible: true,
                             } as NameComponent;
                             break;
-                        case 'note':
+                        case NOTE_TYPE:
                             comp = {
                                 type: NOTE_TYPE,
                                 note: '',
                                 clientVisible: true,
                             } as NoteComponent;
                             break;
-                        case 'light':
+                        case LIGHT_TYPE:
                             comp = {
-                                type: 'light',
+                                type: LIGHT_TYPE,
                                 color: 0xFFFFFF,
                                 range: 2,
                             } as LightComponent;
                             break;
-                        case 'player':
+                        case PLAYER_TYPE:
                             comp = {
-                                type: 'player',
+                                type: PLAYER_TYPE,
                                 nightVision: false,
                                 range: 50,
                             } as PlayerComponent;
                             break;
-                        case 'door':
+                        case DOOR_TYPE:
                             comp = {
-                                type: 'door',
+                                type: DOOR_TYPE,
                                 doorType: DoorType.NORMAL_LEFT,
                                 locked: false,
                                 open: false,
                                 clientVisible: true,
                             } as DoorComponent;
                             break;
-                        case 'prop_teleport':
+                        case PARENT_LAYER_TYPE:
+                            comp = {
+                                type: PARENT_LAYER_TYPE,
+                                layer: findForeground(this.ecs),
+                            } as ParentLayerComponent;
+                            break;
+                        case PROP_TELEPORT_TYPE:
                             comp = {
                                 type: PROP_TELEPORT_TYPE,
                                 targetProp: -1,
@@ -488,11 +528,13 @@ export class SelectionSystem implements System {
         this.update();
     }
 
-    moveAll(diffX: number, diffY: number) {
+    moveAll(diffX: number, diffY: number, entities: Iterable<number>) {
         let edit = [];
 
-        for (let entity of this.selectedEntities) {
-            let pos = this.ecs.getComponent(entity, POSITION_TYPE) as PositionComponent;
+        let posSto = this.ecs.getStorage(POSITION_TYPE) as SingleEcsStorage<PositionComponent>;
+
+        for (let entity of entities) {
+            let pos = posSto.getComponent(entity);
             if (pos === undefined) continue;
 
             edit.push({

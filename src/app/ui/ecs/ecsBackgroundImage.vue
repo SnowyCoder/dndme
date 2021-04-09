@@ -5,7 +5,7 @@
 <script lang="ts">
 import {Vue, VComponent, VProp} from "../vue";
 import {Component} from "../../ecs/component";
-import {BackgroundImageComponent} from "../../ecs/systems/backgroundSystem";
+import {BackgroundImageComponent} from "../../ecs/systems/backgroundImageSystem";
 
 @VComponent
 export default class EcsBackgroundImage extends Vue {
