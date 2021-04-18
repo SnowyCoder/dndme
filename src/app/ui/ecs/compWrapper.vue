@@ -22,7 +22,6 @@
     </div>
     <b-collapse v-model="visible" class="component-body" visible>
       <component v-bind:is="componentType" v-bind:component="component" v-bind:isAdmin="isAdmin"
-                 v-bind:allComps="allComps"
                  v-on:ecs-property-change="$emit('ecs-property-change', arguments[0], arguments[1], arguments[2], arguments[3])">
 
       </component>
@@ -53,9 +52,12 @@ import {Vue, VComponent, VProp} from "../vue";
   }
 })
 export default class EcsComponentWrapper extends Vue {
-  @VProp({required: true}) component!: Component;
-  @VProp({default: false}) isAdmin!: boolean;
-  @VProp() allComps?: Array<Component>;
+  @VProp({required: true})
+  component!: Component;
+
+  @VProp({default: false})
+  isAdmin!: boolean;
+
   visible = true;
 
   get componentType(): string {

@@ -1,35 +1,44 @@
 <template>
-  <div v-show="components.length > 0">
+  <div v-show="data.components.length > 0">
     <div class="component-btn-header">
-      <b-dropdown toggle-class="rounded-0" variant="success" v-if="isAdmin">
+      <b-dropdown toggle-class="rounded-0" variant="success" v-if="world.isMaster">
         <template v-slot:button-content>
           <i class="fas fa-plus"></i>
         </template>
-        <b-dropdown-item v-for="x in selectedAddable" :key="x.type" @click="emitSpecial('addComponent', x.type)">
+        <b-dropdown-item v-for="x in data.addable" :key="x.type" @click="emitSpecial('addComponent', x.type)">
           {{ x.name }}
         </b-dropdown-item>
       </b-dropdown>
-      <b-button squared :title="entity.hidden ? 'Show entity' : 'Hide entity'" style="display: grid" v-if="isAdmin"
-                @click="emitSpecial('hidden', !entity.hidden)">
-        <div class="g11" :style="{visibility: entity.hidden ? 'visible' : 'hidden'}"><i class="fas fa-eye-slash"/></div>
-        <div class="g11" :style="{visibility: entity.hidden ? 'hidden' : 'visible'}"><i class="fas fa-eye"/></div>
+      <b-button squared :title="data.hidden ? 'Show entity' : 'Hide entity'" style="display: grid" v-if="world.isMaster"
+                @click="emitSpecial('hidden', !data.hidden)">
+        <div class="g11" :style="{visibility: data.hidden ? 'visible' : 'hidden'}"><i class="fas fa-eye-slash"/></div>
+        <div class="g11" :style="{visibility: data.hidden ? 'hidden' : 'visible'}"><i class="fas fa-eye"/></div>
       </b-button>
-      <b-button v-if="isAdmin" variant="danger" title="Delete entity" squared
+      <b-button v-if="world.isMaster" variant="danger" title="Delete entity" squared
                 @click="emitSpecial('delete')">
         <i class="fas fa-trash"></i>
       </b-button>
     </div>
 
-    <ecs-component-wrapper v-for="comp of renderedComponents" v-bind:key="comp.type + (comp.multiId || '')"
-                           v-bind:component="comp" v-bind:isAdmin="isAdmin" v-bind:allComps="allComponents"
-                           @ecs-property-change="$emit('ecs-property-change', arguments[0], arguments[1], arguments[2], arguments[3])"/>
+    <ecs-component-wrapper v-for="comp of data.components" v-bind:key="comp.type + (comp.multiId || '')"
+                           v-bind:component="comp" v-bind:isAdmin="world.isMaster"
+                           @ecs-property-change="onEcsPropertyChange(arguments[0], arguments[1], arguments[2], arguments[3])"/>
   </div>
 </template>
 
 <script lang="ts">
 import EcsComponentWrapper from "./compWrapper.vue";
-import {VComponent, VProp, Vue, VWatch} from "../vue";
-import {Component, TransformComponent} from "../../ecs/component";
+import {VComponent, VProp, Vue} from "../vue";
+import {Component} from "../../ecs/component";
+import {World} from "../../ecs/world";
+import {
+  SELECTION_TYPE,
+  SELECTION_UI_DATA_TYPE,
+  SelectionSystem,
+  SelectionUiData
+} from "../../ecs/systems/back/selectionSystem";
+import {Resource} from "../../ecs/resource";
+import {componentClone} from "../../ecs/ecsUtil";
 
 @VComponent({
   components: {
@@ -38,34 +47,40 @@ import {Component, TransformComponent} from "../../ecs/component";
 })
 export default class EntityInspect extends Vue {
   @VProp({required: true})
-  entity!: {
-    hidden: boolean,
-    ids: Array<number>
+  world!: World;
+
+  data: SelectionUiData = {
+    type: SELECTION_UI_DATA_TYPE,
+    selectedEntities: [],
+    hidden: false,
+    addable: [],
+    components: [],
+    _save: false,
+    _sync: false,
   };
 
-  @VProp({required: true})
-  components!: Array<Component>;
-
-  @VProp({required: true})
-  isAdmin!: boolean;
-
-  @VProp({required: true})
-  selectedAddable!: Array<{name: string}>;
-
-  get renderedComponents(): Array<Component> {
-    return this.components.filter((c: any) => c._save && c._sync);
-  }
-
-  get allComponents(): {[key: string]: Component} {
-    let m = {} as any;
-    for (let c of this.components) {
-      m[c.type] = c;
-    }
-    return m;
+  onEcsPropertyChange(type: string, property: string, value: any, multiId?: number) {
+    let selectionSys = this.world.systems.get(SELECTION_TYPE) as SelectionSystem;
+    selectionSys.setProperty(this.data.selectedEntities, type, property, value, multiId);
   }
 
   emitSpecial(name: string, par: unknown) {
-    this.$emit('ecs-property-change', '$', name, par);
+    this.onEcsPropertyChange('$', name, par);
+  }
+
+  onResourceEdited(res: Resource) {
+    if (res.type === SELECTION_UI_DATA_TYPE) {
+      this.data = componentClone(res) as SelectionUiData;
+    }
+  }
+
+  mounted() {
+    this.data = componentClone(this.world.getResource(SELECTION_UI_DATA_TYPE) as SelectionUiData);
+    this.world.events.on('resource_edited', this.onResourceEdited, this);
+  }
+
+  unmounted() {
+    this.world.events.off('resource_edited', this.onResourceEdited, this);
   }
 }
 </script>

@@ -1,24 +1,17 @@
 import {EditMapPhase} from "./editMapPhase";
-import {Component, NameComponent, PositionComponent, TransformComponent} from "../../ecs/component";
+import {NameComponent, PositionComponent, TransformComponent} from "../../ecs/component";
 import {BackgroundImageComponent} from "../../ecs/systems/backgroundImageSystem";
-import {app} from "../../index";
 import {GameMap} from "../../map/gameMap";
 import {MapLevel} from "../../map/mapLevel";
 import {PIXI_BOARD_TYPE, PixiBoardSystem} from "../../ecs/systems/back/pixiBoardSystem";
-import {HostNetworkSystem} from "../../ecs/systems/back/networkSystem";
-import {SelectionSystem} from "../../ecs/systems/back/selectionSystem";
 import {SpawnCommand} from "../../ecs/systems/command/spawnCommand";
 import {executeAndLogCommand} from "../../ecs/systems/command/command";
-import {
-    BACKGROUND_LAYER_TYPE,
-    BackgroundLayerResource,
-    PARENT_LAYER_TYPE,
-    ParentLayerComponent
-} from "../../ecs/systems/back/layerSystem";
 
 export class HostEditMapPhase extends EditMapPhase {
     map: GameMap;
     currentLevel: MapLevel;
+
+    private beforeUnloadListener: any;
 
     constructor(map: GameMap) {
         super('editHost', true);
@@ -29,27 +22,9 @@ export class HostEditMapPhase extends EditMapPhase {
         }
         this.currentLevel = this.map.levels.values().next().value;
 
-
-        this.world.events.on('command_history_change', (canUndo: boolean, canRedo: boolean) => {
-            this.vue.canUndo = canUndo;
-            this.vue.canRedo = canRedo;
+        this.world.events.on('export_map', () => {
+            void this.exportMap();
         });
-
-        this.world.events.on('selection_update', (group: SelectionSystem) => {
-            this.vue.selectedEntityOpts = group.getCommonEntityOpts();
-            this.vue.selectedComponents = group.getCommonComponents();
-            this.vue.selectedAddable = group.getAddableComponents();
-        });
-
-        this.world.events.on('layer_lock_toggle', () => {
-            let locked = (this.world.getResource(BACKGROUND_LAYER_TYPE) as BackgroundLayerResource).locked;
-            this.world.editResource(BACKGROUND_LAYER_TYPE, { locked: !locked });
-        });
-    }
-
-    registerSystems() {
-        this.world.addSystem(new HostNetworkSystem(this.world, this.networkManager.channel));
-        super.registerSystems();
     }
 
     async onDrop(event: DragEvent) {
@@ -146,11 +121,14 @@ export class HostEditMapPhase extends EditMapPhase {
     enable() {
         super.enable();
 
-        app.view.ondrop = this.onDrop.bind(this);
-        app.view.ondragover = this.onDragOver.bind(this);
+        const canvas = (this.world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem).renderer.view;
+        canvas.ondrop = this.onDrop.bind(this);
+        canvas.ondragover = this.onDragOver.bind(this);
+
+        this.beforeUnloadListener = () => "";
+        window.addEventListener('beforeunload', this.beforeUnloadListener);
 
         this.currentLevel.loadInto(this.world);
-
         //let ch = this.networkManager.channel.eventEmitter;
         //ch.on("_device_join", this.onDeviceJoin, this);
     }
@@ -158,9 +136,7 @@ export class HostEditMapPhase extends EditMapPhase {
     disable() {
         //let ch = this.networkManager.channel.eventEmitter;
         //ch.off("_device_join", this.onDeviceJoin, this);
-
-        app.view.ondrop = () => {};
-        app.view.ondragover = () => {};
+        window.removeEventListener('beforeunload', this.beforeUnloadListener);
 
         super.disable();
     }

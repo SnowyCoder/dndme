@@ -18,9 +18,13 @@ import {DeSpawnCommand} from "../command/despawnCommand";
 import {Command} from "../command/command";
 import {EVENT_COMMAND_LOG, EVENT_COMMAND_PARTIAL_END} from "../command/commandSystem";
 import {WALL_TYPE} from "../wallSystem";
-import {SingleEcsStorage} from "../../storage";
+import {EcsStorage, SingleEcsStorage} from "../../storage";
 import {PIN_TYPE} from "../pinSystem";
 import {findForeground, PARENT_LAYER_TYPE, ParentLayerComponent} from "./layerSystem";
+import {componentClone, generateRandomId} from "../../ecsUtil";
+import {Resource} from "../../resource";
+import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
+import PIXI from "../../../PIXI";
 
 const MULTI_TYPES = ['name', 'note'];
 const ELIMINABLE_TYPES = ['name', 'note', 'player', 'light', 'door', PARENT_LAYER_TYPE];
@@ -47,12 +51,27 @@ export interface AddComponent {
     name: string,
 }
 
-export type SELECTION_TYPE = 'selection';
+export const SELECTION_UI_DATA_TYPE = 'selection_ui_data';
+export type SELECTION_UI_DATA_TYPE = typeof SELECTION_UI_DATA_TYPE;
+export interface SelectionUiData extends Resource {
+    type: SELECTION_UI_DATA_TYPE;
+    selectedEntities: Array<number>;
+    components: Component[];
+    hidden: boolean;
+    addable: Array<AddComponent>;
+
+    _save: false,
+    _sync: false;
+}
+
 export const SELECTION_TYPE = 'selection';
+export type SELECTION_TYPE = typeof SELECTION_TYPE;
 export class SelectionSystem implements System {
-    private ecs: World;
+    private readonly ecs: World;
     readonly name = SELECTION_TYPE;
-    readonly dependencies = [] as string[];
+    readonly dependencies = [PIXI_BOARD_TYPE] as string[];
+
+    private boardSys: PixiBoardSystem;
 
     selectedEntities = new Set<number>();
     dataByType = new Map<string, TypeData>();
@@ -60,9 +79,13 @@ export class SelectionSystem implements System {
 
     private isTranslating: boolean = false;
     private translateDirty: boolean = false;
+    private uiResDirty: boolean = true;
 
     constructor(ecs: World) {
         this.ecs = ecs;
+
+        this.boardSys = ecs.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
+
         this.ecs.events.on('tool_move_begin', () => this.isTranslating = true);
         this.ecs.events.on('tool_move_end', () => {
             this.isTranslating = false;
@@ -84,20 +107,37 @@ export class SelectionSystem implements System {
             });
         }
         this.ecs.events.on('entity_despawn', this.onEntityDespawn, this);
+        this.boardSys.ticker.add(this.onRender, this, PIXI.UPDATE_PRIORITY.LOW);
 
         this.setupTranslations();
+
+        this.uiResDirty = true;
+        this.onRender();
     }
 
     setupTranslations() {
         this.translations[PARENT_LAYER_TYPE] = 'foreground';
     }
 
-    logSelectionTypes() {
-        console.log("--- SELECTION ---");
-        for (let entity of this.selectedEntities) {
-            let comps = this.ecs.getAllComponents(entity);
-            console.log(entity + ": " + comps.map(x => x.type).join(', '));
-        }
+    private onRender() {
+        if (!this.uiResDirty) return;
+        this.uiResDirty = false;
+
+        let hostHidden = this.dataByType.get(HOST_HIDDEN_TYPE);
+
+        this.ecs.addResource({
+            type: SELECTION_UI_DATA_TYPE,
+            selectedEntities: [...this.selectedEntities],
+            components: this.getCommonComponents(),
+            hidden: hostHidden !== undefined && hostHidden.entities.size === this.selectedEntities.size,
+            addable: this.getAddableComponents(),
+            _save: false,
+            _sync: false,
+        } as SelectionUiData, 'update');
+    }
+
+    updateUi() {
+        this.uiResDirty = true;
     }
 
     canSelect(entity: number): boolean {
@@ -119,7 +159,10 @@ export class SelectionSystem implements System {
 
     update() {
         if (this.isTranslating) this.translateDirty = true;
-        else this.ecs.events.emit('selection_update', this);
+        else {
+            this.updateUi()
+            this.ecs.events.emit('selection_update', this);
+        }
     }
 
     onComponentAdd(component: Component) {
@@ -249,12 +292,9 @@ export class SelectionSystem implements System {
     }
 
     private initialComponent(type: string): Object {
-        let storage = this.ecs.storages.get(type)!;
         return {
             _canDelete: ELIMINABLE_TYPES.indexOf(type) >= 0,
             _isFullscreen: FULLSCREENABLE_TYPES.indexOf(type) >= 0 ? false : undefined,
-            _sync: storage.sync,
-            _save: storage.save,
         };
     }
 
@@ -270,16 +310,22 @@ export class SelectionSystem implements System {
         return cmps;
     }
 
+    private storagePredicate(storage: EcsStorage<Component>): boolean {
+        if (storage.type === HOST_HIDDEN_TYPE) return false;
+        return storage.save && storage.sync;
+    }
+
     private getSingleComponents(): Component[] {
         let res = new Array<Component>();
         let entity = this.selectedEntities.values().next().value;
 
-        for (let [type, storage] of this.ecs.storages.entries()) {
-            if (type.startsWith('host_')) continue;
+        for (let storage of this.ecs.storages.values()) {
+            if (!this.storagePredicate(storage)) continue;
 
             let comps = storage.getComponents(entity);
             for (let comp of comps) {
-                res.push(removePrivate(this.initialComponent(type), comp));
+                let c =
+                res.push(componentClone(removePrivate(this.initialComponent(storage.type), comp)));
             }
         }
 
@@ -292,45 +338,37 @@ export class SelectionSystem implements System {
         let selCount = this.selectedEntities.size;
 
         if (selCount === 1) return this.getSingleComponents();
-        let commonTypes = new Array<string>();
+        let commonTypes = new Array<EcsStorage<Component>>();
 
-        for (let type of this.ecs.storages.keys()) {
-            if (type === 'host_hidden') continue;
+        for (let sto of this.ecs.storages.values()) {
+            if (!this.storagePredicate(sto)) continue;
+
+            const type = sto.type;
 
             let data = this.dataByType.get(type);
             if (data != undefined && data.entities.size === selCount && MULTI_TYPES.indexOf(type) === -1) {
-                commonTypes.push(type);
+                commonTypes.push(sto);
             }
         }
 
         let res = new Array<Component>();
 
-        for (let type of commonTypes) {
-            if (type === 'host_hidden') continue;
+        for (let sto of commonTypes) {
             let component = undefined;
             for (let entity of this.selectedEntities) {
-                let comps = this.ecs.storages.get(type)!.getComponents(entity);
+                let comps = sto.getComponents(entity);
                 for (let comp of comps) {
                     if (component === undefined) {
-                        component = removePrivate(this.initialComponent(type), comp);// copy
+                        component = removePrivate(this.initialComponent(sto.type), comp);// copy
                     } else {
                         biFilterObj(component, comp);
                     }
                 }
             }
-            res.push(component);
+            res.push(componentClone(component));
         }
 
         return this.addTranslations(res);
-    }
-
-    getCommonEntityOpts(): any {
-        let hostHidden = this.dataByType.get('host_hidden');
-
-        return {
-            hidden: hostHidden !== undefined && hostHidden.entities.size === this.selectedEntities.size,
-            ids: Array.from(this.selectedEntities),
-        };
     }
 
     getAddableComponents(): Array<AddComponent> {
@@ -347,7 +385,7 @@ export class SelectionSystem implements System {
         );
 
         if (!this.hasComponentType(PARENT_LAYER_TYPE)) {
-            // TODO: foreground
+            // TODO: layers
             res.push({
                 type: PARENT_LAYER_TYPE,
                 name: 'Foreground'
@@ -377,14 +415,14 @@ export class SelectionSystem implements System {
         return res;
     }
 
-    setProperty(type: string, propertyName: string, propertyValue: any, multiId?: number): void {
+    setProperty(entities: number[], type: string, propertyName: string, propertyValue: any, multiId?: number): void {
         if (type === '$') {
             // Special management
             switch (propertyName) {
                 case 'hidden': {
                     let add = [];
                     let remove = [];
-                    for (let entity of this.selectedEntities) {
+                    for (let entity of entities) {
                         let cmp = this.ecs.getComponent(entity, HOST_HIDDEN_TYPE);
 
                         if (cmp !== undefined) {
@@ -411,7 +449,7 @@ export class SelectionSystem implements System {
                 case 'delete': {
                     let cmd = {
                         kind: 'despawn',
-                        entities: [...this.selectedEntities],
+                        entities: [...entities],
                     } as DeSpawnCommand;
                     this.clear();
                     this.ecs.events.emit("command_log", cmd);
@@ -425,6 +463,7 @@ export class SelectionSystem implements System {
                                 type: NAME_TYPE,
                                 name: '',
                                 clientVisible: true,
+                                multiId: generateRandomId(),
                             } as NameComponent;
                             break;
                         case NOTE_TYPE:
@@ -432,6 +471,7 @@ export class SelectionSystem implements System {
                                 type: NOTE_TYPE,
                                 note: '',
                                 clientVisible: true,
+                                multiId: generateRandomId(),
                             } as NoteComponent;
                             break;
                         case LIGHT_TYPE:
@@ -473,7 +513,7 @@ export class SelectionSystem implements System {
                             throw 'Cannot add unknown component: ' + propertyValue;
                     }
                     let add = [];
-                    for (let entity of [...this.selectedEntities]) {
+                    for (let entity of [...entities]) {
                         add.push(Object.assign({ entity }, comp));
                     }
                     this.ecs.events.emit("command_log", componentEditCommand(add));
@@ -481,7 +521,7 @@ export class SelectionSystem implements System {
                 }
                 case 'removeComponent':
                     let remove = [];
-                    for (let entity of [...this.selectedEntities]) {
+                    for (let entity of [...entities]) {
                         let comp = this.ecs.getComponent(entity, propertyValue, multiId);
                         if (comp === undefined) continue;
                         remove.push({
@@ -504,13 +544,8 @@ export class SelectionSystem implements System {
             return;
         }
 
-        if (!this.hasEveryoneType(type)) {
-            this.logSelectionTypes();
-            console.error("Trying to change type of selection when not everyone has that type: " + type);
-        }
-        let oldEntities = Array.from(this.selectedEntities);
         let edit = [];
-        for (let entity of oldEntities) {
+        for (let entity of entities) {
             let changes = {} as any;
             changes[propertyName] = propertyValue;
             edit.push({

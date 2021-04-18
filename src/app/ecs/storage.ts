@@ -1,5 +1,6 @@
 import {Component, HideableComponent, MultiComponent} from "./component";
 import {World} from "./world";
+import {generateRandomId} from "./ecsUtil";
 
 
 export function serializeObj(obj: Component): any {
@@ -97,13 +98,13 @@ export class MultiEcsStorage<C extends MultiComponent> implements EcsStorage<C> 
         }
 
         if (arr === undefined) {
-            component.multiId =  Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
+            component.multiId = generateRandomId();
             this.data.set(component.entity, [component]);
         } else {
             let id;
             let found;
             do {
-                id = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
+                id = generateRandomId();
                 found = false;
                 for (let x of arr) {
                     if (x.multiId === id) {

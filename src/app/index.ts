@@ -28,9 +28,6 @@ export const windowEventEmitter = new EventEmitterWrapper((event, emitter) => {
     });
 });
 
-// PIXI
-export let app: PIXI.Application;
-
 // Main
 export const stage = new Stage("main");
 
@@ -52,16 +49,6 @@ function onHashCahnge() {
 
 (async function () {
     console.log("Loading dndme: " + __COMMIT_HASH__);
-    // We cannot work without webgl
-    PIXI.settings.FAIL_IF_MAJOR_PERFORMANCE_CAVEAT = false;
-    app = new PIXI.Application();
-    addCustomBlendModes();
-    app.renderer.backgroundColor = DEFAULT_BACKGROUND;
-    // The app.view (canvas) is only appended when the game-phase starts.
-
-    app.view.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-    });
 
     stage.setPhase(new LoadingPhase());
 

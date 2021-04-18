@@ -18,3 +18,11 @@ export function filterComponent(comp: Component): any {
     }
     return res;
 }
+
+export function generateRandomId(): number {
+    return Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
+}
+
+export function componentClone(obj: any): any {
+    return JSON.parse(JSON.stringify(obj));
+}

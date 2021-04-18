@@ -8,12 +8,11 @@ import {Line} from "../../geometry/line";
 import {WALL_TYPE, WallComponent, WallSystem} from "./wallSystem";
 import {rotatePointByOrig} from "../../geometry/collision";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
-import {app} from "../../index";
 import {REMEMBER_TYPE} from "./back/pixiGraphicSystem";
 import {LOCAL_LIGHT_SETTINGS_TYPE, LocalLightSettings} from "./lightSystem";
 import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./back/pixiBoardSystem";
 import {Resource} from "../resource";
-import {componentEditCommand, ComponentEditCommand, singleEditCommand} from "./command/componentEdit";
+import {ComponentEditCommand, singleEditCommand} from "./command/componentEdit";
 import {emitCommand, executeAndLogCommand} from "./command/command";
 
 
@@ -307,7 +306,7 @@ export class DoorSystem implements System {
     enable(): void {
         this.layer.zIndex = DisplayPrecedence.WALL + 1;
         this.layer.interactive = false;
-        app.stage.addChild(this.layer);
+        this.pixiBoardSys.root.addChild(this.layer);
 
         this.displayContainer.parentLayer = this.layer;
         this.displayContainer.interactive = false;

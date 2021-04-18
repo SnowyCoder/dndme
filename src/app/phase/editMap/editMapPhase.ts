@@ -25,6 +25,7 @@ import {CommandHistorySystem} from "../../ecs/systems/command/commandHistorySyst
 import {LayerSystem} from "../../ecs/systems/back/layerSystem";
 import {PixiRectSelectionSystem} from "../../ecs/systems/back/pixiRectSelectionSystem";
 import {WebKeyboardSystem} from "../../ecs/systems/back/keyboardSystem";
+import {CommonNetworkSystem} from "../../ecs/systems/back/networkSystem";
 
 
 export class EditMapPhase extends EcsPhase {
@@ -38,17 +39,13 @@ export class EditMapPhase extends EcsPhase {
         this.setupNetworkManager();
 
         super.ecsSetup();
-
-        this.world.events.on('selection_update', (group: SelectionSystem) => {
-            this.vue.selectedEntityOpts = group.getCommonEntityOpts();
-            this.vue.selectedComponents = group.getCommonComponents();
-            this.vue.selectedAddable = group.getAddableComponents();
-        })
     }
 
     registerSystems() {
         super.registerSystems();
         let w = this.world;
+        w.addSystem(new CommonNetworkSystem(w, this.networkManager.channel));
+
         w.addSystem(new CommandSystem(w));
         if (w.isMaster) {
             w.addSystem(new CommandHistorySystem(w));
@@ -61,7 +58,7 @@ export class EditMapPhase extends EcsPhase {
         w.addSystem(new ToolSystem(w));
         w.addSystem(new GridSystem(w));
         w.addSystem(new InteractionSystem(w));
-        w.addSystem(new TextSystem());
+        w.addSystem(new TextSystem(w));
         w.addSystem(new PixiGraphicSystem(w));
 
         w.addSystem(new BackgroundImageSystem(w));
@@ -79,16 +76,6 @@ export class EditMapPhase extends EcsPhase {
         this.networkManager = new NetworkManager(this.world.isMaster);
         this.networkManager.on("ready", this.onNetworkReady, this);
         this.networkManager.on("error", this.onNetworkError, this);
-
-        let connUpdate = () => {
-            this.vue.connectionCount = this.networkManager.channel.connections.length;
-        };
-        let chEvents = this.networkManager.channel.eventEmitter;
-        chEvents.on('_device_join', connUpdate)
-        chEvents.on('_device_left', connUpdate)
-        chEvents.on('_buffering_update', () => {
-            this.vue.connectionBuffering = this.networkManager.channel.bufferingChannels > 0;
-        });
     }
 
     // overrides
@@ -127,16 +114,11 @@ export class EditMapPhase extends EcsPhase {
 
 
     ui() {
-        let ui = new EditMapComponent({
+        return new EditMapComponent({
             propsData: {
-                phase: this,
                 world: this.world,
-                isAdmin: this.world.isMaster,
             }
         });
-        //(ui as any).phase = this;
-        //(ui as any).isAdmin = this.world.isMaster;
-        return ui;
     }
 
     disable() {

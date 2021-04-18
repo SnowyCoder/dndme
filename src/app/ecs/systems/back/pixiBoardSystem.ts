@@ -1,6 +1,5 @@
 import {System} from "../../system";
 import PIXI from "../../../PIXI";
-import {app} from "../../../index";
 import {IHitArea, IPointData} from "pixi.js";
 import {World} from "../../world";
 import {Resource} from "../../resource";
@@ -8,6 +7,8 @@ import {FOLLOW_MOUSE_TYPE, POSITION_TYPE} from "../../component";
 import {FlagEcsStorage} from "../../storage";
 import {getMapPointFromMouseInteraction} from "../../tools/utils";
 import {KEYBOARD_TYPE, KeyboardResource} from "./keyboardSystem";
+import {addCustomBlendModes} from "../../../util/pixi";
+import {DEFAULT_BACKGROUND} from "../lightSystem";
 
 interface PointerData {
     firstX: number,
@@ -65,6 +66,11 @@ export class PixiBoardSystem implements System {
 
     world: World;
 
+    renderer: PIXI.Renderer;
+    ticker: PIXI.Ticker;
+    private resizeReqId?: number;
+
+    root: PIXI.display.Stage;
     board: PIXI.Container;
 
     private wheelListener: any;
@@ -93,6 +99,34 @@ export class PixiBoardSystem implements System {
             } as BoardTransformResource
         );
 
+        // We cannot work without webgl
+        PIXI.settings.FAIL_IF_MAJOR_PERFORMANCE_CAVEAT = false;
+        this.renderer = new PIXI.Renderer({
+            backgroundColor: DEFAULT_BACKGROUND,
+        });
+        addCustomBlendModes(this.renderer);
+        this.renderer.view.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
+        this.ticker = new PIXI.Ticker();
+
+        this.root = new PIXI.display.Stage();
+        this.root.interactive = false;
+        this.root.interactiveChildren = false;
+        this.root.sortableChildren = true;
+        this.root.group.enableSort = true;
+
+        this.root.interactive = true;
+        this.root.hitArea = {
+            contains(x: number, y: number): boolean {
+                return true;
+            }
+        } as IHitArea;
+
+        this.ticker.add(() => {
+            this.renderer.render(this.root);
+        }, PIXI.UPDATE_PRIORITY.LOW);
+
         // TODO: we should create render phases, one for the world (using the projection matrix to move the camera)
         //       and the other for the GUI (or other things that do not depend on camera position, as the GridSystem(?)).
         //       to create a custom game loop: https://github.com/pixijs/pixi.js/wiki/v5-Custom-Application-GameLoop
@@ -101,6 +135,8 @@ export class PixiBoardSystem implements System {
         this.board.interactiveChildren = false;
         this.board.position.set(0, 0);
         this.board.sortableChildren = true;
+
+        this.root.addChild(this.board);
     }
 
     onKeyDown(key: string) {
@@ -338,8 +374,8 @@ export class PixiBoardSystem implements System {
      * This way the initial board position is centered to the root card.
      */
     centerBoard() {
-        let boardScreenWidth = app.renderer.width;
-        let boardScreenHeight = app.renderer.height;
+        let boardScreenWidth = this.renderer.width;
+        let boardScreenHeight = this.renderer.height;
 
         let screenMidPointWidth = boardScreenWidth / 2;
         let screenMidPointHeight = boardScreenHeight / 2;
@@ -358,51 +394,52 @@ export class PixiBoardSystem implements System {
         s.height = "100%";
     }
 
+    resize() {
+        if (this.resizeReqId !== undefined) return;
+        this.resizeReqId = requestAnimationFrame(this.doResize.bind(this));
+    }
+
+    private doResize() {
+        if (this.resizeReqId !== undefined) {
+            this.resizeReqId = undefined;
+        }
+        let { clientWidth, clientHeight } = this.renderer.view;
+        this.renderer.resize(clientWidth, clientHeight);
+    }
+
     enable(): void {
-        const canvas = app.view;
+        const canvas = this.renderer.view;
         this.applyCanvasStyle(canvas);
         let cnt = document.getElementById('canvas-container');
         if (cnt === null) {
             throw "Cannot find canvas container";
         }
-        app.resizeTo = cnt;
         cnt.appendChild(canvas);
 
-        //app.renderer.backgroundColor = 0x3e2723; // dark brown
-
         // PIXI
-        let stage = new PIXI.display.Stage();
-        app.stage = stage;
-        stage.sortableChildren = true;
-        stage.group.enableSort = true;
-        stage.addChild(this.board);
-
-        stage.interactive = true;
-        stage.hitArea = {
-            contains(x: number, y: number): boolean {
-                return true;
-            }
-        } as IHitArea;
-
-        app.stage.on("pointermove", this.onPointerMove, this);
-        app.stage.on("pointerdown", this.onPointerDown, this);
-        app.stage.on("pointerup", this.onPointerUp, this);
-        app.stage.on("pointerupoutside", this.onPointerUpOutside, this);
+        this.root.on("pointermove", this.onPointerMove, this);
+        this.root.on("pointerdown", this.onPointerDown, this);
+        this.root.on("pointerup", this.onPointerUp, this);
+        this.root.on("pointerupoutside", this.onPointerUpOutside, this);
 
         this.wheelListener = this.onMouseWheel.bind(this);
         canvas.addEventListener("wheel", this.wheelListener);
+        canvas.addEventListener('resize', this.resize.bind(this));
+
+        this.resize();
+        this.ticker.start();
     }
 
     destroy(): void {
-        app.stage.off("pointermove", this.onPointerMove, this);
-        app.stage.off("pointerdown", this.onPointerDown, this);
-        app.stage.off("pointerup", this.onPointerUp, this);
-        app.stage.off("pointerupoutside", this.onPointerUpOutside, this);
+        this.ticker.stop();
+        this.root.off("pointermove", this.onPointerMove, this);
+        this.root.off("pointerdown", this.onPointerDown, this);
+        this.root.off("pointerup", this.onPointerUp, this);
+        this.root.off("pointerupoutside", this.onPointerUpOutside, this);
 
-        app.view.removeEventListener('wheel', this.wheelListener);
+        this.renderer.view.removeEventListener('wheel', this.wheelListener);
 
         let cnt = document.getElementById('canvas-container');
-        cnt?.removeChild(app.view);
-        app.resizeTo = window;
+        cnt?.removeChild(this.renderer.view);
     }
 }

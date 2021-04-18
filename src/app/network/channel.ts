@@ -1,6 +1,7 @@
 import * as EventEmitter from "eventemitter3"
 import {P2pConnection} from "./p2pConnection";
 import {ErrorPacket, Packet, PacketContainer} from "../protocol/packet";
+import {PeerJsConnection} from "./networkManager";
 
 export class Channel {
     connections: P2pConnection[] = [];
@@ -13,11 +14,17 @@ export class Channel {
 
     eventEmitter: EventEmitter = new EventEmitter();
     bufferingChannels: number = 0;
+    isGatheringStats: boolean = false;
 
     constructor(isHost: boolean) {
         this.isHost = isHost;
         if (this.isHost) {
             this.myId = 0;
+        }
+        // TODO: better visualization
+        (window as any).plsreport = () => {
+            this.eventEmitter.on('report', console.log);
+            this.startGatherStats();
         }
     }
 
@@ -131,6 +138,10 @@ export class Channel {
         conn.onBufferChange = this.onConnectionStatusUpdate.bind(this);
 
         this.eventEmitter.emit("_device_join", conn.channelId);
+
+        if (this.isGatheringStats) {
+            conn.getStatsReporter()!.start();
+        }
     }
 
     removeConnection(conn: P2pConnection) {
@@ -140,6 +151,14 @@ export class Channel {
             this.connections.splice(index, 1);
         }
         this.eventEmitter.emit("_device_left", conn.channelId);
+    }
+
+    startGatherStats() {
+        this.connections.forEach(x => x.getStatsReporter()!.start());
+    }
+
+    stopGatherStats() {
+        this.connections.forEach(x => x.getStatsReporter()!.stop());
     }
 }
 

@@ -1,5 +1,4 @@
 import PIXI from "../../PIXI";
-import {app} from "../../index";
 import {distSquared2d, Point} from "../../util/geometry";
 import {DESTROY_ALL} from "../../util/pixi";
 import {GridGraphicalOptions, GridType, STANDARD_GRID_OPTIONS} from "../../game/grid";
@@ -25,6 +24,7 @@ export class GridSystem implements System {
     readonly dependencies = [PIXI_BOARD_TYPE, SELECTION_TYPE, TOOL_TYPE];
 
     world: World;
+    private boardSys: PixiBoardSystem;
     sprite: PIXI.TilingSprite;
 
     private readonly gridRes: GridResource;
@@ -37,7 +37,10 @@ export class GridSystem implements System {
 
     constructor(world: World) {
         this.world = world;
-        this.sprite = new PIXI.TilingSprite(PIXI.Texture.EMPTY, app.screen.width, app.screen.height);
+        this.boardSys = world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
+        let screen = this.boardSys.renderer.screen;
+
+        this.sprite = new PIXI.TilingSprite(PIXI.Texture.EMPTY, screen.width, screen.height);
         this.sprite.zIndex = DisplayPrecedence.GRID;
 
         let toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
@@ -196,14 +199,14 @@ export class GridSystem implements System {
     }
 
     enable() {
-        app.renderer.on('resize', this.onResize, this);
-        app.stage.addChild(this.sprite);
-        this.onResize(app.screen.width, app.screen.height);
+        this.boardSys.renderer.on('resize', this.onResize, this);
+        this.boardSys.root.addChild(this.sprite);
+        const screen = this.boardSys.renderer.screen;
+        this.onResize(screen.width, screen.height);
     }
 
     destroy() {
         this.sprite.destroy(DESTROY_ALL);
-        app.renderer.off('resize', this.onResize, this);
     }
 }
 
@@ -233,6 +236,7 @@ function drawSquare(size: number, opt: GridGraphicalOptions): ImageData {
     let ctx = canvas.getContext("2d")!;
 
     ctx.lineWidth = opt.thick;
+    console.log(opt.color, opt.opacity);
     ctx.strokeStyle = colorToHex(opt.color, opt.opacity);
 
     ctx.strokeRect(0, 0, size + 1, size + 1);
@@ -277,5 +281,6 @@ function drawHex(size: number, opt: GridGraphicalOptions): ImageData {
 }
 
 function colorToHex(color: number, opacity: number): string {
-    return '#' + (color << 8 | (255 * opacity)).toString(16).padStart(8, '0');
+    return '#' + color.toString(16).padStart(6, '0')
+        + ((255 * opacity) | 0).toString(16).padStart(2, '0');
 }

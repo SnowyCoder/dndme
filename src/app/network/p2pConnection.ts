@@ -1,3 +1,5 @@
+import {RtcStatsManager} from "./RtcStatsManager";
+
 export interface P2pConnection {
     send(data: any): void;
     ondata?: (data: any, conn: P2pConnection) => void;
@@ -7,4 +9,8 @@ export interface P2pConnection {
     buffered: boolean,
     bufferedBytes(): number;
     onBufferChange?: (buffered: boolean) => void;
+
+    getHandle(): RTCPeerConnection | undefined;
+    getStatsReporter(): RtcStatsManager | undefined;
+
 }

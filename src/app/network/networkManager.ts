@@ -3,6 +3,7 @@ import {P2pConnection} from "./p2pConnection";
 import {Channel} from "./channel";
 import PIXI from "../PIXI";
 import EventEmitter = PIXI.utils.EventEmitter;
+import {RtcStatsManager} from "./RtcStatsManager";
 
 export class NetworkManager extends EventEmitter {
     peer: Peer;
@@ -12,11 +13,11 @@ export class NetworkManager extends EventEmitter {
     channel: Channel;
 
     // Used if is host:
-    connections = new Map<number, NetworkConnection>();
+    connections = new Map<number, PeerJsConnection>();
     nextConnectionId: number = 1;
 
     // If client:
-    hostConnection?: NetworkConnection;
+    hostConnection?: PeerJsConnection;
     connectId?: string;
 
 
@@ -44,7 +45,7 @@ export class NetworkManager extends EventEmitter {
         if (this.isHost) {
             id = this.nextConnectionId++;
         }
-        let c = new NetworkConnection(this, id, conn);
+        let c = new PeerJsConnection(this, id, conn);
         if (this.isHost) {
             this.connections.set(id, c);
         } else {
@@ -92,11 +93,11 @@ export class NetworkManager extends EventEmitter {
             reliable: true,
         });
 
-        this.hostConnection = new NetworkConnection(this, undefined, conn);
+        this.hostConnection = new PeerJsConnection(this, undefined, conn);
     }
 }
 
-export class NetworkConnection implements P2pConnection {
+export class PeerJsConnection implements P2pConnection {
     parent: NetworkManager;
     connection: Peer.DataConnection;
 
@@ -107,6 +108,8 @@ export class NetworkConnection implements P2pConnection {
     bootstrap: boolean = false;
     buffered: boolean = false;
     onBufferChange?: (buffered: boolean) => void;
+
+    statsManager?: RtcStatsManager;
 
     constructor(parent: NetworkManager, chId: number | undefined, connection: Peer.DataConnection) {
         this.parent = parent;
@@ -123,6 +126,10 @@ export class NetworkConnection implements P2pConnection {
 
     onOpen() {
         this.connection.dataChannel.onbufferedamountlow = this.updateBuffered.bind(this);
+        this.statsManager = new RtcStatsManager(this.connection.peerConnection);
+        this.statsManager.onSummary = summary => this.parent.channel.eventEmitter.emit('report', this, summary);
+        //this.connection.peerConnection.addEventListener('iceconnectionstatechange', x => console.log("peer_conn_state_change", this.connection.peerConnection.connectionState));
+
         if (this.parent.isHost) {
             this.connection.send(this.channelId);
             this.parent.channel.registerNewConnection(this);
@@ -164,6 +171,14 @@ export class NetworkConnection implements P2pConnection {
         if (oldBuffered !== this.buffered && this.onBufferChange !== undefined) {
             this.onBufferChange(this.buffered);
         }
+    }
+
+    getHandle(): RTCPeerConnection | undefined {
+        return this.connection.peerConnection;
+    }
+
+    getStatsReporter(): RtcStatsManager | undefined {
+        return this.statsManager;
     }
 }
 

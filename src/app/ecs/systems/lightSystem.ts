@@ -7,7 +7,6 @@ import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {StupidPoint} from "../../geometry/point";
 import {GridResource, Resource} from "../resource";
 import PIXI from "../../PIXI";
-import {app} from "../../index";
 import {VISIBILITY_TYPE, VisibilityComponent} from "./back/visibilitySystem";
 import * as PointLightRender from "../../game/pointLightRenderer";
 import {PLAYER_TYPE, PlayerComponent} from "./playerSystem";
@@ -86,9 +85,11 @@ export interface LocalLightSettings extends Resource {
  * So yeah, no batched uniforms in WebGL it seems. (TODO: explore more possibilities)
  */
 export class LightSystem implements System {
-    readonly world: World;
     readonly name = LIGHT_TYPE;
     readonly dependencies = [PIXI_BOARD_TYPE, PLAYER_TYPE];
+
+    readonly world: World;
+    private boardSys: PixiBoardSystem;
 
     storage = new SingleEcsStorage<LightComponent>(LIGHT_TYPE);
 
@@ -103,6 +104,7 @@ export class LightSystem implements System {
 
     constructor(world: World) {
         this.world = world;
+        this.boardSys = world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
 
         this.lightLayer = new PIXI.display.Layer();
         this.playerContainer = new PIXI.Container();
@@ -268,7 +270,7 @@ export class LightSystem implements System {
 
             this.playerContainer.visible = this.localLightSettings.visionType !== 'dm';
 
-            app.renderer.backgroundColor = this.lightSettings.background;
+            this.boardSys.renderer.backgroundColor = this.lightSettings.background;
         }
     }
 
@@ -321,13 +323,12 @@ export class LightSystem implements System {
         let board = this.world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
 
         board.board.addChild(this.playerContainer, this.lightContainer, this.lightLayer);
-        app.stage.addChild(lightingSprite);
+        this.boardSys.root.addChild(lightingSprite);
     }
 
     destroy(): void {
         this.lightContainer.destroy(DESTROY_ALL);
         this.playerContainer.destroy(DESTROY_ALL);
         this.lightLayer.destroy(DESTROY_ALL);
-        app.renderer.backgroundColor = DEFAULT_BACKGROUND;
     }
 }

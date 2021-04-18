@@ -11,7 +11,7 @@ import {Resource} from "./resource";
 import {SystemGraph} from "./systemGraph";
 import {System} from "./system";
 import SafeEventEmitter from "../util/safeEventEmitter";
-import {filterComponent} from "./ecsUtil";
+import {filterComponent, generateRandomId} from "./ecsUtil";
 
 
 export type SerializedWorld = {
@@ -42,6 +42,8 @@ export type FrozenEntity = {
 };
 
 export type FrozenEntities = Array<FrozenEntity>;
+
+export type ResourceAddPresentType = 'fail' | 'ignore' | 'update';
 
 
 export class World {
@@ -105,7 +107,7 @@ export class World {
         let id = -1;
 
         do {
-            id = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
+            id = generateRandomId();
         } while (this.entities.has(id))
 
         return id;
@@ -306,7 +308,7 @@ export class World {
         }
     }
 
-    addResource(resource: Resource, ifPresent: string = 'fail'): void {
+    addResource(resource: Resource, ifPresent: ResourceAddPresentType = 'fail'): void {
         if (this.resources.has(resource.type)) {
             switch (ifPresent) {
                 case 'ignore': break;

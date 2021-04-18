@@ -24,7 +24,6 @@ import {
 } from "../../../graphics";
 import {GridResource, Resource} from "../../resource";
 import PIXI from "../../../PIXI";
-import {app} from "../../../index";
 import {BLEND_MODES, IPointData, Matrix, RenderTexture, RenderTexturePool, Texture} from "pixi.js";
 import {DESTROY_ALL, DESTROY_MIN} from "../../../util/pixi";
 import {STANDARD_GRID_OPTIONS} from "../../../game/grid";
@@ -446,7 +445,7 @@ export class PixiGraphicSystem implements System {
 
         c.visMap = undefined;
 
-        const renderer = app.renderer;
+        const renderer = this.pixiBoardSystem.renderer;
         const tex = c._renTex;
         if (tex === undefined) return false;
 
@@ -521,7 +520,7 @@ export class PixiGraphicSystem implements System {
         let cnt = new PIXI.Container();
         cnt.addChild(mapSprite, lumSprite);
 
-        app.renderer.render(cnt, c._renTex, true);
+        this.pixiBoardSystem.renderer.render(cnt, c._renTex, true);
 
         lumSprite.destroy(DESTROY_ALL);
 
@@ -596,7 +595,7 @@ export class PixiGraphicSystem implements System {
 
         //console.time('updateVisibility');
 
-        let renderer = app.renderer;
+        let renderer = this.pixiBoardSystem.renderer;
 
         let localCnt = new PIXI.Container();
         // Setup local transform
@@ -659,7 +658,7 @@ export class PixiGraphicSystem implements System {
         worldCnt.addChild(localCnt, origTex)
 
         // Render everything to bkg._renTex and then redraw the original only where is alpha=1.
-        app.renderer.render(worldCnt, img._renTex, false);
+        this.pixiBoardSystem.renderer.render(worldCnt, img._renTex, false);
         img._visMapChanged = true;
 
         // Cleanup time (don't worry, I'm recycling and there's a garbage cleaner, we're eco friendly!)
@@ -997,7 +996,7 @@ export class PixiGraphicSystem implements System {
         g.beginFill(0xFFFFFF);
         g.lineStyle(0);
         g.drawCircle(POINT_RADIUS, POINT_RADIUS, POINT_RADIUS);
-        this.circleTex = app.renderer.generateTexture(g, PIXI.SCALE_MODES.LINEAR, 1);
+        this.circleTex = this.pixiBoardSystem.renderer.generateTexture(g, PIXI.SCALE_MODES.LINEAR, 1);
         this.circleTex.defaultAnchor.set(0.5, 0.5);
     }
 

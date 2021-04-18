@@ -1,7 +1,6 @@
 import {World} from "../../world";
 import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
 import {System} from "../../system";
-import {app} from "../../../index";
 import {RECTANGULAR_SELECTION_TYPE, RectangularSelectionResource, Resource} from "../../resource";
 import {Aabb} from "../../../geometry/aabb";
 
