@@ -2,12 +2,11 @@
   <div>
     <div>
       Color:
-      <b-input v-if="isAdmin" type="color" v-model="color" @change="onChange"></b-input>
-      <span v-else>{{ color }}</span>
+      <editable-color :readonly="!isAdmin" v-model="color" @change="onChange"></editable-color>
     </div>
     <div style="display: flex; align-items: center;">
-      Visibility Range: <span v-if="!isAdmin" style="margin-left: 0.5rem;">{{ range }}</span>
-      <b-input v-if="isAdmin" type="number" step="1" min="0" v-model="range" size="sm" @change="onChange"></b-input>
+      Visibility Range:
+      <editable-number :readonly="!isAdmin" v-model="range" @change="onChange" isNegative="false"></editable-number>
     </div>
   </div>
 </template>
@@ -18,8 +17,14 @@ import {VComponent, VWatchImmediate, VProp, Vue} from "../vue";
 import {LightComponent} from "../../ecs/systems/lightSystem";
 import hex2string = PIXI.utils.hex2string;
 import string2hex = PIXI.utils.string2hex;
+import EditableColor from "../util/editableColor.vue";
+import EditableNumber from "../util/editableNumber.vue";
 
-@VComponent
+@VComponent({
+  components: {
+    EditableColor, EditableNumber,
+  }
+})
 export default class EcsLight extends Vue {
   @VProp({required: true})
   component!: LightComponent;
@@ -35,7 +40,7 @@ export default class EcsLight extends Vue {
     if (this.component.color !== c && this.color !== '') {
       this.$emit('ecs-property-change', 'light', 'color', c);
     }
-    let r = parseInt(this.range);
+    let r = parseFloat(this.range);
     if (this.component.range !== r && this.range !== '') {
       this.$emit('ecs-property-change', 'light', 'range', r);
     }
@@ -53,6 +58,6 @@ export default class EcsLight extends Vue {
 }
 </script>
 
-<style scoped>
+<style>
 
 </style>

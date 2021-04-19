@@ -94,6 +94,6 @@ export default class EcsDoor extends Vue {
 }
 </script>
 
-<style scoped>
+<style>
 
 </style>

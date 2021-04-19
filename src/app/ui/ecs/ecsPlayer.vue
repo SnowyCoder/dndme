@@ -6,8 +6,8 @@
       <span v-else style="margin-left: 0.5rem;">{{ nightVision ? "yes" : "no" }}</span>
     </div>
     <div style="display: flex; align-items: center;">
-      Visibility Range: <span v-if="!isAdmin" style="margin-left: 0.5rem;">{{ range }}</span>
-      <b-input v-if="isAdmin" type="number" step="1" min="0" v-model="range" size="sm" @change="onChange"></b-input>
+      Visibility Range:
+      <editable-number :readonly="!isAdmin" isNegative="false" v-model="range" @change="onChange"/>
     </div>
   </div>
 </template>
@@ -16,8 +16,13 @@
 
 import {VComponent, VWatchImmediate, VProp, Vue} from "../vue";
 import {PlayerComponent} from "../../ecs/systems/playerSystem";
+import EditableNumber from "../util/editableNumber.vue";
 
-@VComponent
+@VComponent({
+  components: {
+    EditableNumber
+  }
+})
 export default class EcsPlayer extends Vue {
   @VProp({required: true})
   component!: PlayerComponent;
@@ -32,7 +37,7 @@ export default class EcsPlayer extends Vue {
     if (this.component.nightVision !== this.nightVision) {
       this.$emit('ecs-property-change', 'player', 'nightVision', this.nightVision);
     }
-    let c = parseInt(this.range);
+    let c = parseFloat(this.range);
     if (this.component.range !== c && this.range !== '') {
       this.$emit('ecs-property-change', 'player', 'range', c);
     }
@@ -50,6 +55,6 @@ export default class EcsPlayer extends Vue {
 }
 </script>
 
-<style scoped>
+<style>
 
 </style>

@@ -1,6 +1,6 @@
 <template>
   <div v-show="data.components.length > 0">
-    <div class="component-btn-header">
+    <div class="entity-inspect_component-btn-header">
       <b-dropdown toggle-class="rounded-0" variant="success" v-if="world.isMaster">
         <template v-slot:button-content>
           <i class="fas fa-plus"></i>
@@ -85,16 +85,11 @@ export default class EntityInspect extends Vue {
 }
 </script>
 
-<style scoped>
-.component-btn-header {
+<style>
+.entity-inspect_component-btn-header {
   margin: 0.5rem;
   display: flex;
   align-items: center;
   justify-content: right;
-}
-
-.g11 {
-  grid-column: 1;
-  grid-row: 1;
 }
 </style>

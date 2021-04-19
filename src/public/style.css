@@ -71,6 +71,11 @@ div.under-navbar {
     vertical-align: top;
 }
 
+.g11 {
+    grid-column: 1;
+    grid-row: 1;
+}
+
 .rotate {
     animation: rotation 1s infinite linear;
 }

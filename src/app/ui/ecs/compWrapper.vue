@@ -1,8 +1,10 @@
 <template>
   <div>
     <div>
-      <div class="component-header">
-        <div @click="visible = !visible" style="width: 100%"> {{ component.typeName }}</div>
+      <div class="cwrapper_component-header">
+        <div @click="visible = !visible"> {{ component.typeName }}</div>
+        <div class="cwrapper_component-arrow" :class="{cwrapper_rotate: visible}" ></div>
+        <div style="width: 100%"></div>
         <b-button v-if="isAdmin" squared size="sm" style="display: grid;"
                   :title="component.clientVisible ? 'Hide component' : 'Show component'"
                   v-show="component.clientVisible !== undefined"
@@ -20,7 +22,7 @@
         </b-button>
       </div>
     </div>
-    <b-collapse v-model="visible" class="component-body" visible>
+    <b-collapse v-model="visible" class="cwrapper_component-body" visible>
       <component v-bind:is="componentType" v-bind:component="component" v-bind:isAdmin="isAdmin"
                  v-on:ecs-property-change="$emit('ecs-property-change', arguments[0], arguments[1], arguments[2], arguments[3])">
 
@@ -66,25 +68,39 @@ export default class EcsComponentWrapper extends Vue {
 }
 </script>
 
-<style scoped>
-.component-header {
+<style>
+.cwrapper_component-header {
   display: flex;
   align-items: center;
   margin-left: 5px;
   margin-bottom: 2px;
 }
 
-.component-header button:last-child {
+.cwrapper_component-arrow {
+  width: 0;
+  height: 0;
+  border-top: 0.3em solid transparent;
+  border-bottom: 0.3em solid transparent;
+  border-right: 0.3em solid #eeeeee;
+  margin-left: 0.3em;
+  margin-top: 0.175em;
+  transition: 0.3s;
+}
+
+.cwrapper_component-header button:last-child {
   margin-right: 10px;
 }
 
-.component-body {
-  margin-left: 12px;
+.cwrapper_component-body {
+  margin-left: 6px;
+  border-left: 4px solid #545b62;
+  padding-left: 6px;
+  border-radius: 0 0 0 4px;
   margin-right: 12px;
 }
 
-.g11 {
-  grid-row: 1;
-  grid-column: 1;
+.cwrapper_rotate {
+  transform: rotate(-90deg);
+  transition: 0.3s ease;
 }
 </style>

@@ -1,12 +1,10 @@
 <template>
   <div>
-    <div style="display: flex; align-items: center;">
-      Angle: <span v-if="!isAdmin" style="margin-left: 0.5rem;">{{ rotation }}</span>
-      <b-input v-if="isAdmin" type="number" step="0.001" v-model="rotation" size="sm" @change="onChange"></b-input>
+    <div class="d-flex align-items-center">
+      Angle: <editable-number :readonly="!isAdmin" v-model="rotation" @change="onChange"/>
     </div>
-    <div style="display: flex; align-items: center;">
-      Scale: <span v-if="!isAdmin" style="margin-left: 0.5rem;">{{ scale }}</span>
-      <b-input v-if="isAdmin" type="number" step="0.001" v-model="scale" size="sm" @change="onChange"></b-input>
+    <div class="d-flex align-items-center">
+      Scale: <editable-number :readonly="!isAdmin" v-model="scale" @change="onChange"/>
     </div>
   </div>
 </template>
@@ -16,8 +14,13 @@ import {DEG_TO_RAD, RAD_TO_DEG} from "pixi.js";
 
 import {VComponent, VWatchImmediate, VProp, Vue} from "../vue";
 import {TransformComponent} from "../../ecs/component";
+import EditableNumber from "../util/editableNumber.vue";
 
-@VComponent
+@VComponent({
+  components: {
+    EditableNumber,
+  }
+})
 export default class EcsTransform extends Vue {
   @VProp({required: true})
   component!: TransformComponent;
@@ -30,7 +33,7 @@ export default class EcsTransform extends Vue {
 
   onChange() {
     if (this.rotation !== '') {
-      let r = Math.min(Math.max(parseFloat(this.rotation), 0), 360);
+      let r = (((parseFloat(this.rotation) % 360) + 360) % 360);
       if (this.component.rotation !== r) {
         this.$emit('ecs-property-change', 'transform', 'rotation', r * DEG_TO_RAD);
       }
@@ -55,6 +58,6 @@ export default class EcsTransform extends Vue {
 }
 </script>
 
-<style scoped>
+<style>
 
 </style>

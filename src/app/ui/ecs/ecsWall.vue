@@ -1,12 +1,10 @@
 <template>
   <div>
-    <div style="display: flex; align-items: center;">
-      W: <span v-if="!isAdmin" style="margin-left: 0.5rem;">{{ w }}</span>
-      <b-input v-if="isAdmin" type="number" step="0.001" v-model="w" size="sm" @change="onChange"></b-input>
+    <div class="d-flex align-items-center">
+      W: <editable-number :readonly="!this.isAdmin" v-model="w" @change="onChange"/>
     </div>
-    <div style="display: flex; align-items: center;">
-      H: <span v-if="!isAdmin" style="margin-left: 0.5rem;">{{ h }}</span>
-      <b-input v-if="isAdmin" type="number" step="0.001" v-model="h" size="sm" @change="onChange"></b-input>
+    <div class="d-flex align-items-center">
+      H: <editable-number :readonly="!this.isAdmin" v-model="h" @change="onChange"/>
     </div>
   </div>
 </template>
@@ -16,8 +14,13 @@
 
 import {VComponent, VWatchImmediate, VProp, Vue} from "../vue";
 import {WallComponent} from "../../ecs/systems/wallSystem";
+import EditableNumber from "../util/editableNumber.vue";
 
-@VComponent
+@VComponent({
+  components: {
+    EditableNumber,
+  }
+})
 export default class EcsWall extends Vue {
   @VProp({required: true})
   component!: WallComponent;
@@ -49,7 +52,7 @@ export default class EcsWall extends Vue {
 }
 </script>
 
-<style scoped>
+<style>
 
 </style>
 

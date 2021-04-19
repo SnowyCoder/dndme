@@ -236,7 +236,6 @@ function drawSquare(size: number, opt: GridGraphicalOptions): ImageData {
     let ctx = canvas.getContext("2d")!;
 
     ctx.lineWidth = opt.thick;
-    console.log(opt.color, opt.opacity);
     ctx.strokeStyle = colorToHex(opt.color, opt.opacity);
 
     ctx.strokeRect(0, 0, size + 1, size + 1);

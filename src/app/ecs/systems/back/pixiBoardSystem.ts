@@ -74,6 +74,7 @@ export class PixiBoardSystem implements System {
     board: PIXI.Container;
 
     private wheelListener: any;
+    private resizeListener: any;
     pointers = new Map<number, PointerData>();
     mouseLastX: number = 0;
     mouseLastY: number = 0;
@@ -424,7 +425,8 @@ export class PixiBoardSystem implements System {
 
         this.wheelListener = this.onMouseWheel.bind(this);
         canvas.addEventListener("wheel", this.wheelListener);
-        canvas.addEventListener('resize', this.resize.bind(this));
+        this.resizeListener = this.resize.bind(this);
+        window.addEventListener("resize", this.resizeListener);
 
         this.resize();
         this.ticker.start();
@@ -432,6 +434,8 @@ export class PixiBoardSystem implements System {
 
     destroy(): void {
         this.ticker.stop();
+        window.removeEventListener("resize", this.resizeListener);
+
         this.root.off("pointermove", this.onPointerMove, this);
         this.root.off("pointerdown", this.onPointerDown, this);
         this.root.off("pointerup", this.onPointerUp, this);

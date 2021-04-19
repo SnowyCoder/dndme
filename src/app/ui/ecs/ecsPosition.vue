@@ -1,12 +1,10 @@
 <template>
   <div>
-    <div style="display: flex; align-items: center;">
-      X: <span v-if="!isAdmin" style="margin-left: 0.5rem;">{{ x }}</span>
-      <b-input v-if="isAdmin" type="number" step="0.001" v-model="x" size="sm" @change="onChange"></b-input>
+    <div class="d-flex align-items-center">
+      X: <editable-number :readonly="!isAdmin" v-model="x" @change="onChange"/>
     </div>
-    <div style="display: flex; align-items: center;">
-      Y: <span v-if="!isAdmin" style="margin-left: 0.5rem;"> {{ y }}</span>
-      <b-input v-if="isAdmin" type="number" step="0.001" v-model="y" size="sm" @change="onChange"></b-input>
+    <div class="d-flex align-items-center">
+      Y: <editable-number :readonly="!isAdmin" v-model="y" @change="onChange"/>
     </div>
   </div>
 </template>
@@ -14,8 +12,13 @@
 <script lang="ts">
 import {VComponent, VWatchImmediate, VProp, Vue} from "../vue";
 import {PositionComponent} from "../../ecs/component";
+import EditableNumber from "../util/editableNumber";
 
-@VComponent
+@VComponent({
+  components: {
+    EditableNumber,
+  }
+})
 export default class EcsPosition extends Vue {
   @VProp({required: true})
   component!: PositionComponent;
@@ -49,6 +52,5 @@ export default class EcsPosition extends Vue {
 }
 </script>
 
-<style scoped>
-
+<style>
 </style>

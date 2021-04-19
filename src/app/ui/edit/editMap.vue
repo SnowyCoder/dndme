@@ -1,5 +1,5 @@
 <template>
-  <div class="game">
+  <div class="edit-map_game">
 
     <tool-bar v-bind:world="world">
     </tool-bar>
@@ -25,8 +25,8 @@ export default Vue.extend({
 });
 </script>
 
-<style scoped>
-.game {
+<style>
+.edit-map_game {
   user-select: none;
 }
 </style>

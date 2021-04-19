@@ -37,6 +37,6 @@ export default class EcsNote extends Vue {
 }
 </script>
 
-<style scoped>
+<style>
 
 </style>

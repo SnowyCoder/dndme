@@ -27,6 +27,6 @@ export default class EcsName extends Vue {
 }
 </script>
 
-<style scoped>
+<style>
 
 </style>

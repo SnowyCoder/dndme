@@ -1,8 +1,14 @@
 <template>
   <div>
     <template v-if="isAdmin">
-      <b-input type="color" v-model="color" @change="onChange" :readonly="!isAdmin"></b-input>
-      <b-input v-model="label" :readonly="!isAdmin" placeholder="Label" @change="onChange"/>
+      <div class="d-flex align-items-center">
+        Color:
+        <editable-color :readonly="!isAdmin" v-model="color" @change="onChange"/>
+      </div>
+      <div class="d-flex align-items-center">
+        Label:
+        <editable-text :readonly="!isAdmin" v-model="label" placeholder="Label" @change="onChange"/>
+      </div>
     </template>
   </div>
 </template>
@@ -15,7 +21,14 @@ import {PinComponent} from "../../ecs/systems/pinSystem";
 import hex2string = PIXI.utils.hex2string;
 import string2hex = PIXI.utils.string2hex;
 
-@VComponent
+import EditableText from "../util/editableText.vue";
+import EditableColor from "../util/editableColor.vue";
+
+@VComponent({
+  components: {
+    EditableText, EditableColor
+  }
+})
 export default class EcsPin extends Vue {
   @VProp({required: true})
   component!: PinComponent;
@@ -50,6 +63,6 @@ export default class EcsPin extends Vue {
 }
 </script>
 
-<style scoped>
+<style>
 
 </style>

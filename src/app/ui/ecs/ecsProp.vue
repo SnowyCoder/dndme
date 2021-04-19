@@ -11,6 +11,6 @@ export default class EcsBackgroundImage extends Vue {
 }
 </script>
 
-<style scoped>
+<style>
 
 </style>
