@@ -1,11 +1,11 @@
 <template>
   <div>
-    <b-textarea placeholder="Write something here..." v-model="note" :readonly="!isAdmin"
+    <b-textarea placeholder="Write something here..." v-model="note" :readonly="!isAdmin" class="hprior ecs-note_textarea"
                 @change="onChange"/>
-    <b-modal title="Note" v-model="component._isFullscreen" dialog-class="modal-fullscreen modal-xxl" hide-footer
-             hide-header>
+    <b-modal title="Note" v-model="component._isFullscreen" hide-footer hide-header
+             dialog-class="modal-fullscreen modal-xxl" content-class="modal-content-dark">
       <b-textarea placeholder="Write something here..." v-model="note" :readonly="!isAdmin"
-                  @change="onChange" style="height: 100%; resize: none;"/>
+                  @change="onChange" style="height: 100%; resize: none;" class="hprior ecs-note_textarea"/>
       <template v-slot:modal-footer>
       </template>
     </b-modal>
@@ -38,5 +38,21 @@ export default class EcsNote extends Vue {
 </script>
 
 <style>
+
+.modal-content-dark {
+  background-color: #545b62 !important;
+}
+
+.hprior.ecs-note_textarea {
+  color: white !important;
+  background-color: transparent !important;
+  outline: none;
+  border-radius: 0;
+  border-color: transparent;
+}
+
+.hprior.ecs-note_textarea::placeholder {
+  color: #eeeeee;
+}
 
 </style>

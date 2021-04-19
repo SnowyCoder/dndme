@@ -1,12 +1,17 @@
 <template>
-  <b-input v-model="component.name" :readonly="!isAdmin" placeholder="Entity name" @change="onChange"/>
+  <editable-text v-model="component.name" :readonly="!isAdmin" placeholder="Entity name" @change="onChange"/>
 </template>
 
 <script lang="ts">
 import {VComponent, VWatchImmediate, VProp, Vue} from "../vue";
 import {NameComponent} from "../../ecs/component";
+import EditableText from "../util/editableText.vue";
 
-@VComponent
+@VComponent({
+  components: {
+    EditableText
+  }
+})
 export default class EcsName extends Vue {
   @VProp({required: true})
   component!: NameComponent;

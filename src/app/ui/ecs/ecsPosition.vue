@@ -12,7 +12,7 @@
 <script lang="ts">
 import {VComponent, VWatchImmediate, VProp, Vue} from "../vue";
 import {PositionComponent} from "../../ecs/component";
-import EditableNumber from "../util/editableNumber";
+import EditableNumber from "../util/editableNumber.vue";
 
 @VComponent({
   components: {
