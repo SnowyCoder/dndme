@@ -71,10 +71,9 @@ export class InspectToolDriver implements ToolDriver {
             }
             this.selectionSys.removeEntities(toRemove);
         } else if (this.firstEntity !== -1) {
-            if (this.selectionSys.selectedEntities.size === 1 && this.selectionSys.selectedEntities.has(this.firstEntity)) {
+            if (this.selectionSys.selectedEntities.size === 1 && this.justSelected.length === 0) {
+                // Clicked a previously clicked entity, remove it.
                 this.selectionSys.clear();
-            } else {
-                this.selectionSys.setOnlyEntity(this.firstEntity);
             }
         }
     }
@@ -124,7 +123,13 @@ export class InspectToolDriver implements ToolDriver {
             }
             this.selectionSys.addEntities(this.justSelected);
         } else if (this.lastDownSelected.length > 0) {
-            this.selectionSys.setOnlyEntity(this.lastDownSelected[0]);
+            const entity = this.lastDownSelected[0];
+
+            if (!this.selectionSys.selectedEntities.has(entity)) {
+                this.justSelected.push(entity);
+            }
+
+            this.selectionSys.setOnlyEntity(entity);
         }
 
         // TODO: better move system
