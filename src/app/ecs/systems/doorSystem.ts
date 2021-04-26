@@ -14,6 +14,7 @@ import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./back/pixiBoardSystem";
 import {Resource} from "../resource";
 import {ComponentEditCommand, singleEditCommand} from "./command/componentEdit";
 import {emitCommand, executeAndLogCommand} from "./command/command";
+import {LayerOrder} from "../../phase/editMap/layerOrder";
 
 
 export enum DoorType {
@@ -52,7 +53,7 @@ export class DoorSystem implements System {
     constructor(ecs: World) {
         this.world = ecs;
 
-        this.layer = new PIXI.display.Layer();
+        this.layer = new PIXI.display.Layer(new PIXI.display.Group(LayerOrder.DETAILS, false));
         this.displayContainer = new PIXI.Container();
 
         this.pixiBoardSys = ecs.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
@@ -304,7 +305,6 @@ export class DoorSystem implements System {
 
 
     enable(): void {
-        this.layer.zIndex = DisplayPrecedence.WALL + 1;
         this.layer.interactive = false;
         this.pixiBoardSys.root.addChild(this.layer);
 

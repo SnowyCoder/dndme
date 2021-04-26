@@ -9,6 +9,7 @@ import {getMapPointFromMouseInteraction} from "../../tools/utils";
 import {KEYBOARD_TYPE, KeyboardResource} from "./keyboardSystem";
 import {addCustomBlendModes} from "../../../util/pixi";
 import {DEFAULT_BACKGROUND} from "../lightSystem";
+import {LayerOrder} from "../../../phase/editMap/layerOrder";
 
 interface PointerData {
     firstX: number,
@@ -72,6 +73,7 @@ export class PixiBoardSystem implements System {
 
     root: PIXI.display.Stage;
     board: PIXI.Container;
+    toolForegroundGroup: PIXI.display.Group;
 
     private wheelListener: any;
     private resizeListener: any;
@@ -136,6 +138,12 @@ export class PixiBoardSystem implements System {
         this.board.interactiveChildren = false;
         this.board.position.set(0, 0);
         this.board.sortableChildren = true;
+
+        this.toolForegroundGroup = new PIXI.display.Group(LayerOrder.TOOLS, false);
+        const toolLayer = new PIXI.display.Layer(this.toolForegroundGroup);
+        toolLayer.interactive = false;
+        toolLayer.interactiveChildren = false;
+        this.root.addChild(toolLayer);
 
         this.root.addChild(this.board);
     }

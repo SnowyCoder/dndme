@@ -18,6 +18,7 @@ import {createEmptyDriver} from "../tools/utils";
 import {Tool} from "../tools/toolType";
 import {GRID_TYPE} from "./gridSystem";
 import {STANDARD_GRID_OPTIONS} from "../../game/grid";
+import {LayerOrder} from "../../phase/editMap/layerOrder";
 
 export const DEFAULT_BACKGROUND = 0x6e472c;
 
@@ -106,7 +107,7 @@ export class LightSystem implements System {
         this.world = world;
         this.boardSys = world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
 
-        this.lightLayer = new PIXI.display.Layer();
+        this.lightLayer = new PIXI.display.Layer(new PIXI.display.Group(LayerOrder.LIGHT, false));
         this.playerContainer = new PIXI.Container();
         this.lightContainer = new PIXI.Container();
 
@@ -299,15 +300,11 @@ export class LightSystem implements System {
         this.lightLayer.interactive = false;
         this.lightLayer.interactiveChildren = false;
 
-        this.playerContainer.zOrder = DisplayPrecedence.LIGHT - 1;
-        this.playerContainer.zIndex = DisplayPrecedence.LIGHT - 1;
         this.playerContainer.interactive = false;
         this.playerContainer.interactiveChildren = false;
         let lightSystem = this.world.systems.get(LIGHT_TYPE) as LightSystem;
         this.playerContainer.parentLayer = lightSystem.lightLayer;
 
-        this.lightContainer.zOrder = DisplayPrecedence.LIGHT;
-        this.lightContainer.zIndex = DisplayPrecedence.LIGHT;
         this.lightContainer.interactive = false;
         this.lightContainer.interactiveChildren = false;
         this.lightContainer.parentLayer = this.lightLayer
@@ -316,7 +313,7 @@ export class LightSystem implements System {
 
         let lightingSprite = new PIXI.Sprite(this.lightLayer.getRenderTexture());
         lightingSprite.blendMode = CUSTOM_BLEND_MODES.MULTIPLY_COLOR_ONLY;
-        lightingSprite.zIndex = DisplayPrecedence.LIGHT;
+        lightingSprite.zIndex = LayerOrder.LIGHT;
         lightingSprite.interactive = false;
         lightingSprite.interactiveChildren = false;
 

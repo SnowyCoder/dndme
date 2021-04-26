@@ -5,5 +5,6 @@ export enum Tool {
     CREATE_PROP = 'create_prop',
     GRID = 'grid',
     LIGHT = 'light',
+    MEASURE= 'measure',
     PROP_TELEPORT_LINK = 'prop_teleport_link',
 }

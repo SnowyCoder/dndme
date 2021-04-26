@@ -56,18 +56,19 @@ import {GRID_TYPE} from "../gridSystem";
 import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
 import {TEXT_TYPE, TextSystem} from "./textSystem";
 
-interface CustomGraphicComponent extends GraphicComponent {
+export interface PixiGraphicComponent extends GraphicComponent {
     _selected: boolean;
     _visibListener?: VisibListenerLevel;// Default: NOT_NEEDED
     _bitByBit?: boolean;
+    _layer?: PIXI.display.Group;
 }
 
-interface CustomDisplayElement extends DisplayElement {
+export interface PixiDisplayElement extends DisplayElement {
     _oldType?: ElementType;
     _pixi?: PIXI.DisplayObject;
 }
 
-interface CustomImageElement extends ImageElement, CustomDisplayElement {
+interface PixiImageElement extends ImageElement, PixiDisplayElement {
     type: ElementType.IMAGE;// interference between interfaces (good-old diamond problem?)
     _oldTex?: Texture,
     _renTex?: RenderTexture;
@@ -125,7 +126,7 @@ export class PixiGraphicSystem implements System {
     readonly provides = [GRAPHIC_TYPE];
 
     world: World;
-    storage = new SingleEcsStorage<CustomGraphicComponent>(GRAPHIC_TYPE, false, false);
+    storage = new SingleEcsStorage<PixiGraphicComponent>(GRAPHIC_TYPE, false, false);
     rememberStorage = new FlagEcsStorage(REMEMBER_TYPE, true, true);
 
     textSystem: TextSystem;
@@ -160,10 +161,10 @@ export class PixiGraphicSystem implements System {
 
     private onComponentAdd(c: Component): void {
         let spreadVis = false;
-        let com: CustomGraphicComponent | undefined = undefined;
+        let com: PixiGraphicComponent | undefined = undefined;
 
         if (c.type === GRAPHIC_TYPE) {
-            com = c as CustomGraphicComponent;
+            com = c as PixiGraphicComponent;
             let pos = this.world.getComponent(c.entity, POSITION_TYPE) as PositionComponent;
             let trans = this.world.getComponent(c.entity, TRANSFORM_TYPE) as TransformComponent;
             this.updateInteractive(com, pos, trans);
@@ -197,10 +198,10 @@ export class PixiGraphicSystem implements System {
 
     private onComponentEdited(c: Component, changes: any): void {
         let spreadVis = false;
-        let com: CustomGraphicComponent | undefined = undefined;
+        let com: PixiGraphicComponent | undefined = undefined;
 
         if (c.type === GRAPHIC_TYPE) {
-            com = c as CustomGraphicComponent;
+            com = c as PixiGraphicComponent;
             let pos = this.world.getComponent(c.entity, POSITION_TYPE) as PositionComponent;
             let trans = this.world.getComponent(c.entity, TRANSFORM_TYPE) as TransformComponent;
             this.runMethods(com, com.display);// run delayed methods (like _childrenAdd, _childrenReplace & co).
@@ -368,7 +369,7 @@ export class PixiGraphicSystem implements System {
     }
     // -------------------------- LISTENERS DONE --------------------------
 
-    private updateInteractive(comp: CustomGraphicComponent, pos: IPointData, trans: TransformComponent | undefined) {
+    private updateInteractive(comp: PixiGraphicComponent, pos: IPointData, trans: TransformComponent | undefined) {
         let interactiveCmp = this.world.getComponent(comp.entity, INTERACTION_TYPE) as InteractionComponent;
 
         if (comp.interactive && interactiveCmp === undefined) {
@@ -384,7 +385,7 @@ export class PixiGraphicSystem implements System {
             // Check for component changes in interactor
             if (comp.display.type === ElementType.IMAGE) {
                 // If the texture has changed we need to update the interactor.
-                let el = comp.display as CustomImageElement;
+                let el = comp.display as PixiImageElement;
                 if (el.texture !== el._oldTex) {
                     this.world.editComponent(comp.entity, INTERACTION_TYPE, {shape: this.createShape(el, pos, trans)});
                 }
@@ -392,7 +393,7 @@ export class PixiGraphicSystem implements System {
         }
     }
 
-    private createShape(comp: CustomDisplayElement, pos: IPointData, trans: TransformComponent | undefined): Shape {
+    private createShape(comp: PixiDisplayElement, pos: IPointData, trans: TransformComponent | undefined): Shape {
         switch (comp.type) {
             case ElementType.CONTAINER:
                 // Only the root element can be made interactive, the others are ignored
@@ -440,7 +441,7 @@ export class PixiGraphicSystem implements System {
      * @return true only if the visibility map has been modified.
      * @private
      */
-    private extractVisibility(c: CustomImageElement): boolean {
+    private extractVisibility(c: PixiImageElement): boolean {
         if (c._visMapChanged !== true) return false;
 
         c.visMap = undefined;
@@ -480,7 +481,7 @@ export class PixiGraphicSystem implements System {
         return true;
     }
 
-    private loadVisibility(c: CustomImageElement) {
+    private loadVisibility(c: PixiImageElement) {
         const width = c.texture.width;
         const height = c.texture.height;
 
@@ -527,7 +528,7 @@ export class PixiGraphicSystem implements System {
         c._visMapChanged = false;
     }
 
-    private forEachEl(com: CustomGraphicComponent, img: CustomDisplayElement, f: (img: CustomDisplayElement) => void): void {
+    private forEachEl(com: PixiGraphicComponent, img: PixiDisplayElement, f: (img: PixiDisplayElement) => void): void {
         f(img);
         if (img.children) {
             for (let c of img.children) {
@@ -536,9 +537,9 @@ export class PixiGraphicSystem implements System {
         }
     }
 
-    private doOnBitByBit(com: CustomGraphicComponent, img: CustomDisplayElement, f: (img: CustomImageElement) => void): void {
-        if (img.type == ElementType.IMAGE && (img as CustomImageElement).visib === VisibilityType.REMEMBER_BIT_BY_BIT) {
-            f(img as CustomImageElement);
+    private doOnBitByBit(com: PixiGraphicComponent, img: PixiDisplayElement, f: (img: PixiImageElement) => void): void {
+        if (img.type == ElementType.IMAGE && (img as PixiImageElement).visib === VisibilityType.REMEMBER_BIT_BY_BIT) {
+            f(img as PixiImageElement);
         }
         if (img.children) {
             for (let c of img.children) {
@@ -547,8 +548,8 @@ export class PixiGraphicSystem implements System {
         }
     }
 
-    private needsBitByBit(com: CustomGraphicComponent, img: CustomDisplayElement): boolean {
-        if (img.type == ElementType.IMAGE && (img as CustomImageElement).visib === VisibilityType.REMEMBER_BIT_BY_BIT) {
+    private needsBitByBit(com: PixiGraphicComponent, img: PixiDisplayElement): boolean {
+        if (img.type == ElementType.IMAGE && (img as PixiImageElement).visib === VisibilityType.REMEMBER_BIT_BY_BIT) {
             return true;
         }
         if (img.children) {
@@ -559,7 +560,7 @@ export class PixiGraphicSystem implements System {
         return false;
     }
 
-    private updateBBBVisAround(com: CustomGraphicComponent) {
+    private updateBBBVisAround(com: PixiGraphicComponent) {
         let inter = this.world.getComponent(com.entity, INTERACTION_TYPE) as InteractionComponent;
         let aabb = shapeToAabb(inter.shape);
         this.playerSystem!.getSpreadDataForAabb(aabb, data => {
@@ -567,7 +568,7 @@ export class PixiGraphicSystem implements System {
         });
     }
 
-    private updateBBBVisibility(data: VisibilitySpreadData, com: CustomGraphicComponent, img: CustomImageElement) {
+    private updateBBBVisibility(data: VisibilitySpreadData, com: PixiGraphicComponent, img: PixiImageElement) {
         //      Part 1. What?
         // So, what does this spaghetti mess do? Good question!
         // We have players and lights, some players can see without lights and others can't
@@ -697,7 +698,7 @@ export class PixiGraphicSystem implements System {
         return level;
     }
 
-    private destroyElement(desc: CustomDisplayElement, recursive: boolean): void {
+    private destroyElement(desc: PixiDisplayElement, recursive: boolean): void {
         let elem = desc._pixi;
 
         if (elem === undefined) return;
@@ -707,7 +708,7 @@ export class PixiGraphicSystem implements System {
             case ElementType.CONTAINER:
                 break;
             case ElementType.IMAGE: {
-                let im = desc as CustomImageElement;
+                let im = desc as PixiImageElement;
                 let destroyTex = im.sharedTexture !== true;
                 (elem as PIXI.Sprite).destroy({
                     children: false,
@@ -744,11 +745,11 @@ export class PixiGraphicSystem implements System {
         }
     }
 
-    private createElement(desc: CustomDisplayElement): void {
+    private createElement(cmp: PixiGraphicComponent, desc: PixiDisplayElement): void {
         this.destroyElement(desc, false);
 
+        let defLayer = true;
         let res;
-        // TODO: Layers
         switch (desc.type) {
             case ElementType.CONTAINER:
                 res = new PIXI.Container();
@@ -765,7 +766,11 @@ export class PixiGraphicSystem implements System {
             case ElementType.TEXT:
                 res = new PIXI.Text("");
                 res.parentLayer = this.textSystem.textLayer;
+                defLayer = false;
                 break;
+        }
+        if (defLayer && cmp._layer !== undefined) {
+            res.parentGroup = cmp._layer;
         }
         res.interactive = false;
         res.interactiveChildren = false;
@@ -787,7 +792,7 @@ export class PixiGraphicSystem implements System {
         }
     }
 
-    private updateElementVisibility(par: CustomGraphicComponent, desc: CustomDisplayElement, recursive: boolean,
+    private updateElementVisibility(par: PixiGraphicComponent, desc: PixiDisplayElement, recursive: boolean,
                                     currentlyVisible: boolean, remembered: boolean) {
         let isVisible;
         if (currentlyVisible || this.masterVisibility) {
@@ -810,7 +815,7 @@ export class PixiGraphicSystem implements System {
         pixi.visible = isVisible;
 
         if (desc.visib === VisibilityType.REMEMBER_BIT_BY_BIT) {
-            let im = (desc as CustomImageElement);
+            let im = (desc as PixiImageElement);
             im._pixi!.texture = this.masterVisibility ? im.texture : im._renTex!;
         }
 
@@ -821,7 +826,7 @@ export class PixiGraphicSystem implements System {
         }
     }
 
-    private updateVisibilityListener(el: CustomGraphicComponent) {
+    private updateVisibilityListener(el: PixiGraphicComponent) {
         let listLevel = this.computeVisibilityListener(el.display);
         let oldListLevel = el._visibListener || VisibListenerLevel.NOT_NEEDED;
         if (listLevel === oldListLevel) return;// No changes reported.
@@ -855,7 +860,7 @@ export class PixiGraphicSystem implements System {
         }
     }
 
-    private runMethods(par: CustomGraphicComponent, el: CustomDisplayElement) {
+    private runMethods(par: PixiGraphicComponent, el: PixiDisplayElement) {
         if (el._childrenReplace) {
             if (el.children) {
                 for (let c of el.children) {
@@ -887,9 +892,9 @@ export class PixiGraphicSystem implements System {
         }
     }
 
-    private updateElement(par: CustomGraphicComponent, desc: CustomDisplayElement, pos: IPointData, trans: TransformComponent | undefined, recursive: boolean) {
+    private updateElement(par: PixiGraphicComponent, desc: PixiDisplayElement, pos: IPointData, trans: TransformComponent | undefined, recursive: boolean) {
         if (desc._oldType !== desc.type) {
-            this.createElement(desc);
+            this.createElement(par, desc);
         }
 
         let d = desc._pixi!;
@@ -905,7 +910,7 @@ export class PixiGraphicSystem implements System {
                 break;
             case ElementType.IMAGE: {
                 let dim = (d as PIXI.Sprite);
-                let el = (desc as CustomImageElement);
+                let el = (desc as PixiImageElement);
                 if (el.visib == VisibilityType.REMEMBER_BIT_BY_BIT) {
                     dim.texture = this.masterVisibility ? el.texture : el._renTex!;
                 } else {

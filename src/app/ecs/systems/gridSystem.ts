@@ -11,6 +11,7 @@ import {TOOL_TYPE, ToolSystem} from "./back/toolSystem";
 import {SELECTION_TYPE} from "./back/selectionSystem";
 import {createEmptyDriver} from "../tools/utils";
 import {Tool} from "../tools/toolType";
+import {LayerOrder} from "../../phase/editMap/layerOrder";
 
 
 const SQRT3 = Math.sqrt(3);
@@ -41,7 +42,7 @@ export class GridSystem implements System {
         let screen = this.boardSys.renderer.screen;
 
         this.sprite = new PIXI.TilingSprite(PIXI.Texture.EMPTY, screen.width, screen.height);
-        this.sprite.zIndex = DisplayPrecedence.GRID;
+        this.sprite.zIndex = LayerOrder.GRID;
 
         let toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
         toolSys.addTool(createEmptyDriver(Tool.GRID));
@@ -200,7 +201,10 @@ export class GridSystem implements System {
 
     enable() {
         this.boardSys.renderer.on('resize', this.onResize, this);
-        this.boardSys.root.addChild(this.sprite);
+
+        const layer = new PIXI.display.Layer(new PIXI.display.Group(LayerOrder.GRID, false));
+        this.sprite.parentLayer = layer;
+        this.boardSys.root.addChild(layer, this.sprite);
         const screen = this.boardSys.renderer.screen;
         this.onResize(screen.width, screen.height);
     }

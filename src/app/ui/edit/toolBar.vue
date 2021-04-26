@@ -45,6 +45,9 @@
       <b-radio v-if="world.isMaster" title="Light settings" value="light" squared class="toolbar-btn plz-prioritize">
         <i class="fas fa-lightbulb"/>
       </b-radio>
+      <b-radio v-if="world.isMaster" title="Measure" value="measure" squared class="toolbar-btn plz-prioritize">
+        <i class="fas fa-ruler"/>
+      </b-radio>
     </b-radio-group>
     <b-button title="Export map" squared variant="success" class="btn-xs"
               v-on:click="world.events.emit('export_map')" v-if="world.isMaster">

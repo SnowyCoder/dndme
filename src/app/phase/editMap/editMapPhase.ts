@@ -26,6 +26,8 @@ import {LayerSystem} from "../../ecs/systems/back/layerSystem";
 import {PixiRectSelectionSystem} from "../../ecs/systems/back/pixiRectSelectionSystem";
 import {WebKeyboardSystem} from "../../ecs/systems/back/keyboardSystem";
 import {CommonNetworkSystem} from "../../ecs/systems/back/networkSystem";
+import {PixiMeasureSystem} from "../../ecs/systems/back/pixiMeasureSystem";
+import {PixiLayerSystem} from "../../ecs/systems/back/pixiLayerSystem";
 
 
 export class EditMapPhase extends EcsPhase {
@@ -55,11 +57,13 @@ export class EditMapPhase extends EcsPhase {
         w.addSystem(new PixiBoardSystem(w));
         w.addSystem(new SelectionSystem(w));
         w.addSystem(new PixiRectSelectionSystem(w));
+        w.addSystem(new PixiMeasureSystem(w));
         w.addSystem(new ToolSystem(w));
         w.addSystem(new GridSystem(w));
         w.addSystem(new InteractionSystem(w));
         w.addSystem(new TextSystem(w));
         w.addSystem(new PixiGraphicSystem(w));
+        w.addSystem(new PixiLayerSystem(w));
 
         w.addSystem(new BackgroundImageSystem(w));
         w.addSystem(new WallSystem(w));

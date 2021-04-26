@@ -5,6 +5,7 @@ import {Component} from "../../component";
 import {SingleEcsStorage} from "../../storage";
 import {DeSpawnCommand} from "../command/despawnCommand";
 import {commandRegisterPreConsequence} from "../command/command";
+import {LayerOrder} from "../../../phase/editMap/layerOrder";
 
 
 export const LAYER_TYPE = "layer";
@@ -69,7 +70,7 @@ export class LayerSystem implements System {
             type: BACKGROUND_LAYER_TYPE,
             entity: -1,
             name: "Background",
-            priority: -100,
+            priority: LayerOrder.BACKGROUND,
             locked: true,
             _save: true,
             _sync: true,
@@ -184,13 +185,13 @@ export function findForeground(world: World): number {
     let sto = world.getStorage(LAYER_TYPE);
     if (sto === undefined) return -1;
     for (let x of sto.getComponents()) {
-        return x.entity;// There's only 1 layer for now (foreground
+        return x.entity;// There's only 1 layer for now (foreground)
     }
     // If it's not present we need to create it
     return world.spawnEntity({
         type: LAYER_TYPE,
         name: 'Foreground',
-        priority: 100,
+        priority: LayerOrder.FOREGROUND,
         locked: false,
     } as LayerComponent);
 }

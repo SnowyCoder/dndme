@@ -14,6 +14,7 @@ import {SELECTION_TYPE} from "./selectionSystem";
 import {Resource} from "../../resource";
 import {InspectToolDriver} from "../../tools/inspect";
 import {Tool} from "../../tools/toolType";
+import {MeasureToolDriver} from "../../tools/measure";
 
 export interface ToolDriver {
     readonly name: string;
@@ -73,6 +74,7 @@ export class ToolSystem implements System {
         events.on(PointerEvents.POINTER_RIGHT_UP, this.onPointerRightUp, this);
         events.on(PointerEvents.POINTER_CLICK, this.onPointerClick, this);
 
+        this.addTool(new MeasureToolDriver(world));
         this.addTool(new InspectToolDriver(world));
     }
 

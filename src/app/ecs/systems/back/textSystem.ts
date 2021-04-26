@@ -1,9 +1,9 @@
 import {System} from "../../system";
 import PIXI from "../../../PIXI";
 import {DESTROY_ALL} from "../../../util/pixi";
-import {DisplayPrecedence} from "../../../phase/editMap/displayPrecedence";
 import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
 import {World} from "../../world";
+import {LayerOrder} from "../../../phase/editMap/layerOrder";
 
 export const TEXT_TYPE = 'text';
 export type TEXT_TYPE = typeof TEXT_TYPE;
@@ -20,7 +20,7 @@ export class TextSystem implements System {
     }
 
     enable() {
-        this.textLayer.zIndex = DisplayPrecedence.TEXT;
+        this.textLayer.zIndex = LayerOrder.TEXT;
         this.textLayer.interactive = false;
         this.textLayer.interactiveChildren = false;
 

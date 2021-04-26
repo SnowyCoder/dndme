@@ -7,7 +7,6 @@ import {Aabb} from "../../../geometry/aabb";
 
 export const PIXI_RECTANGULAR_SELECTION_TYPE = "pixi_rect_selection";
 export type PIXI_RECTANGULAR_SELECTION_TYPE = typeof PIXI_RECTANGULAR_SELECTION_TYPE;
-
 export class PixiRectSelectionSystem implements System {
     name = PIXI_RECTANGULAR_SELECTION_TYPE;
     dependencies = [PIXI_BOARD_TYPE];
@@ -51,8 +50,8 @@ export class PixiRectSelectionSystem implements System {
     }
 
     enable(): void {
-        this.display.zIndex = 100000;
         let board = this.world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
+        this.display.parentGroup = board.toolForegroundGroup;
         board.board.addChild(this.display);
     }
 
