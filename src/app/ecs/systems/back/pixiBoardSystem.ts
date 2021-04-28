@@ -6,7 +6,7 @@ import {Resource} from "../../resource";
 import {FOLLOW_MOUSE_TYPE, POSITION_TYPE} from "../../component";
 import {FlagEcsStorage} from "../../storage";
 import {getMapPointFromMouseInteraction} from "../../tools/utils";
-import {KEYBOARD_TYPE, KeyboardResource} from "./keyboardSystem";
+import {KEYBOARD_KEY_DOWN, KEYBOARD_TYPE, KeyboardResource} from "./keyboardSystem";
 import {addCustomBlendModes} from "../../../util/pixi";
 import {DEFAULT_BACKGROUND} from "../lightSystem";
 import {LayerOrder} from "../../../phase/editMap/layerOrder";
@@ -88,7 +88,7 @@ export class PixiBoardSystem implements System {
 
         this.world.events.on('req_board_center', this.centerBoard, this);
         this.world.events.on('resource_edited', this.onResourceEdited, this);
-        this.world.events.on('key_down', this.onKeyDown, this);
+        this.world.events.on(KEYBOARD_KEY_DOWN, this.onKeyDown, this);
 
         this.world.addResource(
             {
