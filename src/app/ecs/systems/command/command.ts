@@ -1,5 +1,11 @@
 import {World} from "../../world";
-import {CommandResult, EVENT_COMMAND_ADD_PRE_CONSEQUENCE, EVENT_COMMAND_EMIT, EVENT_COMMAND_LOG} from "./commandSystem";
+import {
+    CommandResult,
+    EVENT_COMMAND_ADD_POST_CONSEQUENCE,
+    EVENT_COMMAND_ADD_PRE_CONSEQUENCE,
+    EVENT_COMMAND_EMIT,
+    EVENT_COMMAND_LOG
+} from "./commandSystem";
 
 export interface Command {
     kind: string;
@@ -38,6 +44,6 @@ export function commandRegisterPreConsequence(world: World, command: Command): v
 }
 
 export function commandRegisterPostConsequence(world: World, command: Command): void {
-    world.events.emit(EVENT_COMMAND_ADD_PRE_CONSEQUENCE, command);
+    world.events.emit(EVENT_COMMAND_ADD_POST_CONSEQUENCE, command);
 }
 

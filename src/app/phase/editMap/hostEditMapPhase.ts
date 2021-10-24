@@ -6,6 +6,7 @@ import {MapLevel} from "../../map/mapLevel";
 import {PIXI_BOARD_TYPE, PixiBoardSystem} from "../../ecs/systems/back/pixiBoardSystem";
 import {SpawnCommand} from "../../ecs/systems/command/spawnCommand";
 import {executeAndLogCommand} from "../../ecs/systems/command/command";
+import {BIG_STORAGE_TYPE, BigStorageSystem} from "../../ecs/systems/back/bigStorageSystem";
 
 export class HostEditMapPhase extends EditMapPhase {
     map: GameMap;
@@ -69,6 +70,11 @@ export class HostEditMapPhase extends EditMapPhase {
         pixiBoard.board.transform.worldTransform.applyInverse(p, p);
 
         if (firstFile.type.startsWith("image/")) {
+            let data = new Uint8Array(await firstFile.arrayBuffer());
+            let bigStorage = this.world.systems.get(BIG_STORAGE_TYPE) as BigStorageSystem;
+            let dataId = bigStorage.create({
+                image: data,
+            }, true).multiId;
             let cmd = {
                 kind: 'spawn',
                 entities: [{
@@ -91,8 +97,9 @@ export class HostEditMapPhase extends EditMapPhase {
                         } as TransformComponent,
                         {
                             type: "background_image",
+                            entity: -1,
+                            image: dataId,
                             imageType: firstFile.type,
-                            image: new Uint8Array(await firstFile.arrayBuffer()),
                         } as BackgroundImageComponent,
                     ]
                 }]

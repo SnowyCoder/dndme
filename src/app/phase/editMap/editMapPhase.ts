@@ -28,6 +28,7 @@ import {WebKeyboardSystem} from "../../ecs/systems/back/keyboardSystem";
 import {CommonNetworkSystem} from "../../ecs/systems/back/networkSystem";
 import {PixiMeasureSystem} from "../../ecs/systems/back/pixiMeasureSystem";
 import {PixiLayerSystem} from "../../ecs/systems/back/pixiLayerSystem";
+import {BigStorageSystem} from "../../ecs/systems/back/bigStorageSystem";
 
 
 export class EditMapPhase extends EcsPhase {
@@ -53,6 +54,7 @@ export class EditMapPhase extends EcsPhase {
             w.addSystem(new CommandHistorySystem(w));
         }
         w.addSystem(new WebKeyboardSystem(w));
+        w.addSystem(new BigStorageSystem(w));
         w.addSystem(new LayerSystem(w));
         w.addSystem(new PixiBoardSystem(w));
         w.addSystem(new SelectionSystem(w));
