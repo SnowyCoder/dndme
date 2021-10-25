@@ -53,6 +53,23 @@ export class BackgroundImageSystem implements System {
         if (c.type !== BACKGROUND_IMAGE_TYPE) return;
         let bkgImg = c as BackgroundImageComponent;
 
+        if (typeof bkgImg.image !== 'number') {
+            if (Uint8Array.prototype.isPrototypeOf(bkgImg.image)) {
+                // previous versions did not have BigStorageSystem, let's fix that
+                console.info("Converting background to BigStorage...");
+                bkgImg.image = this.bigStorage.create({
+                    image: bkgImg.image,
+                    visibilityMap: (bkgImg as any).visibilityMap,
+                } as BSImageEntry).multiId;
+                delete (bkgImg as any)['visibilityMap'];
+            } else {
+                console.warn("Error, could not convert bkgImage! Resetting", bkgImg.image);
+                bkgImg.image = 0;
+                this.world.removeComponent(c);
+                return;
+            }
+        }
+
         let bdata = this.bigStorage.requestUse<BSImageEntry>(bkgImg.image)!!.data;
 
         if (bdata.image.byteOffset !== 0) {
