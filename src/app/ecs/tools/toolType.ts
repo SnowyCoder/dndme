@@ -7,4 +7,5 @@ export enum Tool {
     LIGHT = 'light',
     MEASURE= 'measure',
     PROP_TELEPORT_LINK = 'prop_teleport_link',
+    MOUSE_TRAIL = 'mouse_trail',
 }

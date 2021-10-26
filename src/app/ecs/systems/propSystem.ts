@@ -33,6 +33,7 @@ import {Tool} from "../tools/toolType";
 import {SpawnCommand} from "./command/spawnCommand";
 import {executeAndLogCommand} from "./command/command";
 import {componentEditCommand, EditType} from "./command/componentEdit";
+import {findForeground, LAYER_TYPE, LayerSystem} from "./back/layerSystem";
 
 
 export const PROP_TYPE = 'prop';
@@ -57,11 +58,12 @@ export interface PropTeleport extends Component {
 
 export class PropSystem implements System {
     readonly name = PROP_TYPE;
-    readonly dependencies = [GRAPHIC_TYPE, INTERACTION_TYPE, SELECTION_TYPE];
+    readonly dependencies = [GRAPHIC_TYPE, INTERACTION_TYPE, SELECTION_TYPE, LAYER_TYPE];
 
     readonly world: World;
     readonly interactionSys: InteractionSystem;
-    readonly selectionSys: SelectionSystem
+    readonly selectionSys: SelectionSystem;
+    readonly layerSys: LayerSystem;
 
     readonly storage = new SingleEcsStorage<PropComponent>(PROP_TYPE, true, true);
     readonly teleportStorage = new SingleEcsStorage<PropTeleport>(PROP_TELEPORT_TYPE, true, true);
@@ -81,6 +83,7 @@ export class PropSystem implements System {
 
         this.interactionSys = world.systems.get(INTERACTION_TYPE) as InteractionSystem;
         this.selectionSys = world.systems.get(SELECTION_TYPE) as SelectionSystem;
+        this.layerSys = world.systems.get(LAYER_TYPE) as LayerSystem;
 
         this.propTypes = new Map<string, PropType>();
 
@@ -187,8 +190,11 @@ export class PropSystem implements System {
 
         let shape = (this.world.getComponent(entity, INTERACTION_TYPE) as InteractionComponent).shape;
         let pinStorage = this.world.storages.get('pin') as SingleEcsStorage<PinComponent>;
+
+        let foreground = findForeground(this.world);
         let query = this.interactionSys.query(shape, x => {
-            return pinStorage.getComponent(x.entity) !== undefined;
+            return pinStorage.getComponent(x.entity) !== undefined &&
+                this.layerSys.getEntityLayer(x.entity).entity == foreground;
         });
 
 

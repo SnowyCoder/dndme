@@ -14,7 +14,8 @@ export class EcsPhase extends Phase {
 
     ecsSetup(): void {
         registerCommonStorage(this.world);
-        this.registerSystems()
+        this.registerSystems();
+        this.world.populate();
     }
 
     registerSystems(): void {

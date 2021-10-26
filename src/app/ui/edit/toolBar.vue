@@ -16,22 +16,7 @@
         <i class="fas fa-hand-pointer"></i>
       </b-radio>
       <b-radio v-if="world.isMaster" title="Add wall" value="create_wall" squared class="toolbar-btn plz-prioritize">
-        <svg class="svg-inline--fa fa-w-16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 234.809 234.809"
-             xml:space="preserve">
-                    <path fill="currentColor" d="M7.5,53.988c-4.135,0-7.5-3.364-7.5-7.5V20.571c0-4.136,3.365-7.5,7.5-7.5h94.904c4.135,0,7.5,3.364,7.5,7.5v25.917
-                      c0,4.136-3.365,7.5-7.5,7.5H7.5z M227.309,53.988c4.135,0,7.5-3.364,7.5-7.5V20.571c0-4.136-3.365-7.5-7.5-7.5h-94.904
-                      c-4.135,0-7.5,3.364-7.5,7.5v25.917c0,4.136,3.365,7.5,7.5,7.5H227.309z M164.856,109.904c4.135,0,7.5-3.365,7.5-7.5V76.488
-                      c0-4.136-3.365-7.5-7.5-7.5H69.952c-4.135,0-7.5,3.364-7.5,7.5v25.917c0,4.135,3.365,7.5,7.5,7.5H164.856z M39.952,109.904
-                      c4.136,0,7.5-3.364,7.5-7.5V76.488c0-4.136-3.364-7.5-7.5-7.5H8.048c-4.136,0-7.5,3.364-7.5,7.5v25.917c0,4.136,3.364,7.5,7.5,7.5
-                      H39.952z M226.761,109.904c4.136,0,7.5-3.364,7.5-7.5V76.488c0-4.136-3.364-7.5-7.5-7.5h-31.904c-4.136,0-7.5,3.364-7.5,7.5v25.917
-                      c0,4.136,3.364,7.5,7.5,7.5H226.761z M102.404,165.821c4.135,0,7.5-3.364,7.5-7.5v-25.917c0-4.135-3.365-7.5-7.5-7.5H7.5
-                      c-4.135,0-7.5,3.365-7.5,7.5v25.917c0,4.136,3.365,7.5,7.5,7.5H102.404z M227.309,165.821c4.135,0,7.5-3.364,7.5-7.5v-25.917
-                      c0-4.135-3.365-7.5-7.5-7.5h-94.904c-4.135,0-7.5,3.365-7.5,7.5v25.917c0,4.136,3.365,7.5,7.5,7.5H227.309z M164.856,221.738
-                      c4.135,0,7.5-3.364,7.5-7.5v-25.917c0-4.136-3.365-7.5-7.5-7.5H69.952c-4.135,0-7.5,3.364-7.5,7.5v25.917c0,4.136,3.365,7.5,7.5,7.5
-                      H164.856z M39.952,221.738c4.136,0,7.5-3.364,7.5-7.5v-25.917c0-4.136-3.364-7.5-7.5-7.5H8.048c-4.136,0-7.5,3.364-7.5,7.5v25.917
-                      c0,4.136,3.364,7.5,7.5,7.5H39.952z M226.761,221.738c4.136,0,7.5-3.364,7.5-7.5v-25.917c0-4.136-3.364-7.5-7.5-7.5h-31.904
-                      c-4.136,0-7.5,3.364-7.5,7.5v25.917c0,4.136,3.364,7.5,7.5,7.5H226.761z"/>
-          </svg>
+        <wall-icon/>
       </b-radio>
       <b-radio v-if="world.isMaster" title="Add prop" value="create_prop" squared class="toolbar-btn plz-prioritize">
         <i class="fas fa-couch"></i>
@@ -47,6 +32,9 @@
       </b-radio>
       <b-radio v-if="world.isMaster" title="Measure" value="measure" squared class="toolbar-btn plz-prioritize">
         <i class="fas fa-ruler"/>
+      </b-radio>
+      <b-radio title="Mouse trail" value="mouse_trail" squared class="toolbar-btn plz-prioritize">
+        <mouse-trail-icon/>
       </b-radio>
     </b-radio-group>
     <b-button title="Export map" squared variant="success" class="btn-xs"
@@ -70,7 +58,13 @@ import {BACKGROUND_LAYER_TYPE, BackgroundLayerResource} from "../../ecs/systems/
 import {TOOL_TYPE, ToolResource} from "../../ecs/systems/back/toolSystem";
 import {Tool} from "../../ecs/tools/toolType";
 
-@VComponent
+import MouseTrailIcon from "../icons/mouseTrailIcon.vue";
+import WallIcon from "../icons/wallIcon.vue";
+
+
+@VComponent({
+  components: {MouseTrailIcon, WallIcon}
+})
 export default class ToolBar extends Vue {
   @VProp({ required: true })
   world!: World;

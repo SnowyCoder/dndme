@@ -29,6 +29,7 @@ import {CommonNetworkSystem} from "../../ecs/systems/back/networkSystem";
 import {PixiMeasureSystem} from "../../ecs/systems/back/pixiMeasureSystem";
 import {PixiLayerSystem} from "../../ecs/systems/back/pixiLayerSystem";
 import {BigStorageSystem} from "../../ecs/systems/back/bigStorageSystem";
+import {MouseTrailSystem} from "../../ecs/systems/mouseTrailSystem";
 
 
 export class EditMapPhase extends EcsPhase {
@@ -61,6 +62,7 @@ export class EditMapPhase extends EcsPhase {
         w.addSystem(new PixiRectSelectionSystem(w));
         w.addSystem(new PixiMeasureSystem(w));
         w.addSystem(new ToolSystem(w));
+        w.addSystem(new MouseTrailSystem(w));
         w.addSystem(new GridSystem(w));
         w.addSystem(new InteractionSystem(w));
         w.addSystem(new TextSystem(w));

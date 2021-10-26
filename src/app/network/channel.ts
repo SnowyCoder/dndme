@@ -1,7 +1,6 @@
 import * as EventEmitter from "eventemitter3"
 import {P2pConnection} from "./p2pConnection";
 import {ErrorPacket, Packet, PacketContainer} from "../protocol/packet";
-import {PeerJsConnection} from "./networkManager";
 
 export class Channel {
     connections: P2pConnection[] = [];
@@ -109,7 +108,7 @@ export class Channel {
             if (conn === undefined) {
                 throw "Unknown receiver"
             }
-            wrapped.id = conn.channelId++;
+            wrapped.id = conn.nextPacketId++;
             conn.send(wrapped);
         } else {
             wrapped.id = this.nextBroadcastPacketId++;

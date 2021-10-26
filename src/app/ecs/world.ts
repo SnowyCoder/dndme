@@ -406,14 +406,14 @@ export class World {
         let hostHidden = this.getStorage('host_hidden');
 
         for (let storage of this.storages.values()) {
-            if (!storage.save || !storage.sync) continue;
+            if (!storage.sync) continue;
             storages[storage.type] = storage.serializeClient((e) => hostHidden.getFirstComponent(e) !== undefined);
         }
 
         let resources: {[type: string]: any} = {};
 
         for (let resource of this.resources.values()) {
-            if (resource._save === false || resource._sync === false) continue;
+            if (resource._sync === false) continue;
             let res = {} as any;
             for (let name in resource) {
                 if (name[0] === '_' || name === 'type') continue;
@@ -469,6 +469,10 @@ export class World {
         this.events.emit('deserialized');
     }
 
+    populate() {
+        this.events.emit('populate');
+    }
+
     clear() {
         this.events.emit('clear');
         for (let entity of [...this.entities]) {
@@ -479,7 +483,9 @@ export class World {
             this.despawnEntity(entity);
         }
         if (this.entities.size !== 0) throw 'Entities spawned while clearing!';
+        // TODO: also clear resources
         this.events.emit('cleared');
+        this.populate();
     }
 
     /**
