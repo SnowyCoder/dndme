@@ -132,7 +132,10 @@ export class HostEditMapPhase extends EditMapPhase {
         canvas.ondrop = this.onDrop.bind(this);
         canvas.ondragover = this.onDragOver.bind(this);
 
-        this.beforeUnloadListener = () => "";
+        this.beforeUnloadListener = (event: BeforeUnloadEvent) => {
+            event.preventDefault();
+            event.returnValue = 'pls';
+        };
         window.addEventListener('beforeunload', this.beforeUnloadListener);
 
         this.currentLevel.loadInto(this.world);
