@@ -171,15 +171,22 @@ export class PixiBoardSystem implements System {
 
         let ctrl = keyboard.ctrl;
         let shift = keyboard.shift;
-        if (!ctrl) return;
-
         let event_name = undefined;
-        switch (key) {
-            case 'z':
-                if (shift) event_name = 'command_redo';
-                else event_name = 'command_undo';
-                break;
-            case 'y': event_name = 'command_redo';  break;
+
+        if (ctrl) {
+            switch (key) {
+                case 'z':
+                    if (shift) event_name = 'command_redo';
+                    else event_name = 'command_undo';
+                    break;
+                case 'y': event_name = 'command_redo';  break;
+            }
+        } else {
+            switch (key) {
+                case 'delete':
+                    event_name = 'delete';
+                    break;
+            }
         }
         if (event_name !== undefined) {
             this.world.events.emit(event_name);

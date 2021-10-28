@@ -130,7 +130,6 @@ export class BackgroundImageSystem implements System {
             if (c === undefined) continue;
             const visData = (gstor.getComponent(e)?.display as ImageElement)?.visMap;
 
-            // console.log("BBB Update");
             if (c.visMap === undefined) {
                 c.visMap = this.bigStorage.create(visData).multiId;
             } else {

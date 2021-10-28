@@ -15,7 +15,7 @@ import {PROP_TELEPORT_TYPE, PROP_TYPE, PropTeleport} from "../propSystem";
 import {System} from "../../system";
 import {componentEditCommand, ComponentEditCommand, EditType} from "../command/componentEdit";
 import {DeSpawnCommand} from "../command/despawnCommand";
-import {Command} from "../command/command";
+import {Command, executeAndLogCommand} from "../command/command";
 import {EVENT_COMMAND_LOG, EVENT_COMMAND_PARTIAL_END} from "../command/commandSystem";
 import {WALL_TYPE} from "../wallSystem";
 import {EcsStorage, SingleEcsStorage} from "../../storage";
@@ -101,7 +101,6 @@ export class SelectionSystem implements System {
         this.ecs.events.on('entity_despawn', this.onEntityDespawn, this);
         this.ecs.events.on('deserialized', (d: DeserializeData) => {
             if (d.options.thenSelect) {
-                console.log(d.data.entities);
                 this.setOnlyEntities(d.data.entities.map(d.entityMapping));
             }
         });
@@ -110,6 +109,14 @@ export class SelectionSystem implements System {
                 // a spawn command has been executed
                 if (c === undefined || c.kind !== 'despawn') return;
                 this.setOnlyEntities((c as DeSpawnCommand).entities);
+            });
+            this.ecs.events.on('delete', () => {
+                const cmd = {
+                    kind: 'despawn',
+                    entities: [...this.selectedEntities],
+                } as DeSpawnCommand;
+                this.clear();
+                executeAndLogCommand(this.ecs, cmd);
             });
         }
         this.ecs.events.on('entity_despawn', this.onEntityDespawn, this);
