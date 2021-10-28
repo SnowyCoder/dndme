@@ -617,8 +617,8 @@ export class PixiGraphicSystem implements System {
         // If there are any players without night vision (and there are lights) render them (THIS IS SLOW!)
         let tex, tex2, nightSprite;
         if (data.players.length !== 0 && data.lights.length !== 0) {
-            tex = (this.renderTexturePool as any).getOptimalTexture(pixi.width, pixi.height);
-            tex2 = (this.renderTexturePool as any).getOptimalTexture(pixi.width, pixi.height);
+            tex = (this.renderTexturePool as any).getOptimalTexture(pixi.texture.width, pixi.texture.height);
+            tex2 = (this.renderTexturePool as any).getOptimalTexture(pixi.texture.width, pixi.texture.height);
 
             for (let player of data.players) {
                 localCnt.addChild(player.mesh);
