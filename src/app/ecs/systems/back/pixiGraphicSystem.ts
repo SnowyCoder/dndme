@@ -7,7 +7,7 @@ import {
     TransformComponent
 } from "../../component";
 import {FlagEcsStorage, SingleEcsStorage} from "../../storage";
-import {World} from "../../world";
+import {SerializeData, World} from "../../world";
 import {System} from "../../system";
 import {
     DisplayElement,
@@ -156,7 +156,6 @@ export class PixiGraphicSystem implements System {
         world.events.on('selection_end', this.onSelectionEnd, this);
         world.events.on(EVENT_VISIBILITY_SPREAD, this.onBBBVisibilitySpread, this);
         world.events.on('serialize', this.onSerialize, this);
-        world.events.on('serialize_entity', this.onSerializeEntity, this);
     }
 
     private onComponentAdd(c: Component): void {
@@ -344,27 +343,30 @@ export class PixiGraphicSystem implements System {
         }
     }
 
-    private onSerialize(): void {
-        let changedList = [];
-        for (let com of this.storage.allComponents()) {
-            if (!com._bitByBit) continue;
+    private onSerialize(data: SerializeData): void {
+        const changedList: number[] = [];
+
+        const processComp = (com: PixiGraphicComponent) => {
+            if (!com._bitByBit) return;
             let changed = false;
             this.doOnBitByBit(com, com.display, (img) => changed ||= this.extractVisibility(img));
             if (changed) changedList.push(com.entity);
+        };
+
+        if (data.options.only !== undefined) {
+            for (let entity of data.options.only) {
+                const comp = this.storage.getComponent(entity);
+                if (comp === undefined) continue;
+                processComp(comp);
+            }
+        } else {
+            for (let com of this.storage.allComponents()) {
+                ;processComp(com);
+            }
         }
+
         if (changedList) {
             this.world.events.emit(EVENT_REMEMBER_BIT_BY_BIY_MASK_UPDATE, changedList);
-        }
-    }
-
-    private onSerializeEntity(entity: number): void {
-        let c = this.storage.getComponent(entity);
-        if (c === undefined) return;
-        let changed = false;
-        this.doOnBitByBit(c, c.display, (img) => changed ||= this.extractVisibility(img));
-
-        if (changed) {
-            this.world.events.emit(EVENT_REMEMBER_BIT_BY_BIY_MASK_UPDATE, [entity]);
         }
     }
     // -------------------------- LISTENERS DONE --------------------------

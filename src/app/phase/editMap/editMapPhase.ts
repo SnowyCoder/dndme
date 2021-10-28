@@ -30,6 +30,8 @@ import {PixiMeasureSystem} from "../../ecs/systems/back/pixiMeasureSystem";
 import {PixiLayerSystem} from "../../ecs/systems/back/pixiLayerSystem";
 import {BigStorageSystem} from "../../ecs/systems/back/bigStorageSystem";
 import {MouseTrailSystem} from "../../ecs/systems/mouseTrailSystem";
+import {CopyPasteSystem} from "../../ecs/systems/copyPasteSystem";
+import { LinkRelocationSystem } from "../../ecs/systems/back/linkRelocationSystem";
 
 
 export class EditMapPhase extends EcsPhase {
@@ -56,9 +58,13 @@ export class EditMapPhase extends EcsPhase {
         }
         w.addSystem(new WebKeyboardSystem(w));
         w.addSystem(new BigStorageSystem(w));
+        w.addSystem(new LinkRelocationSystem(w));
         w.addSystem(new LayerSystem(w));
         w.addSystem(new PixiBoardSystem(w));
         w.addSystem(new SelectionSystem(w));
+        if (w.isMaster) {
+            w.addSystem(new CopyPasteSystem(w));
+        }
         w.addSystem(new PixiRectSelectionSystem(w));
         w.addSystem(new PixiMeasureSystem(w));
         w.addSystem(new ToolSystem(w));
@@ -135,5 +141,3 @@ export class EditMapPhase extends EcsPhase {
         this.networkManager.disconnect();
     }
 }
-
-

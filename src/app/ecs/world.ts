@@ -14,11 +14,16 @@ import SafeEventEmitter from "../util/safeEventEmitter";
 import {filterComponent, generateRandomId} from "./ecsUtil";
 
 
-export type SerializedWorld = {
+export type SerializedEntities = {
     entities: number[];
     storages: {[type: string]: any};
-    resources: {[type: string]: any};
 };
+
+export type SerializedResources = {
+    resources: {[type: string]: any};
+}
+
+export type SerializedWorld = SerializedEntities & Partial<SerializedResources>;
 
 export interface EcsEntityLinked {
     _ecs_entity?: number;
@@ -36,15 +41,49 @@ type MultiEditTypeWork = MultiEditType & Array<{
     _comp?: Component;
 }>;
 
-export type FrozenEntity = {
-    id: number,
-    components: Array<{ type: string; }>,
-};
-
-export type FrozenEntities = Array<FrozenEntity>;
-
 export type ResourceAddPresentType = 'fail' | 'ignore' | 'update';
 
+export interface SerializeData {
+    options: SerializeOptions;
+    entityMapping: (id: number) => number;
+    shouldIgnore: (id: number) => boolean;
+    result?: SerializedWorld;
+}
+
+export interface DeserializeData {
+    options: DeserializeOptions;
+    data: SerializedWorld;
+    entityMapping: (id: number) => number;
+}
+
+export interface SerializeOptions {
+    requireSync: boolean,
+    requireSave: boolean,
+    remap: boolean,
+    stripClient: boolean,
+    ignoreHostHidden: boolean,
+    only?: Set<number>,
+    resources: boolean,
+}
+
+const DEFAULT_SERIALIZE_OPTIONS = {
+    requireSync: false,
+    requireSave: false,
+    remap: false,
+    stripClient: false,
+    ignoreHostHidden: false,
+    resources: false,
+} as SerializeOptions;
+
+export interface DeserializeOptions {
+    remap: boolean,
+    thenSelect: boolean,
+}
+
+const DEFAULT_DESERIALIZE_OPTIONS = {
+    remap: false,
+    thenSelect: false,
+} as DeserializeOptions;
 
 export class World {
     systems = new SystemGraph();
@@ -74,11 +113,10 @@ export class World {
     // resource_removed(resource)
     // clear()
     // cleared()
-    // serialize()
-    // serialized(res)
-    // serialize_entity(entity)
+    // serialize(data)
+    // serialized(data)
     // deserialize(data)
-    // deserialized()
+    // deserialized(data)
     //      External events:
     // query_hit(event: QueryHitEvent)
     // selection_begin(entities)
@@ -86,9 +124,6 @@ export class World {
     // selection_update()
     // tool_move_begin()
     // tool_move_end()
-    //      TODO
-    // batch_update_begin()
-    // batch_update_end()
     events = new SafeEventEmitter();
 
     constructor(isMaster: boolean) {
@@ -131,45 +166,6 @@ export class World {
         }
 
         this.events.emit('entity_spawned', id);
-    }
-
-    // TODO: deal with entity links
-    respawnEntities(data: FrozenEntities) {
-        for (let entity of data) {
-            if (entity.id === -1) {
-                entity.id = this.allocateId();
-            }
-            this.entities.add(entity.id);
-
-            this.events.emit('entity_spawn', entity.id);
-        }
-
-        for (let entity of data) {
-            for (let c of entity.components) {
-                this.addComponent(entity.id, c as Component);
-            }
-        }
-
-        for (let entity of data) {
-            this.events.emit('entity_spawned', entity.id);
-        }
-    }
-
-    despawnEntitiesSave(entities: number[]): FrozenEntities {
-        let res = [] as FrozenEntities;
-
-        for (let entity of entities) {
-            let comp = this.saveAllComponents(entity);
-
-            res.push({
-                id: entity,
-                components: comp,
-            });
-        }
-        for (let entity of entities) {
-            this.despawnEntity(entity);
-        }
-        return res;
     }
 
     despawnEntity(entity: number): void {
@@ -237,17 +233,6 @@ export class World {
     getComponent(entity: number, type: string, multiId?: number): Component | undefined {
         let storage = this.getStorage(type);
         return storage.getFirstComponent(entity, multiId);
-    }
-
-    saveAllComponents(entity: number): Component[] {
-        let res = new Array<Component>();
-
-        for (let storage of this.storages.values()) {
-            if (!storage.save) continue;
-            res.push(...storage.getComponents(entity));
-        }
-
-        return res.map(filterComponent);
     }
 
     getAllComponents(entity: number): Component[] {
@@ -365,91 +350,115 @@ export class World {
         }
     }
 
-    serialize(): SerializedWorld {
-        this.events.emit('serialize', 'save');
-
-        let storages: {[type: string]: any} = {};
-
-        for (let storage of this.storages.values()) {
-            if (!storage.save) continue;
-            storages[storage.type] = storage.serialize();
+    serialize(options: Partial<SerializeOptions>): SerializedWorld {
+        options = Object.assign({}, DEFAULT_SERIALIZE_OPTIONS, options) as SerializeOptions;
+        let entities: number[];
+        if (options.only === undefined) {
+            entities = [...this.entities];
+        } else {
+            entities = [...options.only];
         }
 
-        let resources: {[type: string]: any} = {};
+        let resEnt = entities;
 
-        for (let resource of this.resources.values()) {
-            if (resource._save === false) continue;// undefined is treated as true so that loaded resources get saved again
-            let res = {} as any;
-            for (let name in resource) {
-                if (name[0] === '_' || name === 'type') continue;
-                res[name] = (resource as any)[name];
+        let mapping = (x: number) => x;
+        if (options.remap) {
+            resEnt = Array.from(Array(entities.length), (e,i)=>i+1);
+            mapping = (x: number) => entities.indexOf(x) + 1;
+        }
+
+        let shouldIgnore = (x: number) => false;
+        if (options.stripClient && !options.ignoreHostHidden) {
+            const hostHidden = this.getStorage('host_hidden');
+
+            shouldIgnore = (e) => hostHidden.getFirstComponent(e) !== undefined;
+        }
+
+        let sdata = {
+            options,
+            entityMapping: mapping,
+            shouldIgnore,
+        } as SerializeData;
+        this.events.emit('serialize', sdata);
+
+        let storages: {[type: string]: any} = {};
+        for (let storage of this.storages.values()) {
+            if ((options.requireSync && !storage.sync) || (options.requireSave && !storage.save)) continue;
+            let data = storage.serialize(sdata);
+            if (data === undefined) continue;
+            storages[storage.type] = data;
+        }
+
+        let resources: {[type: string]: any} | undefined = undefined;
+
+        if (options.resources) {
+            resources = {};
+
+            for (let resource of this.resources.values()) {
+                // undefined is treated as true so that loaded resources get saved again
+                if ((options.requireSave && !resource._save) || (options.requireSync && !resource._sync)) continue;
+                let res = {} as any;
+                for (let name in resource) {
+                    if (name[0] === '_' || name === 'type') continue;
+                    res[name] = (resource as any)[name];
+                }
+                resources[resource.type] = res;
             }
-            resources[resource.type] = res;
         }
 
         let res = {
-            entities: [...this.entities],
+            entities: resEnt,
             storages,
             resources,
         } as SerializedWorld;
 
-        this.events.emit('serialized', res);
+        sdata.result = res;
+        this.events.emit('serialized', sdata);
 
         return res;
     }
 
-    serializeClient(): SerializedWorld {
-        this.events.emit('serialize', 'client');
+    deserialize(data: SerializedWorld, options: Partial<DeserializeOptions>) {
+        options = Object.assign({}, DEFAULT_DESERIALIZE_OPTIONS, options) as DeserializeOptions;
 
-        let storages: {[type: string]: any} = {};
-
-        let hostHidden = this.getStorage('host_hidden');
-
-        for (let storage of this.storages.values()) {
-            if (!storage.sync) continue;
-            storages[storage.type] = storage.serializeClient((e) => hostHidden.getFirstComponent(e) !== undefined);
-        }
-
-        let resources: {[type: string]: any} = {};
-
-        for (let resource of this.resources.values()) {
-            if (resource._sync === false) continue;
-            let res = {} as any;
-            for (let name in resource) {
-                if (name[0] === '_' || name === 'type') continue;
-                res[name] = (resource as any)[name];
+        let mapping = (x: number) => x;
+        if (options.remap) {
+            let remapsUndup = new Set<number>();
+            let remaps = new Array<number>();
+            for (let i = 0; i < data.entities.length; i++) {
+                let id = this.allocateId();
+                if (remapsUndup.has(id)) {
+                    i--;
+                    continue;
+                }
+                remapsUndup.add(id);
+                remaps.push(id);
             }
-            resources[resource.type] = res;
+            mapping = (x: number) => remaps[x - 1];
         }
 
-        let res = {
-            entities: [...this.entities].filter((e) => hostHidden.getFirstComponent(e) === undefined),
-            storages,
-            resources,
-        } as SerializedWorld;
+        let dsData = {
+            options,
+            data,
+            entityMapping: mapping,
+        } as DeserializeData;
 
-
-        this.events.emit('serialized', res);
-
-        return res;
-    }
-
-    deserialize(data: SerializedWorld) {
-        this.clear();
         this.isDeserializing = true;
-        this.events.emit('deserialize', data);
+        this.events.emit('deserialize', dsData);
 
-        for (let type in data.resources) {
-            let res = data.resources[type];
-            res.type = type;
-            this.addResource(res, 'update');
+        if (data.resources !== undefined) {
+            for (let type in data.resources) {
+                let res = data.resources[type];
+                res.type = type;
+                this.addResource(res, 'update');
+            }
         }
-
 
         for (let entity of data.entities) {
-            this.entities.add(entity);
+            let  realEnt = mapping(entity);
+            this.entities.add(realEnt);
 
-            this.events.emit('entity_spawn', entity);
+            this.events.emit('entity_spawn', realEnt);
         }
 
         for (let type in data.storages) {
@@ -458,15 +467,15 @@ export class World {
                 console.error("Cannot deserialize storage type: " + type + ", ignoring");
                 continue;
             }
-            storage.deserialize(this, data.storages[type]);
+            storage.deserialize(this, dsData, data.storages[type]);
         }
 
         for (let entity of data.entities) {
-            this.events.emit('entity_spawned', entity);
+            this.events.emit('entity_spawned', mapping(entity));
         }
 
         this.isDeserializing = false;
-        this.events.emit('deserialized');
+        this.events.emit('deserialized', dsData);
     }
 
     populate() {
@@ -521,4 +530,3 @@ function clearChanges(from: AnyMapType, changes: AnyMapType): boolean {
     }
     return changec !== 0;
 }
-

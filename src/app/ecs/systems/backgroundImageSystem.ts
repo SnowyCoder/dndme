@@ -13,19 +13,15 @@ import {
     VisibilityType
 } from "../../graphics";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
-import {BIG_STORAGE_TYPE, BigStorageIndex, BigStorageSystem} from "./back/bigStorageSystem";
+import {BIG_STORAGE_TYPE, BigStorageIndex, BigStorageSystem, BigEntryFlags} from "./back/bigStorageSystem";
 
 export type BACKGROUND_TYPE = 'background_image';
 export const BACKGROUND_IMAGE_TYPE = 'background_image';
 
-interface BSImageEntry {
-    image: Uint8Array;
-    visibilityMap?: Uint32Array;
-}
-
 export interface BackgroundImageComponent extends Component {
     type: BACKGROUND_TYPE;
-    image: BigStorageIndex<BSImageEntry>;
+    image: BigStorageIndex<Uint8Array>;
+    visMap: BigStorageIndex<Uint32Array> | undefined;
     imageType: string;
 }
 
@@ -46,6 +42,7 @@ export class BackgroundImageSystem implements System {
 
         this.world.addStorage(this.storage);
         this.world.events.on('component_add', this.onComponentAdd, this);
+        this.world.events.on('component_remove', this.onComponentRemove, this);
         this.world.events.on(EVENT_REMEMBER_BIT_BY_BIY_MASK_UPDATE, this.onRememberBBBUpdate, this);
     }
 
@@ -57,11 +54,17 @@ export class BackgroundImageSystem implements System {
             if (Uint8Array.prototype.isPrototypeOf(bkgImg.image)) {
                 // previous versions did not have BigStorageSystem, let's fix that
                 console.info("Converting background to BigStorage...");
-                bkgImg.image = this.bigStorage.create({
-                    image: bkgImg.image,
-                    visibilityMap: (bkgImg as any).visibilityMap,
-                } as BSImageEntry).multiId;
+                bkgImg.image = this.bigStorage.create(bkgImg.image).multiId;
+                bkgImg.visMap = this.bigStorage.create(
+                    bkgImg.visMap,
+                    BigEntryFlags.SHARED | BigEntryFlags.READONLY
+                ).multiId;
+
                 delete (bkgImg as any)['visibilityMap'];
+            } else if (bkgImg.image === undefined) {
+                console.warn("This image has no texture, deleting");
+                this.world.removeComponent(c);
+                return;
             } else {
                 console.warn("Error, could not convert bkgImage! Resetting", bkgImg.image);
                 bkgImg.image = 0;
@@ -70,19 +73,24 @@ export class BackgroundImageSystem implements System {
             }
         }
 
-        let bdata = this.bigStorage.requestUse<BSImageEntry>(bkgImg.image)!!.data;
-
-        if (bdata.image.byteOffset !== 0) {
+        let image = this.bigStorage.requestUse<Uint8Array>(bkgImg.image)!!.data;
+        if (image.byteOffset !== 0) {
             // Copy array to remove offset (TODO: fix)
             // https://github.com/peers/peerjs/issues/715
-            bdata.image = new Uint8Array(bdata.image);
-        }
-        if (bdata.visibilityMap !== undefined) {
-            let res = new Uint8Array(bdata.visibilityMap);// Copy buffer (adjusts alignment)
-            bdata.visibilityMap = new Uint32Array(res.buffer);
+            image = new Uint8Array(image);
+            bkgImg.image = this.bigStorage.replace(bkgImg.image, image, true)!!;
         }
 
-        let tex = await loadTexture(bdata.image, bkgImg.imageType);
+        let visMap: Uint32Array | undefined = undefined;
+        if (bkgImg.visMap !== undefined) {
+            visMap = this.bigStorage.requestUse<Uint32Array>(bkgImg.visMap)?.data;
+            if (visMap !== undefined && visMap.byteOffset !== 0) {
+                visMap = new Uint32Array(new Uint8Array(visMap).buffer);
+                bkgImg.visMap = this.bigStorage.replace(bkgImg.visMap, visMap);
+            }
+        }
+
+        let tex = await loadTexture(image, bkgImg.imageType);
 
         this.world.addComponent(c.entity, {
             type: GRAPHIC_TYPE,
@@ -94,7 +102,7 @@ export class BackgroundImageSystem implements System {
                 priority: DisplayPrecedence.BACKGROUND,
                 scale: ImageScaleMode.REAL,
                 visib: VisibilityType.REMEMBER_BIT_BY_BIT,
-                visMap: bdata.visibilityMap,
+                visMap,
                 texture: tex,
                 anchor: { x: 0.5, y: 0.5 },
                 tint: 0xFFFFFF,
@@ -106,7 +114,12 @@ export class BackgroundImageSystem implements System {
         if (c.type !== BACKGROUND_IMAGE_TYPE) return;
         let bkgImg = c as BackgroundImageComponent;
 
-        this.bigStorage.dropUse(bkgImg.image);
+        if (bkgImg.image !== undefined) {
+            this.bigStorage.dropUse(bkgImg.image);
+        }
+        if (bkgImg.visMap !== undefined) {
+            this.bigStorage.dropUse(bkgImg.visMap);
+        }
     }
 
     private onRememberBBBUpdate(entities: number[]): void {
@@ -115,8 +128,14 @@ export class BackgroundImageSystem implements System {
         for (let e of entities) {
             let c = this.storage.getComponent(e);
             if (c === undefined) continue;
-            let bdata = this.bigStorage.request<BSImageEntry>(c.image)?.data!!;
-            bdata.visibilityMap = (gstor.getComponent(e)?.display as ImageElement)?.visMap;
+            const visData = (gstor.getComponent(e)?.display as ImageElement)?.visMap;
+
+            // console.log("BBB Update");
+            if (c.visMap === undefined) {
+                c.visMap = this.bigStorage.create(visData).multiId;
+            } else {
+                c.visMap = this.bigStorage.replace(c.visMap, visData);
+            }
         }
     }
 

@@ -12,13 +12,16 @@ export class MapLevel {
     loadInto(ecs: World): void {
         ecs.clear();
         if (this.ecs !== undefined) {
-            ecs.deserialize(this.ecs);
+            ecs.deserialize(this.ecs, {});
         }
     }
 
     saveFrom(ecs: World): void {
         this.ecs = undefined;
-        this.ecs = ecs.serialize();
+        this.ecs = ecs.serialize({
+            requireSave: true,
+            resources: true,
+        });
     }
 
     serialize(): any {

@@ -56,8 +56,8 @@ function onHashCahnge() {
 
     onHashCahnge();
 
-    window.onhashchange = function (e: HashChangeEvent) {
-        console.log("Hash change" + e.newURL);
+    window.onhashchange = function () {
+        console.log("Hash change" + location.hash);
         onHashCahnge();
     }
 })();

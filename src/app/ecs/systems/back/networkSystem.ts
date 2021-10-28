@@ -7,7 +7,7 @@ import {Command, emitCommand} from "../command/command";
 import {Resource} from "../../resource";
 import {Component} from "../../component";
 import {SingleEcsStorage} from "../../storage";
-import {SpawnCommand} from "../command/spawnCommand";
+import {SpawnCommand, SpawnCommandKind} from "../command/spawnCommand";
 import {generateRandomId} from "../../ecsUtil";
 import {DeSpawnCommand} from "../command/despawnCommand";
 
@@ -114,17 +114,13 @@ export class CommonNetworkSystem implements NetworkSystem {
     }
 
     private spawnDeviceEntity(connId: number) {
-        const cmd = {
-            kind: 'spawn',
-            entities: [{
-                id: generateRandomId(),
-                components: [{
-                    type: NETWORK_ENTITY_TYPE,
-                    networkId: connId,
-                    color: Math.floor(Math.random() * 0xFFFFFF),
-                } as NetworkEntityComponent],
-            }]
-        } as SpawnCommand;
+        const cmd = SpawnCommandKind.from(this.world, [
+            {
+                type: NETWORK_ENTITY_TYPE,
+                networkId: connId,
+                color: Math.floor(Math.random() * 0xFFFFFF),
+            } as NetworkEntityComponent
+        ]);
         emitCommand(this.world, cmd);
     }
 
@@ -196,7 +192,11 @@ export class HostNetworkSystem {
     private onDeviceJoin(chId: number): void {
         this.channel.send({
             type: "ecs_bootstrap",
-            payload: this.world.serializeClient(),
+            payload: this.world.serialize({
+                requireSync: true,
+                stripClient: true,
+                resources: true,
+            }),
         } as P.EcsBootrstrap, chId);
     }
 
@@ -249,7 +249,8 @@ export class ClientNetworkSystem {
     private onEcsBootstrap(packet: P.EcsBootrstrap, container: PacketContainer): void {
         if (container.sender !== 0) return; // Only admin
 
-        this.world.deserialize(packet.payload);
+        this.world.clear();
+        this.world.deserialize(packet.payload, {});
     }
 
     private onCmd(packet: P.CommandPacket, container: PacketContainer): void {

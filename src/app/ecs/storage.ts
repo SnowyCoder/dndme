@@ -1,6 +1,8 @@
 import {Component, HideableComponent, MultiComponent} from "./component";
-import {World} from "./world";
+import {AnyMapType, DeserializeData, DeserializeOptions, SerializeData, SerializeOptions, World} from "./world";
 import {generateRandomId} from "./ecsUtil";
+import { arrayFilterInPlace } from "../util/array";
+import { objectFilterInplace, objectMerge } from "../util/jsobj";
 
 
 export function serializeObj(obj: Component): any {
@@ -27,13 +29,16 @@ export interface EcsStorage<C extends Component> {
 
     unregisterAllOf(entity: number): void;
 
-    serialize(): any;
+    serialize(options: SerializeData): any | undefined;
 
-    serializeClient(shouldIgnore: (entity: number) => boolean): any;
+    deserialize(ecs: World, dsData: DeserializeData, raw: any): void;
 
-    deserialize(ecs: World, raw: any): void;
+    serializedMerge(to: any, from: any): void;
+
+    serializedStrip(data: any, filter: (x: number) => boolean): void;
 }
 
+type MultiEcsStorageSerialized = {[entity: number]: any[]};
 export class MultiEcsStorage<C extends MultiComponent> implements EcsStorage<C> {
     readonly type: string;
     readonly sync: boolean;
@@ -134,47 +139,82 @@ export class MultiEcsStorage<C extends MultiComponent> implements EcsStorage<C> 
         this.data.delete(entity);
     }
 
-    serialize(): {[entity: number]: any[]} {
-        let res: {[entity: number]: any[]} = {};
-        for (let [entity, comps] of this.data.entries()) {
+    serialize(sdata: SerializeData): MultiEcsStorageSerialized | undefined {
+        let res: MultiEcsStorageSerialized = {};
+
+        const stripClient = sdata.options.stripClient;
+        const ser = (comps: C[]): Array<any> => {
             let entityRes = new Array<any>();
             for (let component of comps) {
+                if (stripClient &&
+                    (component as Component as HideableComponent).clientVisible === false
+                ) continue;
                 entityRes.push(serializeObj(component));
             }
-            res[entity] = entityRes;
+            return entityRes;
         }
+
+        const remap = sdata.options.remap;
+        let isPresent = false;
+        if (sdata.options.only !== undefined) {
+            let i = 0;
+            for (let entity of sdata.options.only) {
+                i += 1;
+                let comps = this.data.get(entity);
+                if (comps === undefined) continue;
+                if (sdata.shouldIgnore(entity)) continue;
+
+                const x = ser(comps);
+                if (x.length === 0) continue;
+
+                let e = remap ? i : entity;
+                res[e] = x;
+                isPresent = true;
+            }
+        } else {
+            for (let [entity, comps] of this.data.entries()) {
+                if (sdata.shouldIgnore(entity)) continue;
+
+                const x = ser(comps);
+                if (x.length === 0) continue;
+
+                let e = remap ? sdata.entityMapping(entity) : entity;
+                res[e] = x;
+                isPresent = true;
+            }
+        }
+        if (!isPresent) return undefined;
         return res;
     }
 
-    serializeClient(shouldIgnore: (entity: number) => boolean): {[entity: number]: any[]} {
-        let res: {[entity: number]: any[]} = {};
-        for (let [entity, comps] of this.data.entries()) {
-            if (shouldIgnore(entity)) continue;
-            let entityRes = new Array<any>();
-            for (let component of comps) {
-                if ((component as Component as HideableComponent).clientVisible === false) continue;
-                entityRes.push(serializeObj(component));
-            }
-            if (entityRes.length !== 0) {
-                res[entity] = entityRes;
-            }
-        }
-        return res;
-    }
-
-    deserialize(ecs: World, data: {[entity: number]: any[]}): void {
+    deserialize(ecs: World, dsdata: DeserializeData, data: MultiEcsStorageSerialized | undefined): void {
+        if (data === undefined) return;
         for (let entity in data) {
             let e = parseInt(entity);
             for (let comp of data[entity]) {
                 let obj = Object.assign({}, comp, {
                     type: this.type
                 });
-                ecs.addComponent(e, obj);
+                ecs.addComponent(dsdata.entityMapping(e), obj);
             }
         }
     }
+
+    serializedMerge(to: MultiEcsStorageSerialized, from: MultiEcsStorageSerialized) {
+        objectMerge(to, from);
+    }
+
+    serializedStrip(data: MultiEcsStorageSerialized, filter: (x: number) => boolean) {
+        objectFilterInplace(data, (name, val) => {
+            if (!filter(parseInt(name))) return false;
+            arrayFilterInPlace(val, x => (x as HideableComponent).clientVisible !== false);
+
+            return val.length !== 0;
+        });
+    }
 }
 
+export type SingleEcsStorageSerialzed = {[entity: number]: any};
 export class SingleEcsStorage<C extends Component> implements EcsStorage<C> {
     readonly type: string;
     readonly sync: boolean;
@@ -233,33 +273,68 @@ export class SingleEcsStorage<C extends Component> implements EcsStorage<C> {
         this.data.delete(entity);
     }
 
-    serialize(): {[entity: number]: any} {
-        let res: {[entity: number]: any} = {};
-        for (let comp of this.data.values()) {
-            res[comp.entity] = serializeObj(comp);
+    serialize(sdata: SerializeData): SingleEcsStorageSerialzed | undefined {
+        let res: SingleEcsStorageSerialzed = {};
+
+        const stripClient = sdata.options.stripClient;
+        const remap = sdata.options.remap;
+        let isPresent = false;
+        if (sdata.options.only !== undefined) {
+            let i = 0;
+            for (let entity of sdata.options.only) {
+                i += 1;
+                const comp = this.data.get(entity)
+                if (comp === undefined) continue;
+                if (stripClient &&
+                    (sdata.shouldIgnore(comp.entity) ||
+                    (comp as Component as HideableComponent).clientVisible === false)
+                ) continue;
+
+                let e = remap ? i : entity;
+                res[e] = serializeObj(comp);
+                isPresent = true;
+            }
+        } else {
+            for (let comp of this.data.values()) {
+                if (stripClient &&
+                    (sdata.shouldIgnore(comp.entity) ||
+                    (comp as Component as HideableComponent).clientVisible === false)
+                ) continue;
+
+                let e = remap ? sdata.entityMapping(comp.entity) : comp.entity;
+                res[e] = serializeObj(comp);
+                isPresent = true;
+            }
         }
+        if (!isPresent) return undefined;
         return res;
     }
 
-    serializeClient(shouldIgnore: (entity: number) => boolean): {[entity: number]: any} {
-        let res: {[entity: number]: any} = {};
-        for (let comp of this.data.values()) {
-            if (shouldIgnore(comp.entity) || (comp as Component as HideableComponent).clientVisible === false) continue;
-            res[comp.entity] = serializeObj(comp);
-        }
-        return res;
-    }
-
-    deserialize(ecs: World, data: { [entity: number]: any}): void {
+    deserialize(ecs: World, dsData: DeserializeData, data: SingleEcsStorageSerialzed | undefined): void {
+        if (data === undefined) return;
         for (let entity in data) {
             let obj = Object.assign({}, data[entity], {
                 type: this.type
             })
-            ecs.addComponent(parseInt(entity), obj);
+            ecs.addComponent(dsData.entityMapping(parseInt(entity)), obj);
         }
+    }
+
+    serializedMerge(to: SingleEcsStorageSerialzed, from: SingleEcsStorageSerialzed) {
+        objectMerge(to, from);
+    }
+
+    serializedStrip(data: SingleEcsStorageSerialzed, filter: (x: number) => boolean) {
+        objectFilterInplace(data, (name, val) => {
+            if (!filter(parseInt(name))) return false;
+            if ((val as HideableComponent).clientVisible === false) return false;
+
+            return true;
+        });
     }
 }
 
+export type FlagEcsStorageSerialzed = number[];
 export class FlagEcsStorage implements EcsStorage<Component> {
     readonly type: string;
     readonly sync: boolean;
@@ -308,21 +383,45 @@ export class FlagEcsStorage implements EcsStorage<Component> {
         this.data.delete(entity);
     }
 
-    serialize(): number[] {
-        return [...this.data.keys()];
+    serialize(sdata: SerializeData): number[] | undefined {
+        let data;
+        if (sdata.options.only === undefined) {
+            data = [...this.data.keys()];
+            if (sdata.options.stripClient) {
+                data = data.filter(e => !sdata.shouldIgnore(e));
+            }
+            if (sdata.options.remap) {
+                data = data.map(sdata.entityMapping);
+            }
+        } else {
+            data = [];
+            let i = 0;
+            for (let e of sdata.options.only) {
+                i += 1;
+                if (!this.data.has(e) || sdata.shouldIgnore(e)) continue;
+                data.push(sdata.options.remap ? i : e);
+            }
+        }
+
+        if (data.length === 0) return undefined;
+        return data;
     }
 
-    serializeClient(shouldIgnore: (entity: number) => boolean): number[] {
-        return [...this.data.keys()].filter((e) => !shouldIgnore(e));
-    }
-
-    deserialize(ecs: World, data: number[]): void {
+    deserialize(ecs: World, dsData: DeserializeData, data: number[] | undefined): void {
+        if (data === undefined) return;
         for (let entity of data) {
-            ecs.addComponent(entity, {
+            ecs.addComponent(dsData.entityMapping(entity), {
                 type: this.type,
                 entity: -1
             });
         }
     }
-}
 
+    serializedMerge(to: FlagEcsStorageSerialzed, from: FlagEcsStorageSerialzed) {
+        to.push(...from);
+    }
+
+    serializedStrip(data: FlagEcsStorageSerialzed, filter: (x: number) => boolean) {
+        arrayFilterInPlace(data, filter);
+    }
+}

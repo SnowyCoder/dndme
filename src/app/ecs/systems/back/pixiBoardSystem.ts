@@ -46,8 +46,8 @@ export type PointerRightDownEvent = PIXI.InteractionEvent & ConsumableEvent;
 export type PointerRightUpEvent = PIXI.InteractionEvent;
 export type PointerClickEvent = PIXI.InteractionEvent;
 
-export type BOARD_TRANSFORM_TYPE = 'board_transform';
 export const BOARD_TRANSFORM_TYPE = 'board_transform';
+export type BOARD_TRANSFORM_TYPE = typeof BOARD_TRANSFORM_TYPE;
 export interface BoardTransformResource extends Resource {
     type: BOARD_TRANSFORM_TYPE;
     _save: true;
@@ -57,6 +57,17 @@ export interface BoardTransformResource extends Resource {
     posY: number;
     scaleX: number;
     scaleY: number;
+}
+
+export const BOARD_SIZE_TYPE = 'board_size';
+export type BOARD_SIZE_TYPE = typeof BOARD_SIZE_TYPE;
+export interface BoardSizeResource extends Resource {
+    type: BOARD_SIZE_TYPE;
+    _save: false;
+    _sync: false;
+
+    width: number;
+    height: number;
 }
 
 export type PIXI_BOARD_TYPE = 'pixi_board';
@@ -90,17 +101,23 @@ export class PixiBoardSystem implements System {
         this.world.events.on('resource_edited', this.onResourceEdited, this);
         this.world.events.on(KEYBOARD_KEY_DOWN, this.onKeyDown, this);
 
-        this.world.addResource(
-            {
-                type: BOARD_TRANSFORM_TYPE,
-                _save: true,
-                _sync: false,
-                posX: 0,
-                posY: 0,
-                scaleX: 1,
-                scaleY: 1,
-            } as BoardTransformResource
-        );
+        this.world.addResource({
+            type: BOARD_TRANSFORM_TYPE,
+            _save: true,
+            _sync: false,
+            posX: 0,
+            posY: 0,
+            scaleX: 1,
+            scaleY: 1,
+        } as BoardTransformResource);
+
+        this.world.addResource({
+            type: BOARD_SIZE_TYPE,
+            _save: false,
+            _sync: false,
+            width: 100,
+            height: 100,
+        } as BoardSizeResource);
 
         // We cannot work without webgl
         PIXI.settings.FAIL_IF_MAJOR_PERFORMANCE_CAVEAT = false;
@@ -163,8 +180,6 @@ export class PixiBoardSystem implements System {
                 else event_name = 'command_undo';
                 break;
             case 'y': event_name = 'command_redo';  break;
-            case 'c': console.log("copy");          break;
-            case 'v': console.log("paste");         break;
         }
         if (event_name !== undefined) {
             this.world.events.emit(event_name);
@@ -414,6 +429,10 @@ export class PixiBoardSystem implements System {
         }
         let { clientWidth, clientHeight } = this.renderer.view;
         this.renderer.resize(clientWidth, clientHeight);
+        this.world.editResource(BOARD_SIZE_TYPE, {
+            width: clientWidth,
+            height: clientHeight,
+        });
     }
 
     enable(): void {

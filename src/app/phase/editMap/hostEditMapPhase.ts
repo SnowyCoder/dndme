@@ -4,9 +4,9 @@ import {BackgroundImageComponent} from "../../ecs/systems/backgroundImageSystem"
 import {GameMap} from "../../map/gameMap";
 import {MapLevel} from "../../map/mapLevel";
 import {PIXI_BOARD_TYPE, PixiBoardSystem} from "../../ecs/systems/back/pixiBoardSystem";
-import {SpawnCommand} from "../../ecs/systems/command/spawnCommand";
+import {SpawnCommandKind} from "../../ecs/systems/command/spawnCommand";
 import {executeAndLogCommand} from "../../ecs/systems/command/command";
-import {BIG_STORAGE_TYPE, BigStorageSystem} from "../../ecs/systems/back/bigStorageSystem";
+import {BIG_STORAGE_TYPE, BigStorageSystem, BigEntryFlags} from "../../ecs/systems/back/bigStorageSystem";
 
 export class HostEditMapPhase extends EditMapPhase {
     map: GameMap;
@@ -72,38 +72,34 @@ export class HostEditMapPhase extends EditMapPhase {
         if (firstFile.type.startsWith("image/")) {
             let data = new Uint8Array(await firstFile.arrayBuffer());
             let bigStorage = this.world.systems.get(BIG_STORAGE_TYPE) as BigStorageSystem;
-            let dataId = bigStorage.create({
-                image: data,
-            }, true).multiId;
-            let cmd = {
-                kind: 'spawn',
-                entities: [{
-                    id: -1,
-                    components: [
-                        {
-                            type: 'name',
-                            name: firstFile.name,
-                            clientVisible: false,
-                        } as NameComponent,
-                        {
-                            type: "position",
-                            x: p.x,
-                            y: p.y,
-                        } as PositionComponent,
-                        {
-                            type: "transform",
-                            rotation: 0,
-                            scale: 1,
-                        } as TransformComponent,
-                        {
-                            type: "background_image",
-                            entity: -1,
-                            image: dataId,
-                            imageType: firstFile.type,
-                        } as BackgroundImageComponent,
-                    ]
-                }]
-            } as SpawnCommand;
+            let dataId = bigStorage.create(
+                data,
+                BigEntryFlags.READONLY | BigEntryFlags.SHARED,
+                false
+            ).multiId;
+            const cmd = SpawnCommandKind.from(this.world, [
+                {
+                    type: 'name',
+                    name: firstFile.name,
+                    clientVisible: false,
+                } as NameComponent,
+                {
+                    type: "position",
+                    x: p.x,
+                    y: p.y,
+                } as PositionComponent,
+                {
+                    type: "transform",
+                    rotation: 0,
+                    scale: 1,
+                } as TransformComponent,
+                {
+                    type: "background_image",
+                    entity: -1,
+                    image: dataId,
+                    imageType: firstFile.type,
+                } as BackgroundImageComponent,
+            ]);
             executeAndLogCommand(this.world, cmd);
             console.log("Image loaded")
         }

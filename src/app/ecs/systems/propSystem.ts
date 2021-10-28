@@ -1,6 +1,6 @@
 import PIXI from "../../PIXI";
 import {System} from "../system";
-import {FrozenEntity, World} from "../world";
+import {World} from "../world";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {SingleEcsStorage} from "../storage";
 import {
@@ -30,10 +30,11 @@ import {PointerClickEvent} from "./back/pixiBoardSystem";
 import {getMapPointFromMouseInteraction} from "../tools/utils";
 import {SELECTION_TYPE, SelectionSystem} from "./back/selectionSystem";
 import {Tool} from "../tools/toolType";
-import {SpawnCommand} from "./command/spawnCommand";
+import {SpawnCommand, SpawnCommandKind} from "./command/spawnCommand";
 import {executeAndLogCommand} from "./command/command";
 import {componentEditCommand, EditType} from "./command/componentEdit";
 import {findForeground, LAYER_TYPE, LayerSystem} from "./back/layerSystem";
+import {LinkRelocationSystem, LINK_RELOCATION_TYPE} from "./back/linkRelocationSystem";
 
 
 export const PROP_TYPE = 'prop';
@@ -59,6 +60,7 @@ export interface PropTeleport extends Component {
 export class PropSystem implements System {
     readonly name = PROP_TYPE;
     readonly dependencies = [GRAPHIC_TYPE, INTERACTION_TYPE, SELECTION_TYPE, LAYER_TYPE];
+    readonly optionalDependencies = [LINK_RELOCATION_TYPE];
 
     readonly world: World;
     readonly interactionSys: InteractionSystem;
@@ -79,6 +81,11 @@ export class PropSystem implements System {
             const toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
             toolSys.addTool(new CreatePropToolDriver(this));
             toolSys.addTool(new PropTeleportLinkToolDriver(this));
+        }
+
+        let linkReloc = this.world.systems.get(LINK_RELOCATION_TYPE) as LinkRelocationSystem | undefined;
+        if (linkReloc !== undefined) {
+            linkReloc.addLink(PROP_TELEPORT_TYPE, 'targetProp');
         }
 
         this.interactionSys = world.systems.get(INTERACTION_TYPE) as InteractionSystem;
@@ -294,29 +301,22 @@ export class CreatePropToolDriver implements ToolDriver {
         world.despawnEntity(id);
         this.createProp = -1;
 
-        let frozenEntity = {
-            id: world.allocateId(),
-            components: [
-                {
-                    type: POSITION_TYPE,
-                    x: loc.x,
-                    y: loc.y,
-                } as PositionComponent,
-                {
-                    type: TRANSFORM_TYPE,
-                    scale: tran.scale,
-                    rotation: tran.rotation,
-                } as TransformComponent,
-                {
-                    type: PROP_TYPE,
-                    propType: this.createPropType,
-                } as PropComponent,
-            ]
-        } as FrozenEntity;
-        let cmd = {
-            kind: 'spawn',
-            entities: [frozenEntity]
-        } as SpawnCommand;
+        const cmd = SpawnCommandKind.from(world, [
+            {
+                type: POSITION_TYPE,
+                x: loc.x,
+                y: loc.y,
+            } as PositionComponent,
+            {
+                type: TRANSFORM_TYPE,
+                scale: tran.scale,
+                rotation: tran.rotation,
+            } as TransformComponent,
+            {
+                type: PROP_TYPE,
+                propType: this.createPropType,
+            } as PropComponent,
+        ]);
 
         this.sys.world.editResource(TOOL_TYPE, {
             tool: Tool.INSPECT,

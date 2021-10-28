@@ -1,9 +1,10 @@
 import {Component, HideableComponent, HOST_HIDDEN_TYPE, MultiComponent} from "../../component";
-import {AnyMapType, FrozenEntity, MultiEditType, World} from "../../world";
+import {AnyMapType, MultiEditType, World} from "../../world";
 import {Command, CommandKind} from "./command";
 import {DeSpawnCommand} from "./despawnCommand";
 import {SpawnCommand} from "./spawnCommand";
 import {filterComponent, filterComponentKeepEntity} from "../../ecsUtil";
+import { objectClone } from "../../../util/jsobj";
 
 export function componentEditCommand(
     add?: Component[],
@@ -142,21 +143,18 @@ export class ComponentEditCommandKind implements CommandKind {
             } as DeSpawnCommand)
         }
         if (non_host_hidden.length !== 0) {
-            res.push({
-                kind: 'spawn',
-                entities: non_host_hidden.map(x => this.createEntitySpawnPacket(x)),
-            } as SpawnCommand);
+            res.push(this.createEntitySpawnPacket(non_host_hidden));
         }
         if ((add?.length || 0) + (edit?.length || 0) + (remove?.length || 0) !== 0) {
             let cedit = {
                 kind: 'cedit'
             } as ComponentEditCommand;
-            if (add !== undefined) cedit.add = add.map(clone);
+            if (add !== undefined) cedit.add = add.map(objectClone);
             if (edit !== undefined) {
-                cedit.edit = edit.map(clone);
+                cedit.edit = edit.map(objectClone);
                 if (cmd.multi) cedit.multi = true;
             }
-            if (remove !== undefined) cedit.remove = remove.map(clone);
+            if (remove !== undefined) cedit.remove = remove.map(objectClone);
             res.push(cedit);
         }
 
@@ -200,20 +198,16 @@ export class ComponentEditCommandKind implements CommandKind {
         return true;
     }
 
-    private createEntitySpawnPacket(entity: number): FrozenEntity  {
-        this.world.events.emit('serialize_entity', entity);
-        let components = this.world.getAllComponents(entity);
-
-        let comps = [];
-
-        for (let comp of components) {
-            if (this.shouldIgnoreComponent0(comp)) continue;
-            comps.push(filterComponent(comp));
-        }
-
+    private createEntitySpawnPacket(entities: number[]): SpawnCommand  {
+        let data = this.world.serialize({
+            requireSync: true,
+            stripClient: true,
+            ignoreHostHidden: true,
+            only: new Set(entities),
+        });
         return {
-            id: entity,
-            components: comps,
+            kind: 'spawn',
+            data,
         };
     }
 
@@ -227,9 +221,4 @@ function mergeNullableArrays<T>(a?: T[], b?: T[]): T[] | undefined {
     if (b === undefined) return a;
     a.push(...b);
     return a;
-}
-
-// I hate JS
-function clone<T>(x: T): T {
-    return JSON.parse(JSON.stringify(x));
 }

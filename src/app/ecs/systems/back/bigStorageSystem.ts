@@ -6,12 +6,13 @@ import {Resource} from "../../resource";
 import {componentEditCommand} from "../command/componentEdit";
 import {ResourceEditCommand} from "../command/resourceEditCommand";
 import {emitCommand} from "../command/command";
+import { objectClone } from "../../../util/jsobj";
 
 export interface BigEntry<X> {
     multiId: BigStorageIndex<X>;
     data: X;
+    flags: BigEntryFlags;
     _users?: number;
-    _readonly?: boolean;
 }
 
 export interface BigEntryComponent extends MultiComponent, BigEntry<any> {
@@ -23,7 +24,11 @@ export interface BigEntryResource extends Resource {
     entity: number;
     _save: true;
     _sync: true;
+}
 
+export enum BigEntryFlags {
+    READONLY = 1,
+    SHARED = 2,// If it's not shared it's owned as a CoW
 }
 
 export type BigStorageIndex<X> = number;
@@ -42,7 +47,7 @@ export class BigStorageSystem implements System {
         type: BIG_STORAGE_TYPE,
         entity: -1,
         _save: true,
-        _sync: true
+        _sync: true,
     };
 
 
@@ -54,7 +59,7 @@ export class BigStorageSystem implements System {
         world.events.on('deserialized', this.onDeserialized, this);
     }
 
-    create<X>(data: X, readonly: boolean = true): BigEntry<X> {
+    create<X>(data: X, flags: BigEntryFlags = 0, own = true): BigEntry<X> {
         if (this.res.entity <= 0) {
             let entity = this.world.spawnEntity();
             let cmd = {
@@ -65,6 +70,7 @@ export class BigStorageSystem implements System {
                     BIG_STORAGE_TYPE: { entity }
                 }
             } as ResourceEditCommand;
+            console.log("Creating big storage");
             emitCommand(this.world, cmd);
             this.world.editResource(BIG_STORAGE_TYPE, { entity });
         }
@@ -74,8 +80,8 @@ export class BigStorageSystem implements System {
             type: BIG_STORAGE_TYPE,
             entity: this.res.entity,
             data,
-            _users: 0,
-            _readonly: readonly,
+            flags,
+            _users: own ? 1 : 0,
         } as BigEntryComponent;
 
         emitCommand(this.world, componentEditCommand([x]));
@@ -97,12 +103,23 @@ export class BigStorageSystem implements System {
         return r;
     }
 
-    replace<X>(id: BigStorageIndex<X>, newData: X): BigEntry<X> | undefined {
+    replace<X>(id: BigStorageIndex<X>, newData: X, ignoreReadonly = false): BigStorageIndex<X> {
         const r = this.request<X>(id);
-        if (r === undefined) return undefined;
+        if (r === undefined) {
+            throw Error("undefined id");
+        }
+        if (r.flags & BigEntryFlags.READONLY && !ignoreReadonly) {
+            throw Error("Trying to replace readonly resurce");
+        }
+
+        if ((r.flags & BigEntryFlags.SHARED) === 0 && r._users!! > 1) {
+            r._users!! -= 1;
+            const entry = this.create(newData, r.flags);
+            return entry.multiId;
+        }
 
         r.data = newData;
-        return r;
+        return r.multiId;
     }
 
     dropUse<X>(id: BigStorageIndex<X>) {
@@ -125,6 +142,7 @@ export class BigStorageSystem implements System {
             }
         }
         let cmd = componentEditCommand([], [], toRemove);
+        // TODO: please check if this works, I'm too scared
     }
 
     enable() {

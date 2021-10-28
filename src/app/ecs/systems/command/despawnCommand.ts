@@ -17,11 +17,17 @@ export class DeSpawnCommandKind implements CommandKind {
     }
 
     applyInvert(cmd: DeSpawnCommand): SpawnCommand {
-        let saved = this.world.despawnEntitiesSave(cmd.entities);
+        const data = this.world.serialize({
+            only: new Set(cmd.entities),
+            requireSave: true,
+        });
+        for (let e of cmd.entities) {
+            this.world.despawnEntity(e);
+        }
 
         return  {
             kind: 'spawn',
-            entities: saved,
+            data,
         } as SpawnCommand
     }
 

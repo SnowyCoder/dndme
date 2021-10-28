@@ -1,4 +1,4 @@
-import {World} from "../../world";
+import {DeserializeData, World} from "../../world";
 import {
     Component, HOST_HIDDEN_TYPE, MultiComponent,
     NAME_TYPE,
@@ -99,6 +99,12 @@ export class SelectionSystem implements System {
         this.ecs.events.on('component_edited', this.onComponentUpdate, this);
         this.ecs.events.on('component_removed', this.onComponentRemove, this);
         this.ecs.events.on('entity_despawn', this.onEntityDespawn, this);
+        this.ecs.events.on('deserialized', (d: DeserializeData) => {
+            if (d.options.thenSelect) {
+                console.log(d.data.entities);
+                this.setOnlyEntities(d.data.entities.map(d.entityMapping));
+            }
+        });
         if (ecs.isMaster) {
             this.ecs.events.on('command_post_execute', (c: Command | undefined) => {
                 // a spawn command has been executed
@@ -645,5 +651,3 @@ function biFilterObj(target: any, filter: any): void {
         }
     }
 }
-
-

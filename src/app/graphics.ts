@@ -2,6 +2,7 @@
 // NONE OF THIS SHOULD BE SERIALIZED! THIS IS ALL RUNTIME DEPENDANT! DETAILS WILL CHANGE BETWEEN MINOR VERSIONS!
 
 import {Component} from "./ecs/component";
+import { BigStorageIndex } from "./ecs/systems/back/bigStorageSystem";
 
 export const EVENT_REMEMBER_BIT_BY_BIY_MASK_UPDATE = 'remember_bit_by_bit_vis_update';
 

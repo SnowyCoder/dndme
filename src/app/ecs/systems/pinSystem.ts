@@ -17,7 +17,7 @@ import {TOOL_TYPE, ToolDriver, ToolSystem} from "./back/toolSystem";
 import {PointerClickEvent} from "./back/pixiBoardSystem";
 import {SELECTION_TYPE, SelectionSystem} from "./back/selectionSystem";
 import {Tool} from "../tools/toolType";
-import {SpawnCommand} from "./command/spawnCommand";
+import {SpawnCommand, SpawnCommandKind} from "./command/spawnCommand";
 import {executeAndLogCommand} from "./command/command";
 import {findForeground, PARENT_LAYER_TYPE, ParentLayerComponent} from "./back/layerSystem";
 
@@ -186,27 +186,21 @@ export class CreatePinToolDriver implements ToolDriver {
         let loc = world.getComponent(id, POSITION_TYPE) as PositionComponent;
         world.despawnEntity(id);
 
-        let cmd = {
-            kind: 'spawn',
-            entities: [{
-                id: world.allocateId(),
-                components: [
-                    {
-                        type: POSITION_TYPE,
-                        x: loc.x,
-                        y: loc.y,
-                    } as PositionComponent,
-                    {
-                        type: PIN_TYPE,
-                        color: (g.display as PointElement).color,
-                    } as PinComponent,
-                    {
-                        type: PARENT_LAYER_TYPE,
-                        layer: findForeground(this.sys.world),
-                    } as ParentLayerComponent,
-                ]
-            }]
-        } as SpawnCommand;
+        const cmd = SpawnCommandKind.from(world, [
+            {
+                type: POSITION_TYPE,
+                x: loc.x,
+                y: loc.y,
+            } as PositionComponent,
+            {
+                type: PIN_TYPE,
+                color: (g.display as PointElement).color,
+            } as PinComponent,
+            {
+                type: PARENT_LAYER_TYPE,
+                layer: findForeground(this.sys.world),
+            } as ParentLayerComponent,
+        ]);
 
         this.createPin = -1;
         this.sys.world.editResource(TOOL_TYPE, {

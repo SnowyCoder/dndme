@@ -1,6 +1,6 @@
 import PIXI from "../../PIXI";
 import {System} from "../system";
-import {FrozenEntity, World} from "../world";
+import {World} from "../world";
 import {DESTROY_ALL} from "../../util/pixi";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {SingleEcsStorage} from "../storage";
@@ -24,12 +24,13 @@ import {getMapPointFromMouseInteraction} from "../tools/utils";
 import {SELECTION_TYPE, SelectionSystem} from "./back/selectionSystem";
 import {Tool} from "../tools/toolType";
 import {executeAndLogCommand} from "./command/command";
-import {SpawnCommand} from "./command/spawnCommand";
+import {SpawnCommand, SpawnCommandKind} from "./command/spawnCommand";
 import {arrayRemoveElem} from "../../util/array";
 import {DeSpawnCommand} from "./command/despawnCommand";
+import { componentClone } from "../ecsUtil";
 
 export const WALL_TYPE = 'wall';
-export type WALL_TYPE = 'wall';
+export type WALL_TYPE = typeof WALL_TYPE;
 export interface WallComponent extends Component {
     type: WALL_TYPE;
     vec: Point;
@@ -215,18 +216,16 @@ export class WallSystem implements System {
 
             this.redrawWall(wall);
 
-            let plen = points.length;
-            let cIds = [];
-            let entities = [];
+            const plen = points.length;
+            const cIds = [];
             for (let i = 4; i < plen; i += 2) {
-                let entity = this.createWall(
+                let cmd = this.createWall(
                     points[i - 2], points[i - 1],
                     points[i], points[i + 1]
-                )
-                cIds.push(entity.id);
-                entities.push(entity);
+                );
+                cIds.push(cmd.data.entities[0]);
+                this.world.deserialize(cmd.data, { remap: false });
             }
-            this.world.respawnEntities(entities);
             if (cIds.length > 0) {
                 this.selectionSys.addEntities(cIds);
                 // TODO: optimization, update the selection only once!
@@ -370,7 +369,7 @@ export class WallSystem implements System {
         return end;
     }
 
-    createWall(minX: number, minY: number, maxX: number, maxY: number): FrozenEntity {
+    createWall(minX: number, minY: number, maxX: number, maxY: number): SpawnCommand {
         let components = [
             {
                 entity: -1,
@@ -383,10 +382,7 @@ export class WallSystem implements System {
                 vec: [maxX - minX, maxY - minY],
             } as WallComponent,
         ];
-        return {
-            id: this.world.allocateId(),
-            components,
-        };
+        return SpawnCommandKind.from(this.world, components);
     }
 
     enable(): void {
@@ -475,14 +471,10 @@ export class CreateWallToolDriver implements ToolDriver {
             let plen = points.length;
 
             for (let i = 2; i < plen; i += 2) {
-                let entity = this.sys.createWall(
+                let cmd = this.sys.createWall(
                     points[i - 2], points[i - 1],
                     points[i    ], points[i + 1]
                 );
-                let cmd = {
-                    kind: 'spawn',
-                    entities: [entity]
-                } as SpawnCommand;
                 executeAndLogCommand(this.sys.world, cmd);
             }
             this.createdLastPos = [point.x, point.y];
