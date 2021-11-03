@@ -1,7 +1,7 @@
 # Dnd Map Editor
 A DM helper for the famous game DnD (I'm not good with names).
 
-[Check it out!](https://rossilorenzo.tk/dndme)
+[Check it out!](https://rossilorenzo.dev/dndme)
 
 For any ideas, questions or if you want to help, please contact snowycoder on telegram.
 
