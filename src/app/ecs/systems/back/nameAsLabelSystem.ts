@@ -31,7 +31,7 @@ export class NameAsLabelSystem implements System {
         world.addStorage(this.storage);
         world.events.on('component_add', this.onComponentAdd, this);
         world.events.on('component_edited', this.onComponentEdited, this);
-        world.events.on('component_remove', this.onComponentRemove, this);
+        world.events.on('component_removed', this.onComponentRemoved, this);
         world.events.on('resource_edited', this.onResourceEdited, this);
     }
 
@@ -53,7 +53,7 @@ export class NameAsLabelSystem implements System {
         }
     }
 
-    private onComponentRemove(c: Component): void {
+    private onComponentRemoved(c: Component): void {
         if (c.type === NAME_AS_LABEL_TYPE) {
             if (this.world.isDespawning.includes(c.entity)) return;
             const g = this.world.getComponent(c.entity, GRAPHIC_TYPE) as GraphicComponent;
@@ -99,7 +99,7 @@ export class NameAsLabelSystem implements System {
         let compositeName = '';
         for (let name of nameStorage.getComponents(c.entity)) {
             if (name.name === '') continue;
-            if (!this.isMasterView && !name.clientVisible) continue;
+            if (!this.isMasterView && name.clientVisible === false) continue;
             if (compositeName !== '') compositeName += '\n';
             compositeName += name.name;
         }

@@ -57,12 +57,21 @@ export interface DeserializeData {
 }
 
 export interface SerializeOptions {
+    // If true only serializes sync components/resources
     requireSync: boolean,
+    // If true only serializes save components/resources
     requireSave: boolean,
+    // Remaps entities to 1,2,3...
     remap: boolean,
+    // Removes clientVisible (and clientVisible === false components)
+    // and HOST_HIDDEN entities
     stripClient: boolean,
+    // If true serializes every entity, even if it has HOST_HIDDEN
+    // (only useful when stripClient is enabled)
     ignoreHostHidden: boolean,
+    // Only serializes entities contained in the set
     only?: Set<number>,
+    // If true also serializes resources
     resources: boolean,
 }
 
@@ -414,8 +423,9 @@ export class World {
         let res = {
             entities: resEnt,
             storages,
-            resources,
         } as SerializedWorld;
+
+        if (resources !== undefined) res.resources = resources;
 
         sdata.result = res;
         this.events.emit('serialized', sdata);

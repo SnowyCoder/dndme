@@ -97,31 +97,48 @@ export class ComponentEditCommandKind implements CommandKind {
     }
 
     stripClient(cmd: ComponentEditCommand): Command[] {
+        // Get all of the new entitites that have been hidden
         let host_hidden = cmd.add?.filter(x => x.type === HOST_HIDDEN_TYPE).map(x => x.entity) ?? [];
+        // Get all fof the new entities that have been un-hidden (shown)
         let non_host_hidden = cmd.remove?.filter(x => x.type === HOST_HIDDEN_TYPE).map(x => x.entity) ?? [];
 
+        // Checks if a component is visible (a component is bisible if clientVisible !== false and if it's
+        //   not host-hidden)
         let predicate = (x: Component) => {
             if ((x as HideableComponent).clientVisible === false) return false;
             if (host_hidden.indexOf(x.entity) > -1) return false;
             if (non_host_hidden.indexOf(x.entity) > -1) return true;
             return this.world.getComponent(x.entity, HOST_HIDDEN_TYPE) === undefined;
         };
-        let partialPredicate = (x: Component) => {
-            let real = this.world.getComponent(x.entity, x.type, (x as MultiComponent).multiId)!;
-            if ((real as HideableComponent).clientVisible === false && !('clientVisible' in x)) return false;
-            return predicate(x);
+        // Filters a component based on the old component, for example:
+        // if the old component is hidden and the new edits do not change that, the component is filtered
+        // if the old component is hidden and the new edits might change it,  it's not hidden
+        // if the old component is not hidden, it's not hidden
+        let partialPredicate = (entity: number, type: string, multiId: number | undefined, changes: AnyMapType) => {
+            let real = this.world.getComponent(entity, type, multiId)!;
+            if ((real as HideableComponent).clientVisible === false && !('clientVisible' in changes)) return false;
+            return predicate({ entity, type });
         }
 
+        // get added components that are only visible to the client
         let add = cmd.add?.filter(predicate);
-        let edit = cmd.edit?.filter(partialPredicate);
-        let remove = cmd.remove?.filter(x => x.type !== HOST_HIDDEN_TYPE && partialPredicate(x));
+        // get edited components that are only visible to the client
+        let edit = cmd.edit?.filter(x => partialPredicate(x.entity, x.type, x.multiId, x.changes));
+        // get removed components that are only visible to the client
+        let remove = cmd.remove?.filter(x => x.type !== HOST_HIDDEN_TYPE && partialPredicate(x.entity, x.type, (x as MultiComponent).multiId, {}));
 
+        // If we set clientVisible === false in a component we need a way to remove it on the client
+        //  and we also need to do the same thing in reverse
+        // We need to propagate the changes in edit to add and remove components with clientVisible
         edit = edit?.filter(x => {
+            // if the edits did not change the visibility the old filter has finished all of the work
             if (!('clientVisible' in x.changes)) return true;
+
             let orig = this.world.getComponent(x.entity, x.type, x.multiId) as HideableComponent;
             if (orig === undefined) return false;
 
             if (x.changes.clientVisible === false && orig.clientVisible !== false) {
+                // if the edits have hidden the component (and it wasn't hidden already) then remove it
                 remove = remove ?? [];
                 remove.push({
                     entity: x.entity,
@@ -129,6 +146,7 @@ export class ComponentEditCommandKind implements CommandKind {
                     multiId: x.multiId,
                 } as MultiComponent);
             } else if (x.changes.clientVisible !== false && orig.clientVisible === false) {
+                // If the edits have unhidden the component (and it was hidden before) then add it
                 add = add ?? [];
                 add.push(filterComponentKeepEntity(orig));
             }
@@ -149,12 +167,12 @@ export class ComponentEditCommandKind implements CommandKind {
             let cedit = {
                 kind: 'cedit'
             } as ComponentEditCommand;
-            if (add !== undefined) cedit.add = add.map(objectClone);
-            if (edit !== undefined) {
+            if (add !== undefined && add.length > 0) cedit.add = add.map(objectClone);
+            if (edit !== undefined && edit.length > 0) {
                 cedit.edit = edit.map(objectClone);
                 if (cmd.multi) cedit.multi = true;
             }
-            if (remove !== undefined) cedit.remove = remove.map(objectClone);
+            if (remove !== undefined && remove.length > 0) cedit.remove = remove.map(objectClone);
             res.push(cedit);
         }
 
@@ -209,10 +227,6 @@ export class ComponentEditCommandKind implements CommandKind {
             kind: 'spawn',
             data,
         };
-    }
-
-    private shouldIgnoreComponent0(component: Component): boolean {
-        return ((component as HideableComponent).clientVisible === false) || !this.world.storages.get(component.type)?.sync;
     }
 }
 

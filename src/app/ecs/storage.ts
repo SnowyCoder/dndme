@@ -5,10 +5,11 @@ import { arrayFilterInPlace } from "../util/array";
 import { objectFilterInplace, objectMerge } from "../util/jsobj";
 
 
-export function serializeObj(obj: Component): any {
+export function serializeObj(obj: Component, removeClientVisible: boolean): any {
     let res = {} as any;
     for (let name in obj) {
-        if (name[0] === '_' || name === 'entity' || name === 'type') continue;
+        if (name[0] === '_' || name === 'entity' ||
+            name === 'type' || (removeClientVisible && name === 'clientVisible')) continue;
         res[name] = (obj as any)[name];
     }
     return res;
@@ -149,7 +150,7 @@ export class MultiEcsStorage<C extends MultiComponent> implements EcsStorage<C> 
                 if (stripClient &&
                     (component as Component as HideableComponent).clientVisible === false
                 ) continue;
-                entityRes.push(serializeObj(component));
+                entityRes.push(serializeObj(component, stripClient));
             }
             return entityRes;
         }
@@ -207,7 +208,14 @@ export class MultiEcsStorage<C extends MultiComponent> implements EcsStorage<C> 
     serializedStrip(data: MultiEcsStorageSerialized, filter: (x: number) => boolean) {
         objectFilterInplace(data, (name, val) => {
             if (!filter(parseInt(name))) return false;
-            arrayFilterInPlace(val, x => (x as HideableComponent).clientVisible !== false);
+            arrayFilterInPlace(val, x => {
+                if ((x as HideableComponent).clientVisible === false) {
+                    return false;
+                } else {
+                    delete (x as any)['clientVisible'];
+                    return true;
+                }
+            });
 
             return val.length !== 0;
         });
@@ -291,7 +299,7 @@ export class SingleEcsStorage<C extends Component> implements EcsStorage<C> {
                 ) continue;
 
                 let e = remap ? i : entity;
-                res[e] = serializeObj(comp);
+                res[e] = serializeObj(comp, stripClient);
                 isPresent = true;
             }
         } else {
@@ -302,7 +310,7 @@ export class SingleEcsStorage<C extends Component> implements EcsStorage<C> {
                 ) continue;
 
                 let e = remap ? sdata.entityMapping(comp.entity) : comp.entity;
-                res[e] = serializeObj(comp);
+                res[e] = serializeObj(comp, stripClient);
                 isPresent = true;
             }
         }

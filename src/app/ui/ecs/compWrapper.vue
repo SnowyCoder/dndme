@@ -8,7 +8,7 @@
         <b-button v-if="isAdmin" squared size="sm" style="display: grid;"
                   :title="component.clientVisible ? 'Hide component' : 'Show component'"
                   v-show="component.clientVisible !== undefined"
-                  @click="$emit('ecs-property-change', component.type, 'clientVisible', !component.clientVisible)">
+                  @click="$emit('ecs-property-change', component.type, 'clientVisible', !component.clientVisible, component.multiId)">
           <div class="g11" v-show="component.clientVisible"><i class="fas fa-eye"/></div>
           <div class="g11" v-show="!component.clientVisible"><i class="fas fa-eye-slash"/></div>
         </b-button>
