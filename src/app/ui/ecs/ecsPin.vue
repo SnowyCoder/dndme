@@ -5,10 +5,6 @@
         Color:
         <editable-color :readonly="!isAdmin" v-model="color" @change="onChange"/>
       </div>
-      <div class="d-flex align-items-center">
-        Label:
-        <editable-text :readonly="!isAdmin" v-model="label" placeholder="Label" @change="onChange"/>
-      </div>
     </template>
   </div>
 </template>
@@ -37,28 +33,17 @@ export default class EcsPin extends Vue {
   isAdmin!: boolean;
 
   color: string = '';
-  label: string = '';
 
   onChange() {
     let c = string2hex(this.color);
     if (this.component.color !== c && this.color !== '') {
       this.$emit('ecs-property-change', 'pin', 'color', c);
     }
-    let label: string | undefined = this.label;
-    if (!label) label = undefined;
-    if (label !== this.component.label) {
-      this.$emit('ecs-property-change', 'pin', 'label', label);
-    }
   }
 
   @VWatchImmediate('component.color')
   onCColorChanged(val: number | undefined) {
     this.color = val === undefined ? "" : hex2string(val);
-  }
-
-  @VWatchImmediate('component.label')
-  onCLabelChanged(val: string | undefined) {
-    this.label = val ?? "";
   }
 }
 </script>

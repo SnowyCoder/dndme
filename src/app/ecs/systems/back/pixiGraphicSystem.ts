@@ -284,7 +284,7 @@ export class PixiGraphicSystem implements System {
             } else if (set.visionType === 'rp') {
                 this.masterVisibility = false;
                 for (let c of this.storage.allComponents()) {
-                    let pv = this.world.getComponent(c.entity, 'player_visible') as PlayerVisibleComponent;
+                    let pv = this.world.getComponent(c.entity, PLAYER_VISIBLE_TYPE) as PlayerVisibleComponent;
                     let rem = this.rememberStorage.getComponent(c.entity);
                     this.updateElementVisibility(c, c.display, true, pv?.visible, rem !== undefined);
                 }
@@ -983,6 +983,7 @@ export class PixiGraphicSystem implements System {
                 g.text = el.text;
                 g.anchor.copyFrom(el.anchor);
                 g.tint = el.color;
+                g.style.align = el.lineAlign;
                 break;
             }
         }

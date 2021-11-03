@@ -32,6 +32,7 @@ import {BigStorageSystem} from "../../ecs/systems/back/bigStorageSystem";
 import {MouseTrailSystem} from "../../ecs/systems/mouseTrailSystem";
 import {CopyPasteSystem} from "../../ecs/systems/copyPasteSystem";
 import { LinkRelocationSystem } from "../../ecs/systems/back/linkRelocationSystem";
+import { NameAsLabelSystem } from "../../ecs/systems/back/nameAsLabelSystem";
 
 
 export class EditMapPhase extends EcsPhase {
@@ -74,6 +75,7 @@ export class EditMapPhase extends EcsPhase {
         w.addSystem(new TextSystem(w));
         w.addSystem(new PixiGraphicSystem(w));
         w.addSystem(new PixiLayerSystem(w));
+        w.addSystem(new NameAsLabelSystem(w));
 
         w.addSystem(new BackgroundImageSystem(w));
         w.addSystem(new WallSystem(w));

@@ -34,14 +34,28 @@ export class CopyPasteSystem implements System {
     private pasteListener: any;
     private cutListener: any;
 
+    private lastIgnorePaste: number = 0;
+
     constructor(world: World) {
         this.world = world;
         this.keyboard = world.getResource(KEYBOARD_TYPE) as KeyboardResource;
         this.selectionSys = world.systems.get(SELECTION_TYPE) as SelectionSystem;
+
+        this.world.events.on('ignore_next_paste', this.onIgnoreNextPaste, this);
+    }
+
+
+    private onIgnoreNextPaste(): void {
+        this.lastIgnorePaste = Date.now();
     }
 
     onPaste(e: ClipboardEvent) {
         if (e.target instanceof HTMLInputElement || e.clipboardData == null) {
+            return;
+        }
+
+        if (Date.now() < this.lastIgnorePaste + 300) {
+            this.lastIgnorePaste = 0;
             return;
         }
         const text = e.clipboardData.getData('text/plain');

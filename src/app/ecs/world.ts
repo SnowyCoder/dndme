@@ -11,7 +11,7 @@ import {Resource} from "./resource";
 import {SystemGraph} from "./systemGraph";
 import {System} from "./system";
 import SafeEventEmitter from "../util/safeEventEmitter";
-import {filterComponent, generateRandomId} from "./ecsUtil";
+import {generateRandomId} from "./ecsUtil";
 
 
 export type SerializedEntities = {
@@ -94,6 +94,7 @@ export class World {
 
     private systemsFinalized: boolean = false;
     isDeserializing: boolean = false;
+    isDespawning: number[] = [];
     isMaster: boolean;
 
     //      Event list:
@@ -169,6 +170,7 @@ export class World {
     }
 
     despawnEntity(entity: number): void {
+        this.isDespawning.push(entity);
         this.events.emit('entity_despawn', entity);
         for (let i = this.storageList.length - 1; i >= 0; --i) {
             let storage = this.storageList[i];
@@ -183,6 +185,9 @@ export class World {
             }
         }
         this.entities.delete(entity);
+        if (this.isDespawning.pop() !== entity) {
+            console.error("Error despawning entity, despawn queue modified");
+        }
         this.events.emit('entity_despawned', entity);
     }
 

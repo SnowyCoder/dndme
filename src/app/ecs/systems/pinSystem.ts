@@ -1,6 +1,6 @@
 import {System} from "../system";
 import {World} from "../world";
-import {SingleEcsStorage} from "../storage";
+import {MultiEcsStorage, SingleEcsStorage} from "../storage";
 import {
     Component,
     FOLLOW_MOUSE_TYPE,
@@ -8,7 +8,9 @@ import {
     HOST_HIDDEN_TYPE,
     HostHiddenComponent,
     POSITION_TYPE,
-    PositionComponent
+    PositionComponent,
+    NAME_TYPE,
+    NameComponent
 } from "../component";
 import {ElementType, GRAPHIC_TYPE, GraphicComponent, PointElement, TextElement, VisibilityType} from "../../graphics";
 import {POINT_RADIUS} from "./back/pixiGraphicSystem";
@@ -17,9 +19,10 @@ import {TOOL_TYPE, ToolDriver, ToolSystem} from "./back/toolSystem";
 import {PointerClickEvent} from "./back/pixiBoardSystem";
 import {SELECTION_TYPE, SelectionSystem} from "./back/selectionSystem";
 import {Tool} from "../tools/toolType";
-import {SpawnCommand, SpawnCommandKind} from "./command/spawnCommand";
+import {SpawnCommandKind} from "./command/spawnCommand";
 import {executeAndLogCommand} from "./command/command";
 import {findForeground, PARENT_LAYER_TYPE, ParentLayerComponent} from "./back/layerSystem";
+import { NameAsLabelComponent, NAME_AS_LABEL_TYPE } from "./back/nameAsLabelSystem";
 
 export const PIN_TYPE = 'pin';
 export type PIN_TYPE = typeof PIN_TYPE;
@@ -27,13 +30,12 @@ export type PIN_TYPE = typeof PIN_TYPE;
 export interface PinComponent extends Component {
     type: PIN_TYPE;
     color: number;
-    label?: string;
 }
 
 
 export class PinSystem implements System {
     readonly name = PIN_TYPE;
-    readonly dependencies = [TOOL_TYPE, GRAPHIC_TYPE, SELECTION_TYPE];
+    readonly dependencies = [TOOL_TYPE, GRAPHIC_TYPE, SELECTION_TYPE, NAME_AS_LABEL_TYPE];
 
     readonly world: World;
     readonly selectionSys: SelectionSystem;
@@ -72,6 +74,34 @@ export class PinSystem implements System {
             this.world.addComponent(c.entity, display);
         }
         this.redrawComponent(pin, display.display as PointElement);
+
+        this.world.addComponent(c.entity, {
+            type: NAME_AS_LABEL_TYPE,
+            initialOffset: {x: 0, y: -POINT_RADIUS},
+        } as NameAsLabelComponent);
+
+        // In some older versions there was a label field that was printed on top of the point,
+        // this has been removed in favour of the "name" components (and the 'name_as_label' system)
+        // so if you find a label that is not listed in the names add it to keep compatibility
+        if ((pin as any).label !== undefined) {
+            const label = (pin as any).label;
+            let isNameFound = false;
+            for (let name of (this.world.storages.get(NAME_TYPE) as MultiEcsStorage<NameComponent>).getComponents(pin.entity)) {
+                if (name === label) {
+                    isNameFound = true;
+                    break;
+                }
+            }
+
+            if (!isNameFound) {
+                this.world.addComponent(pin.entity, {
+                    type: NAME_TYPE,
+                    name: label,
+                } as NameComponent);
+            }
+
+            delete (pin as any).label;
+        }
     }
 
     private onComponentEdited(comp: Component, changed: any): void {
@@ -98,26 +128,6 @@ export class PinSystem implements System {
 
     private redrawComponent(pin: PinComponent, display: PointElement): void {
         display.color = pin.color;
-
-        if (pin.label !== undefined) {
-            if (display.children!.length === 0) {
-                display._childrenAdd = [{
-                    type: ElementType.TEXT,
-                    ignore: false,
-                    interactive: false,
-                    priority: 0,
-                    visib: VisibilityType.NORMAL,
-                    anchor: {x: 0.5, y: 1.0},
-                    offset: {x: 0, y: -POINT_RADIUS},
-                    color: 0,
-                    text: pin.label,
-                } as TextElement];
-            } else {
-                (display.children![0] as TextElement).text = pin.label;
-            }
-        } else {
-            display._childrenReplace = [];
-        }
 
         this.world.editComponent(pin.entity, GRAPHIC_TYPE, { display }, undefined, false);
     }

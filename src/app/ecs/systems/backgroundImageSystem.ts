@@ -14,6 +14,7 @@ import {
 } from "../../graphics";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {BIG_STORAGE_TYPE, BigStorageIndex, BigStorageSystem, BigEntryFlags} from "./back/bigStorageSystem";
+import { NameAsLabelComponent, NameAsLabelSystem, NAME_AS_LABEL_TYPE } from "./back/nameAsLabelSystem";
 
 export type BACKGROUND_TYPE = 'background_image';
 export const BACKGROUND_IMAGE_TYPE = 'background_image';
@@ -108,6 +109,11 @@ export class BackgroundImageSystem implements System {
                 tint: 0xFFFFFF,
             } as ImageElement,
         } as GraphicComponent);
+
+        this.world.addComponent(c.entity, {
+            type: NAME_AS_LABEL_TYPE,
+            initialOffset: { x: 0, y: -tex.height / 2}
+        } as NameAsLabelComponent);
     }
 
     private onComponentRemove(c: Component): void {

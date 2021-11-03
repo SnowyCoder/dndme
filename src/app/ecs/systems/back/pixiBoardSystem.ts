@@ -271,8 +271,14 @@ export class PixiBoardSystem implements System {
 
         let e = event as PointerDownEvent;
         e.consumed = false;
-        if (!(event.data.pointerType === 'mouse' && event.data.button === 1)) {
+        if (event.data.pointerType === 'mouse' && event.data.button === 1) {
             // If middle button is pressed ignore, we force it to drag the board
+            // (and prevent the paste event)
+            event.data.originalEvent.preventDefault();
+            event.data.originalEvent.stopPropagation();
+            // of course every browser ignores the preventDefault so we have to ignore it ourself
+            this.world.events.emit('ignore_next_paste');
+        } else {
             this.world.events.emit(PointerEvents.POINTER_DOWN, event);
         }
 

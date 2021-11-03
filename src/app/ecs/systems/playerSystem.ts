@@ -11,7 +11,7 @@ import {
     VisibilityAwareComponent,
     VisibilityAwareSystem
 } from "./back/visibilityAwareSystem";
-import {LIGHT_SETTINGS_TYPE, LIGHT_TYPE, LightComponent, LightSettings, LightSystem} from "./lightSystem";
+import {LIGHT_SETTINGS_TYPE, LIGHT_TYPE, LightComponent, LightSettings, LightSystem, LOCAL_LIGHT_SETTINGS_TYPE, LocalLightSettings} from "./lightSystem";
 import {Aabb} from "../../geometry/aabb";
 import PIXI from "../../PIXI";
 import {GridResource, Resource} from "../resource";
@@ -99,6 +99,9 @@ export class PlayerSystem implements System {
     private onPlayerVisibleCountersUpdate(t: PlayerVisibleComponent) {
         let newVisible = t._playerNightVisionCount > 0 ||
             ((this.ambientIlluminated || t._lightCount > 0 || t.isWall) && t._playerCount > 0);
+        if (this.world.isMaster && this.world.getComponent(t.entity, HOST_HIDDEN_TYPE) !== undefined) {
+            newVisible = false;
+        }
         if (newVisible !== t.visible) {
             this.world.editComponent(t.entity, t.type, {
                 visible: newVisible,
@@ -402,6 +405,11 @@ export class PlayerSystem implements System {
             c._playerCount = 0;
             c._playerNightVisionCount = 0;
             this.world.addComponent(c.entity, newVisibilityAwareComponent(c.isWall === true));
+        } else if (comp.type === HOST_HIDDEN_TYPE) {
+            let pv = this.visibleStorage.getComponent(comp.entity);
+            if (pv !== undefined) {
+                this.onPlayerVisibleCountersUpdate(pv);
+            }
         }
     }
 
@@ -455,6 +463,11 @@ export class PlayerSystem implements System {
             if (pv === undefined) return;
             pv._playerNightVisionCount--;// Gotta undo those hacks
             this.onPlayerVisibleCountersUpdate(pv);
+        } else if (comp.type === HOST_HIDDEN_TYPE) {
+            let pv = this.visibleStorage.getComponent(comp.entity);
+            if (pv !== undefined) {
+                this.onPlayerVisibleCountersUpdate(pv);
+            }
         }
     }
 

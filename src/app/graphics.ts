@@ -29,6 +29,7 @@ export enum ElementType {
 
 export interface DisplayElement extends VisibilityOptions {
     type: ElementType;
+    tag?: string;// used sometimes to differentiate elements between systems
     ignore: boolean;
     priority: number;// (ignored if text for performance reasons)
     offset?: PIXI.IPointData;
@@ -101,4 +102,5 @@ export interface PointElement extends DisplayElement, ColorableElement {
 export interface TextElement extends DisplayElement, AnchorableElement, ColorableElement {
     type: ElementType.TEXT;
     text: string;
+    lineAlign?: 'left' | 'center' | 'right';
 }
