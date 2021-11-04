@@ -1,6 +1,5 @@
 
 export interface PacketContainer {
-    id?: number;
     sender: number;
     receiver?: number;// if undefined: broadcast
     payload: Packet;

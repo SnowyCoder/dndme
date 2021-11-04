@@ -42,9 +42,7 @@ export class Channel {
         // TODO: think of a better packetid system, we have some problems with
         //       host forwarding as the id changes, we can not have replies.
         if (this.isHost && packet.receiver !== this.myId) {
-            let originalId = packet.id;
             if (packet.receiver === undefined) {
-                packet.id = this.nextBroadcastPacketId++;
                 for (let c of this.connectionsById.values()) {
                     if (c !== conn) {
                         c.send(packet);
@@ -56,15 +54,12 @@ export class Channel {
                     this.send({
                         type: "error",
                         errorType: "unknown_receiver",
-                        requestId: packet.id,
                     } as ErrorPacket, conn.channelId);
 
                     return;
                 }
-                packet.id = recv.nextPacketId++;
                 recv.send(packet);
             }
-            packet.id = originalId;
         }
 
         if (packet.receiver === undefined || packet.receiver === this.myId) {
@@ -80,7 +75,6 @@ export class Channel {
 
     broadcast(packet: Packet) {
         const wrapped = {
-            id: this.nextBroadcastPacketId,
             payload: packet,
             sender: this.myId,
         } as PacketContainer;
@@ -92,13 +86,10 @@ export class Channel {
         for (let conn of this.connectionsById.values()) {
             conn.send(wrapped);
         }
-
-        this.nextBroadcastPacketId++;
     }
 
     send(packet: Packet, receiverId: number) {
         const wrapped = {
-            id: 0,
             payload: packet,
             sender: this.myId,
         } as PacketContainer;
@@ -108,10 +99,8 @@ export class Channel {
             if (conn === undefined) {
                 throw "Unknown receiver"
             }
-            wrapped.id = conn.nextPacketId++;
             conn.send(wrapped);
         } else {
-            wrapped.id = this.nextBroadcastPacketId++;
             for (let conn of this.connectionsById.values()) {
                 conn.send(wrapped);
             }
@@ -133,7 +122,6 @@ export class Channel {
         this.connections.push(conn);
 
         conn.ondata = this.onMessage.bind(this);
-        conn.nextPacketId = 0;
         conn.onBufferChange = this.onConnectionStatusUpdate.bind(this);
 
         this.eventEmitter.emit("_device_join", conn.channelId);

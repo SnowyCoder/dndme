@@ -103,11 +103,14 @@ export class PeerJsConnection implements P2pConnection {
 
     ondata?: (data: any, conn: P2pConnection) => void;
     channelId: number;
-    nextPacketId: number = -1;
 
     bootstrap: boolean = false;
     buffered: boolean = false;
     onBufferChange?: (buffered: boolean) => void;
+
+    nextOutId: number = 0;
+    nextInId: number = 0;
+    reorderBuffer = new Map<number, any>();
 
     statsManager?: RtcStatsManager;
 
@@ -143,8 +146,35 @@ export class PeerJsConnection implements P2pConnection {
             this.bootstrap = true;
             this.parent.channel.registerNewConnection(this);
             return;
-        } else if (this.ondata !== undefined) {
-            this.ondata(data, this);
+        }
+        const id = data[0];
+        const pkt = data[1];
+
+        if (id === this.nextInId) {
+            this.nextInId += 1;
+            this.forwardPacket(pkt);
+            while (true) {
+                const pkt = this.reorderBuffer.get(this.nextInId);
+                if (pkt === undefined) break;
+                this.reorderBuffer.delete(this.nextInId);
+                this.nextInId++;
+                this.forwardPacket(pkt);
+            }
+        } else if (id > this.nextInId) {
+            this.reorderBuffer.set(id, pkt);
+        } else {
+            console.warn('Received packet back in time?')
+        }
+    }
+
+    private forwardPacket(pkt: any) {
+        // console.log("RECEIVED " + JSON.stringify(pkt));
+        if (this.ondata !== undefined) {
+            try {
+                this.ondata(pkt, this);
+            } catch (e) {
+                console.error("Error processing packet", e);
+            }
         }
     }
 
@@ -153,7 +183,7 @@ export class PeerJsConnection implements P2pConnection {
     }
 
     send(data: any): void {
-        this.connection.send(data);
+        this.connection.send([this.nextOutId++, data]);
         this.updateBuffered();
     }
 

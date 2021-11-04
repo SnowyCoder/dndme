@@ -1,5 +1,5 @@
 import {Component, HideableComponent, MultiComponent} from "./component";
-import {AnyMapType, DeserializeData, DeserializeOptions, SerializeData, SerializeOptions, World} from "./world";
+import {DeserializeData, DeserializeOptions, SerializeData, SerializeOptions, World} from "./world";
 import {generateRandomId} from "./ecsUtil";
 import { arrayFilterInPlace } from "../util/array";
 import { objectFilterInplace, objectMerge } from "../util/jsobj";
@@ -95,7 +95,7 @@ export class MultiEcsStorage<C extends MultiComponent> implements EcsStorage<C> 
                 this.data.set(component.entity, [component]);
             } else {
                 for (let c of arr) {
-                    if (c.multiId === component.multiId) throw 'Invalid pre-assigned multiId';
+                    if (c.multiId === component.multiId) throw Error('Invalid pre-assigned multiId ' + c.multiId);
                 }
 
                 arr.push(component);

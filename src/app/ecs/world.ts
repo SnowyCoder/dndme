@@ -220,6 +220,9 @@ export class World {
     }
 
     addComponent(entity: number, cmp: Component): void {
+        if (!this.entities.has(entity)) {
+            throw new Error("Entity not present");
+        }
         cmp.entity = entity;
         let storage = this.storages.get(cmp.type);
         if (storage === undefined) {

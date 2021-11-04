@@ -30,7 +30,12 @@ export interface BigEntryResource extends Resource {
 
 export enum BigEntryFlags {
     READONLY = 1,
-    SHARED = 2,// If it's not shared it's owned as a CoW
+    /// If it's not shared it's owned as a CoW
+    SHARED = 2,
+    // If present the object will not be shared with the other
+    //  (but it's still SAVE so it will be sent at the beginning,
+    //   use case: visibility map)
+    NO_SYNC = 4,
 }
 
 export type BigStorageIndex<X> = number;
@@ -94,7 +99,7 @@ export class BigStorageSystem implements System {
             _users: own ? 1 : 0,
         } as BigEntryComponent;
 
-        emitCommand(this.world, componentEditCommand([x]), true);
+        emitCommand(this.world, componentEditCommand([x]), !(flags & BigEntryFlags.NO_SYNC));
 
         return x;
     }

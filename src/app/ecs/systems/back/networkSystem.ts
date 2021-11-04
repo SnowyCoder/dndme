@@ -121,7 +121,7 @@ export class CommonNetworkSystem implements NetworkSystem {
                 color: Math.floor(Math.random() * 0xFFFFFF),
             } as NetworkEntityComponent
         ]);
-        emitCommand(this.world, cmd);
+        emitCommand(this.world, cmd, true);
     }
 
     onDeviceJoin(connId: number) {

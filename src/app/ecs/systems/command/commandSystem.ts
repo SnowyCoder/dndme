@@ -72,7 +72,7 @@ export class CommandSystem implements System {
 
         // console.log("EMIT", JSON.stringify(command));
 
-        if (this.networkSys?.isOnline() === true && (this.world.isMaster || share)) {
+        if (this.networkSys?.isOnline() === true && share) {
             let stripped = kind.stripClient(command);
             if (stripped.length !== 0) {
                 this.world.events.emit("command_share", stripped);

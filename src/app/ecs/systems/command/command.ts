@@ -33,7 +33,7 @@ export function executeAndLogCommand(world: World, command: Command): Command | 
     return res.inverted;
 }
 
-export function emitCommand(world: World, command: Command, share: boolean = false): Command | undefined {
+export function emitCommand(world: World, command: Command, share: boolean): Command | undefined {
     let res = {} as CommandResult;
     world.events.emit(EVENT_COMMAND_EMIT, command, res, share);
     return res.inverted;
@@ -46,4 +46,3 @@ export function commandRegisterPreConsequence(world: World, command: Command): v
 export function commandRegisterPostConsequence(world: World, command: Command): void {
     world.events.emit(EVENT_COMMAND_ADD_POST_CONSEQUENCE, command);
 }
-
