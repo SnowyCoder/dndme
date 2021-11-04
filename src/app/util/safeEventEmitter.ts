@@ -73,7 +73,7 @@ export default class SafeEventEmitter {
      */
     off(event: string, fn: ListenerFn, context?: any, once?: boolean): this {
         let listeners = this.events[event];
-        if (listeners === undefined) throw 'Cannot find event ' + event;
+        if (listeners === undefined) throw new Error('Cannot find event ' + event);
         let length = listeners.length;
         for (let i = 0; i < length; i++) {
             let listener = listeners[i];
@@ -82,7 +82,7 @@ export default class SafeEventEmitter {
                 return this;
             }
         }
-        throw 'Cannot find event ' + event;
+        throw new Error('Cannot find event ' + event);
     }
 
     /**

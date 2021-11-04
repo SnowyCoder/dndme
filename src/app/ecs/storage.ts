@@ -263,7 +263,7 @@ export class SingleEcsStorage<C extends Component> implements EcsStorage<C> {
         if (arr === undefined) {
             this.data.set(component.entity, component);
         } else {
-            throw 'Component of same type already registered';
+            throw new Error('Component of same type already registered');
         }
     }
 
@@ -379,7 +379,7 @@ export class FlagEcsStorage implements EcsStorage<Component> {
     }
 
     register(component: Component): void {
-        if (this.data.has(component.entity)) throw 'Component of same type already registered';
+        if (this.data.has(component.entity)) throw new Error('Component of same type already registered');
         this.data.set(component.entity, component);
     }
 

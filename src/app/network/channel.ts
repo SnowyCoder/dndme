@@ -97,7 +97,7 @@ export class Channel {
         if (this.isHost) {
             let conn = this.connectionsById.get(receiverId);
             if (conn === undefined) {
-                throw "Unknown receiver"
+                throw new Error("Unknown receiver")
             }
             conn.send(wrapped);
         } else {

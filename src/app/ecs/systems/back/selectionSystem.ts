@@ -470,7 +470,7 @@ export class SelectionSystem implements System {
                     break;
                 }
                 case 'forget': {
-                    const res = confirm("Do you want the roleplayers to forget " + " entities?\nThis cannot be undone");
+                    const res = confirm("Do you want the roleplayers to forget " + this.selectedEntities.size + " entities?\nThis cannot be undone");
                     if (res) {
                         emitCommand(this.ecs, {
                             kind: 'event',
@@ -535,7 +535,7 @@ export class SelectionSystem implements System {
                             } as PropTeleport;
                             break;
                         default:
-                            throw 'Cannot add unknown component: ' + propertyValue;
+                            throw new Error('Cannot add unknown component: ' + propertyValue);
                     }
                     let add = [];
                     for (let entity of [...entities]) {

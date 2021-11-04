@@ -146,7 +146,7 @@ export class World {
     getStorage(name: string): EcsStorage<Component> {
         let s = this.storages.get(name);
         if (s === undefined) {
-            throw "Cannot find storage " + name;
+            throw new Error("Cannot find storage " + name);
         }
         return s;
     }
@@ -204,7 +204,7 @@ export class World {
     }
 
     addSystem(system: System): void {
-        if (this.systemsFinalized) throw 'Too late to add a system';
+        if (this.systemsFinalized) throw new Error('Too late to add a system');
         try {
             this.systems.register(system);
         } catch (e) {
@@ -268,7 +268,7 @@ export class World {
     editComponent(entity: number, type: string, changes: AnyMapType, multiId?: number, clearCh: boolean = true): void {
         let c = this.getComponent(entity, type, multiId);
         if (c === undefined) {
-            throw 'Cannot find component ' + type + ' of entity: ' + entity;
+            throw new Error('Cannot find component ' + type + ' of entity: ' + entity);
         }
 
         if (clearCh && !clearChanges(c, changes)) return;// No real changes
@@ -289,7 +289,7 @@ export class World {
         for (let change of chs) {
             let c = this.getComponent(entity, change.type, change.multiId);
             if (c === undefined) {
-                throw 'Cannot find component ' + change.type + ' of entity: ' + entity;
+                throw new Error('Cannot find component ' + change.type + ' of entity: ' + entity);
             }
             change._comp = c;
 
@@ -318,12 +318,12 @@ export class World {
             switch (ifPresent) {
                 case 'ignore': break;
                 case 'update': this.editResource(resource.type, resource); break;
-                default: throw 'Resource type already present';
+                default: throw new Error('Resource type already present');
             }
             return
         }
         this.events.emit('resource_add', resource);
-        if (this.resources.has(resource.type)) throw '"resource_add" event has added a resource of the same type!';
+        if (this.resources.has(resource.type)) throw new Error('"resource_add" event has added a resource of the same type!');
 
         this.resources.set(resource.type, resource);
         this.events.emit('resource_added', resource);
@@ -336,7 +336,7 @@ export class World {
     editResource(type: string, changes: AnyMapType): void {
         let res = this.getResource(type);
         if (res === undefined) {
-            throw 'Cannot find resource ' + type;
+            throw new Error('Cannot find resource ' + type);
         }
 
         if (!clearChanges(res, changes)) return;// No real changes
@@ -348,7 +348,7 @@ export class World {
     removeResource(type: string, failIfNotPresent: boolean = true): void {
         let resource = this.resources.get(type);
         if (resource === undefined) {
-            if (failIfNotPresent) throw 'Resource type not found';
+            if (failIfNotPresent) throw new Error('Resource type not found');
             return;
         }
         this.events.emit('resource_remove', resource);
@@ -512,7 +512,7 @@ export class World {
         for (let entity of [...this.entities]) {
             this.despawnEntity(entity);
         }
-        if (this.entities.size !== 0) throw 'Entities spawned while clearing!';
+        if (this.entities.size !== 0) throw new Error('Entities spawned while clearing!');
         // TODO: also clear resources
         this.events.emit('cleared');
         this.populate();

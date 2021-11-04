@@ -15,8 +15,8 @@ export const DESTROY_MIN = {
 const ALLOWED_IMAGETYPES = ['jpeg', 'png', 'x-jg', 'bmp', 'x-icon', 'ief', 'pjpeg', 'x-portable-bitmap', 'x-rgb', 'tiff', 'x-tiff']
 
 function validateImageMimeType(type: string): void {
-    if (!type.startsWith('image/')) throw 'Invalid type: it should be an image';
-    if (ALLOWED_IMAGETYPES.indexOf(type.substr('image/'.length)) < 0) throw 'Unsupported image type';
+    if (!type.startsWith('image/')) throw new Error('Invalid type: it should be an image');
+    if (ALLOWED_IMAGETYPES.indexOf(type.substr('image/'.length)) < 0) throw new Error('Unsupported image type');
 }
 
 export function loadTexture(data: ArrayBuffer, dataType: string): Promise<PIXI.Texture> {

@@ -71,10 +71,10 @@ export class NetworkManager extends EventEmitter {
 
     connectTo(id: string) {
         if (this.isHost) {
-            throw 'A host cannot open a connection, for now!';
+            throw new Error('A host cannot open a connection, for now!');
         }
         if (this.connectId !== undefined) {
-            throw 'Cannot connect to multiple hosts'
+            throw new Error('Cannot connect to multiple hosts');
         }
         this.connectId = id;
         if (this.peer.id != null) {

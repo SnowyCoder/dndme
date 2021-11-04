@@ -21,11 +21,11 @@ export class SystemGraph {
             }
         }
         if (unfulfilled) {
-            throw `Some previous system optionally depended on ${depName}, please order your systems correctly`;
+            throw new Error(`Some previous system optionally depended on ${depName}, please order your systems correctly`);
         }
 
         for (let dep of system.dependencies) {
-            if (!this.systemsByName.has(dep)) throw 'Unfulfilled dependency: ' + dep;
+            if (!this.systemsByName.has(dep)) throw new Error('Unfulfilled dependency: ' + dep);
         }
         if (system.optionalDependencies !== undefined) {
             for (let dep of system.optionalDependencies) {
@@ -36,7 +36,7 @@ export class SystemGraph {
 
         let sys = this.systemsByName.get(system.name);
         if (sys != null) {
-            if (sys.name === system.name) throw 'System name conflict';
+            if (sys.name === system.name) throw new Error('System name conflict');
             console.warn(`System ${system.name} has been already registered under ${sys.name}, overriding`);
         }
         this.systemsByName.set(system.name, system);
@@ -44,7 +44,7 @@ export class SystemGraph {
         if (system.provides) {
             for (let prov of system.provides) {
                 if (this.systemsByName.has(prov)) {
-                    throw `Service ${prov} is already provided by ${this.systemsByName.get(prov)!.name}, cannot override with ${system.name}`;
+                    throw new Error(`Service ${prov} is already provided by ${this.systemsByName.get(prov)!.name}, cannot override with ${system.name}`);
                 }
                 this.systemsByName.set(prov, system);
             }

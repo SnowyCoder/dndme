@@ -73,7 +73,7 @@ export class GridSystem implements System {
 
     onResourceRemove(res: Resource) {
         if (res.type !== GRID_TYPE) return;
-        throw 'Fool! Thou shall not remove thy grid!'
+        throw new Error('Fool! Thou shall not remove thy grid!');
     }
 
     onBoardTransform(data: BoardTransformResource) {
@@ -226,7 +226,7 @@ function drawGridTexture(size: number, type: GridType, options: GridGraphicalOpt
             canvas = drawSquare(size, options);
             break;
         default:
-            throw 'Cannot draw unknown type: ' + type;
+            throw new Error('Cannot draw unknown type: ' + type);
     }
 
     return PIXI.BaseTexture.fromBuffer(new Uint8Array(canvas.data.buffer), canvas.width, canvas.height);

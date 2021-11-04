@@ -164,7 +164,7 @@ export function shapeIntersect(shape1: Shape, shape2: Shape): boolean {
         return overlapRotatedRectVsRotatedRect((shape1 as ObbShape).data, (shape2 as ObbShape).data);
     }
     // Polygon vs Polygon
-    throw 'Query not implemented: ' + s1t + ' vs ' + s2t;
+    throw new Error('Query not implemented: ' + s1t + ' vs ' + s2t);
 }
 
 export function shapeToAabb(shape: Shape): Aabb {
@@ -192,7 +192,7 @@ export function shapeToAabb(shape: Shape): Aabb {
             aabb.wrapPolygon((shape as ObbShape).data.rotVertex);
             return aabb;
         }
-        default: throw 'Unknown shape type: ' + shape.type;
+        default: throw new Error('Unknown shape type: ' + shape.type);
     }
 }
 
@@ -235,7 +235,7 @@ function shapeToSnaps(shape: Shape): number[] {
             }
             return data;
         }
-        default: throw 'Unknown shape type: ' + shape.type;
+        default: throw new Error('Unknown shape type: ' + shape.type);
     }
 }
 
@@ -280,7 +280,7 @@ function shapeTranslate(shape: Shape, x: number, y: number): void {
             }
             break;
         }
-        default: throw 'Unknown shape type: ' + shape.type;
+        default: throw new Error('Unknown shape type: ' + shape.type);
     }
 }
 
@@ -298,7 +298,7 @@ function shapeClone(shape: Shape): Shape {
         case ShapeType.LINE: return shapeLine((shape as LineShape).data.copy());
         case ShapeType.POLYGON: return shapePolygon([...(shape as PolygonShape).polygon]);
         case ShapeType.OBB: return shapeObb((shape as ObbShape).data.copy())
-        default: throw 'Unknown shape type: ' + shape.type;
+        default: throw new Error('Unknown shape type: ' + shape.type);
     }
 }
 
@@ -491,7 +491,7 @@ export class InteractionSystem implements System {
             case GeomertyQueryType.POINT: shape = shapeCircle(event.data as PIXI.IPointData, 20); break;
             //case GeomertyQueryType.POINT: shape = shapePoint(event.data as PIXI.IPointData); break; // ENABLE THIS FOR POINT-PRECISION CLICKING
             case GeomertyQueryType.AABB: shape = shapeAabb(event.data as Aabb); break;
-            default: throw 'Unknown query type';
+            default: throw new Error('Unknown query type');
         }
 
         if (event.multi) {

@@ -123,7 +123,7 @@ export class VisibilitySystem implements System {
 
         for (let entry of query) {
             let s = entry.shape;
-            if (s.type !== ShapeType.LINE) throw 'Only line is supported as light blocker shape'
+            if (s.type !== ShapeType.LINE) throw new Error('Only line is supported as light blocker shape')
             let lineData = (s as LineShape).data;
             // TODO: check if entity is IN wall.
 
@@ -268,5 +268,3 @@ export class VisibilitySystem implements System {
     destroy(): void {
     }
 }
-
-

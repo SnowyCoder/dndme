@@ -453,7 +453,7 @@ export class PixiBoardSystem implements System {
         this.applyCanvasStyle(canvas);
         let cnt = document.getElementById('canvas-container');
         if (cnt === null) {
-            throw "Cannot find canvas container";
+            throw new Error("Cannot find canvas container");
         }
         cnt.appendChild(canvas);
 

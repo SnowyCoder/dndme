@@ -42,7 +42,7 @@ export class GameMap {
         let data = await decode(file) as any;
 
         if (data['version'] !== this.SER_VERSION) {
-            throw 'Version not supported';
+            throw new Error('Version not supported');
         }
 
         let gameMap = new GameMap();

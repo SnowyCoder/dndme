@@ -302,7 +302,7 @@ export class PixiGraphicSystem implements System {
                     this.updateElementVisibility(c, c.display, true, pv?.visible, rem !== undefined);
                 }
             } else {
-                throw 'Unknown vision type';
+                throw new Error('Unknown vision type');
             }
         } else if (res.type === GRID_TYPE) {
             if (!('width' in changes)) return;
@@ -441,9 +441,9 @@ export class PixiGraphicSystem implements System {
         switch (comp.type) {
             case ElementType.CONTAINER:
                 // Only the root element can be made interactive, the others are ignored
-                throw 'Cannot make interactive container';
+                throw new Error('Cannot make interactive container');
             case ElementType.TEXT:
-                throw 'Cannot make interactive text';
+                throw new Error('Cannot make interactive text');
             case ElementType.IMAGE: {
                 let c = comp as ImageElement;
                 let w = c.texture.width;

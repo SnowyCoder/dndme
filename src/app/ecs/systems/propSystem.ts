@@ -132,7 +132,7 @@ export class PropSystem implements System {
             pType = this.propTypes.get(this.defaultPropType);
 
             if (pType === undefined) {
-                throw "Default prop type is invalid!";
+                throw new Error("Default prop type is invalid!");
             }
         }
         return pType;
@@ -246,7 +246,7 @@ export class CreatePropToolDriver implements ToolDriver {
 
         this.createPropType = this.sys.defaultPropType;
         let propType = this.sys.propTypes.get(this.createPropType);
-        if (propType === undefined) throw 'Illegal prop type: ' + this.createPropType;
+        if (propType === undefined) throw new Error('Illegal prop type: ' + this.createPropType);
 
         this.createProp = this.sys.world.spawnEntity(
             {
