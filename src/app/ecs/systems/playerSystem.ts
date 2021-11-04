@@ -468,6 +468,9 @@ export class PlayerSystem implements System {
             if (pv !== undefined) {
                 this.onPlayerVisibleCountersUpdate(pv);
             }
+        } else if (comp.type === PLAYER_VISIBLE_TYPE) {
+            const visAware = this.world.getComponent(comp.entity, VISIBILITY_AWARE_TYPE);
+            if (visAware !== undefined) this.world.removeComponent(visAware);
         }
     }
 

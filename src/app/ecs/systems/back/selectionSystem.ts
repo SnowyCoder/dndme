@@ -15,7 +15,7 @@ import {PROP_TELEPORT_TYPE, PROP_TYPE, PropTeleport} from "../propSystem";
 import {System} from "../../system";
 import {componentEditCommand, ComponentEditCommand, EditType} from "../command/componentEdit";
 import {DeSpawnCommand} from "../command/despawnCommand";
-import {Command, executeAndLogCommand} from "../command/command";
+import {Command, emitCommand, executeAndLogCommand} from "../command/command";
 import {EVENT_COMMAND_LOG, EVENT_COMMAND_PARTIAL_END} from "../command/commandSystem";
 import {WALL_TYPE} from "../wallSystem";
 import {EcsStorage, SingleEcsStorage} from "../../storage";
@@ -25,6 +25,7 @@ import {componentClone, generateRandomId} from "../../ecsUtil";
 import {Resource} from "../../resource";
 import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
 import PIXI from "../../../PIXI";
+import { EventCommand } from "../command/eventCommand";
 
 const MULTI_TYPES = ['name', 'note'];
 const ELIMINABLE_TYPES = ['name', 'note', 'player', 'light', 'door', PARENT_LAYER_TYPE];
@@ -466,6 +467,17 @@ export class SelectionSystem implements System {
                     } as DeSpawnCommand;
                     this.clear();
                     this.ecs.events.emit("command_log", cmd);
+                    break;
+                }
+                case 'forget': {
+                    const res = confirm("Do you want the roleplayers to forget " + " entities?\nThis cannot be undone");
+                    if (res) {
+                        emitCommand(this.ecs, {
+                            kind: 'event',
+                            do: { name: 'forget', args: [{ entities: [...entities] }] },
+                            undo: { name: '', args: [] },
+                        } as EventCommand, true);
+                    }
                     break;
                 }
                 case 'addComponent': {

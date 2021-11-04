@@ -160,4 +160,3 @@ export class Channel {
         this.connections.forEach(x => x.getStatsReporter()!.stop());
     }
 }
-

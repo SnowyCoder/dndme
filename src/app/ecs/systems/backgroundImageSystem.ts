@@ -44,7 +44,9 @@ export class BackgroundImageSystem implements System {
         this.world.addStorage(this.storage);
         this.world.events.on('component_add', this.onComponentAdd, this);
         this.world.events.on('component_remove', this.onComponentRemove, this);
-        this.world.events.on(EVENT_REMEMBER_BIT_BY_BIY_MASK_UPDATE, this.onRememberBBBUpdate, this);
+        if (this.world.isMaster) {
+            this.world.events.on(EVENT_REMEMBER_BIT_BY_BIY_MASK_UPDATE, this.onRememberBBBUpdate, this);
+        }
     }
 
     private async onComponentAdd(c: Component): Promise<void> {

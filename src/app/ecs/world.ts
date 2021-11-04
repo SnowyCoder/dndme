@@ -13,6 +13,9 @@ import {System} from "./system";
 import SafeEventEmitter from "../util/safeEventEmitter";
 import {generateRandomId} from "./ecsUtil";
 
+export interface ForgetData {
+    entities: Set<number>;
+}
 
 export type SerializedEntities = {
     entities: number[];

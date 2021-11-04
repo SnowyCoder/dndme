@@ -181,4 +181,3 @@ export class PeerJsConnection implements P2pConnection {
         return this.statsManager;
     }
 }
-

@@ -7,6 +7,8 @@ import {componentEditCommand} from "../command/componentEdit";
 import {ResourceEditCommand} from "../command/resourceEditCommand";
 import {emitCommand} from "../command/command";
 import { objectClone } from "../../../util/jsobj";
+import { SpawnCommand } from "../command/spawnCommand";
+import { generateRandomId } from "../../ecsUtil";
 
 export interface BigEntry<X> {
     multiId: BigStorageIndex<X>;
@@ -60,23 +62,31 @@ export class BigStorageSystem implements System {
     }
 
     create<X>(data: X, flags: BigEntryFlags = 0, own = true): BigEntry<X> {
+        if (!this.world.isMaster) {
+            throw Error("Trying to create a big entry on a non-master world");
+        }
         if (this.res.entity <= 0) {
-            let entity = this.world.spawnEntity();
+            console.log("Creating big storage");
+            let entity = this.world.allocateId();
+            emitCommand(this.world, {
+                kind: 'spawn',
+                data: {
+                    entities: [entity],
+                    storages: {},
+                }
+            } as SpawnCommand, true);
             let cmd = {
                 kind: 'redit',
                 add: [],
+                edit: {},
                 remove: [],
-                edit: {
-                    BIG_STORAGE_TYPE: { entity }
-                }
             } as ResourceEditCommand;
-            console.log("Creating big storage");
-            emitCommand(this.world, cmd);
-            this.world.editResource(BIG_STORAGE_TYPE, { entity });
+            cmd.edit[BIG_STORAGE_TYPE] = { entity };
+            emitCommand(this.world, cmd, true);
         }
 
         let x = {
-            multiId: -1,
+            multiId: generateRandomId(),
             type: BIG_STORAGE_TYPE,
             entity: this.res.entity,
             data,
@@ -84,7 +94,7 @@ export class BigStorageSystem implements System {
             _users: own ? 1 : 0,
         } as BigEntryComponent;
 
-        emitCommand(this.world, componentEditCommand([x]));
+        emitCommand(this.world, componentEditCommand([x]), true);
 
         return x;
     }

@@ -10,7 +10,9 @@ import {
     InteractionSystem,
     shapeCircle,
     shapeIntersect,
-    shapePolygon
+    shapePolygon,
+    ShapeType,
+    shapeToAabb
 } from "./interactionSystem";
 import {Aabb} from "../../../geometry/aabb";
 import {GRID_TYPE} from "../gridSystem";
@@ -193,11 +195,10 @@ export class VisibilityAwareSystem implements System {
             return;
         }
         let commonWalls = [];
-        //console.log("WALL UPDATE, old: " + oldWalls + " new: " + newWalls);
 
         // Check if old awares can still be seen
         for (let i of oldWalls) {
-            if (newWalls.indexOf(i) !== -1) {
+            if (newWalls.includes(i)) {
                 //console.log("| =" + i);
                 commonWalls.push(i);
                 continue;
@@ -215,7 +216,7 @@ export class VisibilityAwareSystem implements System {
         }
 
         for (let e of newWalls) {
-            if (commonWalls.indexOf(e) !== -1) continue;
+            if (commonWalls.includes(e)) continue;
 
             let target = this.storage.getComponent(e);
             if (target === undefined) {
@@ -244,7 +245,7 @@ export class VisibilityAwareSystem implements System {
                 this.visibilityChange(vis, vis.polygon, vis.range);
             }
             if ('_canSeeWalls' in changed) {
-                this.onViewBlockerEdited(vis, vis._canSeeWalls!, changed.walls);
+                this.onViewBlockerEdited(vis, vis._canSeeWalls!, changed._canSeeWalls);
             }
         } else if (comp.type === POSITION_TYPE) {
             let visAware = this.storage.getComponent(comp.entity);
@@ -261,7 +262,6 @@ export class VisibilityAwareSystem implements System {
             this.onViewBlockerEdited(vis, [], vis._canSeeWalls);
         } else if (comp.type === VISIBILITY_AWARE_TYPE) {
             let va = comp as VisibilityAwareComponent;
-            va.visibleBy
             let visStorage = this.world.storages.get(VISIBILITY_TYPE) as SingleEcsStorage<VisibilityComponent>;
             for (let p of va.visibleBy) {
                 let vis = visStorage.getComponent(p)!;
@@ -277,6 +277,29 @@ export class VisibilityAwareSystem implements System {
 
             // We don't really care, the visibility polygons will change on their own
         }
+    }
+
+    manualRecomputeWall(entity: number) {
+        const c = this.storage.getComponent(entity);
+        if (c === undefined || !c.isWall) return;
+
+        const newWalls: number[] = [];
+
+        const inter = this.world.getComponent(c.entity, INTERACTION_TYPE) as InteractionComponent;
+        if (inter === undefined || inter.shape.type !== ShapeType.LINE) return;
+        const aabb = shapeToAabb(inter.shape);
+        for (let node of [...this.visibilitySys.aabbTree.query(aabb)]) {
+            const comp = node.tag! as VisibilityComponent;
+            if (comp._canSeeWalls?.includes(c.entity)) {
+                newWalls.push(comp.entity);
+            }
+        }
+
+
+        const removedElements = c.visibleBy.filter(x => !newWalls.includes(x));
+        const addedElements = newWalls.filter(x => !c.visibleBy.includes(x));
+
+        this.events.emit('aware_update', c, addedElements, removedElements);
     }
 
 

@@ -70,7 +70,7 @@ export class CommandSystem implements System {
         }
         if (kind.isNull(command)) return;
 
-        //console.log("EMIT", JSON.stringify(command));
+        // console.log("EMIT", JSON.stringify(command));
 
         if (this.networkSys?.isOnline() === true && (this.world.isMaster || share)) {
             let stripped = kind.stripClient(command);
@@ -125,4 +125,3 @@ export class CommandSystem implements System {
     destroy(): void {
     }
 }
-

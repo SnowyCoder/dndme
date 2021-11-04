@@ -18,6 +18,10 @@
                 @click="emitSpecial('delete')">
         <i class="fas fa-trash"></i>
       </b-button>
+      <b-button v-if="world.isMaster" variand="danger" title="Forget entity" squared
+                @click="emitSpecial('forget')">
+        <i class="fas fa-eraser"></i>
+      </b-button>
     </div>
 
     <ecs-component-wrapper v-for="comp of data.components" v-bind:key="comp.type + (comp.multiId || '')"

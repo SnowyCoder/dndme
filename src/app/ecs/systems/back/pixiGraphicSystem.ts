@@ -7,7 +7,7 @@ import {
     TransformComponent
 } from "../../component";
 import {FlagEcsStorage, SingleEcsStorage} from "../../storage";
-import {SerializeData, World} from "../../world";
+import {ForgetData, SerializeData, World} from "../../world";
 import {System} from "../../system";
 import {
     DisplayElement,
@@ -55,6 +55,7 @@ import {arrayRemoveElem} from "../../../util/array";
 import {GRID_TYPE} from "../gridSystem";
 import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
 import {TEXT_TYPE, TextSystem} from "./textSystem";
+import { VisibilityAwareSystem, VISIBILITY_AWARE_TYPE } from "./visibilityAwareSystem";
 
 export interface PixiGraphicComponent extends GraphicComponent {
     _selected: boolean;
@@ -156,6 +157,7 @@ export class PixiGraphicSystem implements System {
         world.events.on('selection_end', this.onSelectionEnd, this);
         world.events.on(EVENT_VISIBILITY_SPREAD, this.onBBBVisibilitySpread, this);
         world.events.on('serialize', this.onSerialize, this);
+        world.events.on('forget', this.onForget, this);
     }
 
     private onComponentAdd(c: Component): void {
@@ -268,6 +270,17 @@ export class PixiGraphicSystem implements System {
             if (com === undefined || !com._bitByBit) return;
             // Now you're visible! say hello
             this.updateBBBVisAround(com);
+        } else if (c.type === REMEMBER_TYPE && this.world.isDespawning.indexOf(c.entity) < 0) {
+            const comp = this.storage.getComponent(c.entity);
+            if (comp === undefined) return;
+            if (comp._visibListener === VisibListenerLevel.REMEMBER) {
+                this.playerSystem!.addPlayerVisListener(comp.entity, comp.isWall);
+                (this.world.systems.get(VISIBILITY_AWARE_TYPE) as VisibilityAwareSystem)?.manualRecomputeWall(comp.entity);
+            }
+
+            let pv = this.world.getComponent(c.entity, PLAYER_VISIBLE_TYPE) as PlayerVisibleComponent | undefined;
+            let remembered = this.world.getComponent(c.entity, REMEMBER_TYPE) !== undefined;
+            this.updateElementVisibility(comp, comp.display, true, !!pv?.visible, remembered);
         }
     }
 
@@ -328,6 +341,35 @@ export class PixiGraphicSystem implements System {
             let pos = this.world.getComponent(entity, POSITION_TYPE) as PositionComponent;
             let trans = this.world.getComponent(entity, TRANSFORM_TYPE) as TransformComponent;
             this.updateElement(c, c.display, pos, trans, true);
+        }
+    }
+
+    private onForget(data: ForgetData) {
+        for (let entity of data.entities) {
+            const comp = this.storage.getComponent(entity);
+            if (comp === undefined) continue;
+
+            const rem = this.rememberStorage.getComponent(entity);
+            if (rem !== undefined) {
+                // We remember this!
+                this.world.removeComponent(rem);
+
+                /*let pv = this.world.getComponent(comp.entity, PLAYER_VISIBLE_TYPE) as PlayerVisibleComponent | undefined;
+                let remembered = this.rememberStorage.getComponent(comp.entity) !== undefined;
+                this.updateElementVisibility(comp, comp.display, true, pv?.visible ?? true, remembered);
+
+                this.updateVisibilityListener(comp);*/
+            }
+
+            if (comp._bitByBit) {
+                this.doOnBitByBit(comp, comp.display, (img) => {
+                    let w = new PIXI.Container();
+                    this.pixiBoardSystem.renderer.render(w, img._renTex, true);
+                    img._visMapChanged = true;
+                })
+
+                this.updateBBBVisAround(comp);
+            }
         }
     }
 
