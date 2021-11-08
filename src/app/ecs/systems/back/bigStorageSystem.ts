@@ -137,16 +137,16 @@ export class BigStorageSystem implements System {
         return r.multiId;
     }
 
-    dropUse<X>(id: BigStorageIndex<X>) {
+    dropUse<X>(id: BigStorageIndex<X>, forceDrop: boolean = false) {
         if (!this.world.isMaster) return;
 
         const r = this.request(id);
         if (r === undefined) return;
         r._users = ((r._users || 0) - 1);
         // Don't, this might be reused by the commands
-        /*if (r._users <= 0) {
+        if (forceDrop && r._users <= 0) {
             this.storage.unregister(r as BigEntryComponent);
-        }*/
+        }
     }
 
     private onDeserialized() {

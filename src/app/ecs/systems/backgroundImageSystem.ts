@@ -77,6 +77,13 @@ export class BackgroundImageSystem implements System {
         }
 
         let image = this.bigStorage.requestUse<Uint8Array>(bkgImg.image)!!.data;
+        if ((image as any).image !== undefined || image.byteLength === 0) {
+            // old version of background, unsupported
+            console.log("Removing empty/unsupported background " + bkgImg.entity);
+            this.bigStorage.dropUse(bkgImg.entity, true);
+            this.world.despawnEntity(bkgImg.entity);
+            return;
+        }
         if (image.byteOffset !== 0) {
             // Copy array to remove offset (TODO: fix)
             // https://github.com/peers/peerjs/issues/715
