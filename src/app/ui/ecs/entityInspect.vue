@@ -33,7 +33,6 @@
 <script lang="ts">
 import EcsComponentWrapper from "./compWrapper.vue";
 import {VComponent, VProp, Vue} from "../vue";
-import {Component} from "../../ecs/component";
 import {World} from "../../ecs/world";
 import {
   SELECTION_TYPE,

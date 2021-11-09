@@ -5,7 +5,7 @@ import {World} from "../../world";
 import {Resource} from "../../resource";
 import {FOLLOW_MOUSE_TYPE, POSITION_TYPE} from "../../component";
 import {FlagEcsStorage} from "../../storage";
-import {getMapPointFromMouseInteraction} from "../../tools/utils";
+import {findEntitiesAt, getBoardPosFromOrigin, getMapPointFromMouseInteraction, snapPoint} from "../../tools/utils";
 import {KEYBOARD_KEY_DOWN, KEYBOARD_TYPE, KeyboardResource} from "./keyboardSystem";
 import {addCustomBlendModes} from "../../../util/pixi";
 import {DEFAULT_BACKGROUND} from "../lightSystem";
@@ -27,6 +27,16 @@ export enum PointerEvents {
     POINTER_CLICK = 'pointer_click',
 }
 
+export interface PointerInteractionEvent {
+    globalPos: PIXI.IPointData;
+    boardPos: PIXI.IPointData;
+    pointerId: number;
+    pointerType: string;
+    originalEvent: MouseEvent | TouchEvent | PointerEvent;
+    // lazy and cached
+    entitiesHovered: () => number[];
+}
+
 export interface ConsumableEvent {
     consumed: boolean;
 }
@@ -35,16 +45,20 @@ export interface HasLastPosition {
     lastPosition: PIXI.IPointData;
 }
 
-export type PointerDownEvent = PIXI.InteractionEvent & ConsumableEvent;
-export type PointerUpEvent = PIXI.InteractionEvent & HasLastPosition & {
+export type PointerDownEvent = PointerInteractionEvent & ConsumableEvent & {
+    // If set to true after the event the interaction will be used to drag the map around
+    consumeDragBoard: boolean;
+};
+export type PointerUpEvent = PointerInteractionEvent & HasLastPosition & ConsumableEvent & {
+    isInside: boolean;
     isClick: boolean;
 };
-export type PointerMoveEvent = PIXI.InteractionEvent & HasLastPosition & {
+export type PointerMoveEvent = PointerInteractionEvent & HasLastPosition & {
     canBecomeClick: boolean;
 };
-export type PointerRightDownEvent = PIXI.InteractionEvent & ConsumableEvent;
-export type PointerRightUpEvent = PIXI.InteractionEvent;
-export type PointerClickEvent = PIXI.InteractionEvent;
+export type PointerRightDownEvent = PointerInteractionEvent & ConsumableEvent;
+export type PointerRightUpEvent = PointerInteractionEvent & ConsumableEvent;
+export type PointerClickEvent = PointerInteractionEvent & ConsumableEvent;
 
 export const BOARD_TRANSFORM_TYPE = 'board_transform';
 export type BOARD_TRANSFORM_TYPE = typeof BOARD_TRANSFORM_TYPE;
@@ -193,6 +207,27 @@ export class PixiBoardSystem implements System {
         }
     }
 
+    toGeneralEvent(pixi: PIXI.InteractionEvent): PointerInteractionEvent {
+        const boardPos = getBoardPosFromOrigin(this.world, pixi);
+
+        let hoveredCache: number[] | undefined = undefined;
+        const entitiesHovered = () => {
+            if (hoveredCache === undefined) {
+                hoveredCache = findEntitiesAt(this.world, boardPos, true);
+            }
+            return hoveredCache;
+        }
+
+        return {
+            globalPos: pixi.data.global,
+            boardPos,
+            pointerId: pixi.data.pointerId,
+            pointerType: pixi.data.pointerType,
+            originalEvent: pixi.data.originalEvent,
+            entitiesHovered,
+        } as PointerInteractionEvent;
+    }
+
     canBecomeClick(pdata: PointerData, p: IPointData) {
         let now = Date.now();
 
@@ -253,7 +288,7 @@ export class PixiBoardSystem implements System {
     onPointerDown(event: PIXI.InteractionEvent) {
         if (event.data.pointerType === 'mouse' && event.data.button === 2) {
             // Right button
-            let prde = event as PointerRightDownEvent;
+            let prde = this.toGeneralEvent(event) as PointerRightDownEvent;
             prde.consumed = false;
             this.world.events.emit(PointerEvents.POINTER_RIGHT_DOWN, prde);
             return;
@@ -269,28 +304,38 @@ export class PixiBoardSystem implements System {
 
         this.lastMouseDownTime = Date.now();
 
-        let e = event as PointerDownEvent;
+        let e = this.toGeneralEvent(event) as PointerDownEvent;
         e.consumed = false;
+        e.consumeDragBoard = false;
         if (event.data.pointerType === 'mouse' && event.data.button === 1) {
+            // If middle button is pressed ignore, we force it to drag the board
+            // (and prevent the paste event)
+            event.data.originalEvent.preventDefault();
+            event.data.originalEvent.stopPropagation();
+            e.consumeDragBoard = true;// middle click to drag is always enabled
+        } else {
+            this.world.events.emit(PointerEvents.POINTER_DOWN, e);
+        }
+
+        if (e.consumeDragBoard && this.pointers.size === 1) {
+            this.isDraggingBoard = true;
+        }
+    }
+
+    onPointerUp(event: PIXI.InteractionEvent, isInside: boolean = true): void {
+        const e = this.toGeneralEvent(event) as PointerUpEvent;
+        e.isInside = isInside;
+
+        if (event.data.pointerType === 'mouse' && event.data.button === 2) {
+            // Right button
+            this.world.events.emit(PointerEvents.POINTER_RIGHT_UP, e as PointerRightUpEvent);
+        } else if (event.data.pointerType === 'mouse' && event.data.button === 1) {
             // If middle button is pressed ignore, we force it to drag the board
             // (and prevent the paste event)
             event.data.originalEvent.preventDefault();
             event.data.originalEvent.stopPropagation();
             // of course every browser ignores the preventDefault so we have to ignore it ourself
             this.world.events.emit('ignore_next_paste');
-        } else {
-            this.world.events.emit(PointerEvents.POINTER_DOWN, event);
-        }
-
-        if (!e.consumed && this.pointers.size === 1) {
-            this.isDraggingBoard = true;
-        }
-    }
-
-    onPointerUp(event: PIXI.InteractionEvent): void {
-        if (event.data.pointerType === 'mouse' && event.data.button === 2) {
-            // Right button
-            this.world.events.emit(PointerEvents.POINTER_RIGHT_UP, event);
         }
 
         let pdata = this.pointers.get(event.data.pointerId);
@@ -305,35 +350,38 @@ export class PixiBoardSystem implements System {
 
             let isClick = this.canBecomeClick(pdata, event.data.global);
 
-            let pue = event as PointerUpEvent;
+            let pue = e as PointerUpEvent;
             pue.lastPosition = {
                 x: pdata.lastX,
                 y: pdata.lastY
             };
             pue.isClick = isClick;
+            pue.consumed = false;
             this.world.events.emit(PointerEvents.POINTER_UP, pue);
             if (isClick) {
-                this.world.events.emit(PointerEvents.POINTER_CLICK, event);
+                let pce = pue as PointerClickEvent;
+                this.world.events.emit(PointerEvents.POINTER_CLICK, pce);
             }
         }
     }
 
     onPointerUpOutside(event: PIXI.InteractionEvent) {
-        this.onPointerUp(event);
+        this.onPointerUp(event, false);
     }
 
     /** Function called when the cursor moves around the map. */
     onPointerMove(e: PIXI.InteractionEvent) {
         let pos = e.data.global;
+        let event = this.toGeneralEvent(e);
 
         // TODO: magnet snap system
-        let localPos = getMapPointFromMouseInteraction(this.world, e);
+        let localPos = snapPoint(this.world, event.boardPos);
         this.updatePointerFollowers(localPos);
 
         let pdata = this.pointers.get(e.data.pointerId);
 
         if (this.pointers.size <= 1 && !this.isDraggingBoard) {
-            let pme = e as PointerMoveEvent;
+            let pme = event as PointerMoveEvent;
             pme.lastPosition = {
                 x: this.mouseLastX, y: this.mouseLastY,
             };

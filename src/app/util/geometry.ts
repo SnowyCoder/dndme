@@ -1,6 +1,5 @@
 import PIXI from "../PIXI";
 import {StupidPoint} from "../geometry/point";
-import {IPoint} from "pixi.js";
 import {Aabb} from "../geometry/aabb";
 
 type PPoint = PIXI.Point;
@@ -80,7 +79,7 @@ export function intersectLineVsLine(a1: StupidPoint, a2: StupidPoint, b1: Stupid
     return true;
 }
 
-export function aabbSameOriginDifference(orig: IPoint, last: IPoint, now: IPoint, added: Aabb[], removed: Aabb[]): void {
+export function aabbSameOriginDifference(orig: StupidPoint, last: StupidPoint, now: StupidPoint, added: Aabb[], removed: Aabb[]): void {
     let xAct = 0;
     if (now.x != last.x) {
         let xBox = new Aabb(

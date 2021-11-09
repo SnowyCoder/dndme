@@ -94,7 +94,7 @@ export class CommandSystem implements System {
 
     private onLog(command: Command, res?: CommandResult, partial: boolean = false) {
         let result = res || {};
-        this.onEmit(command, result);
+        this.onEmit(command, result, true);
 
         if (result.inverted !== undefined) {
             let inv = result.inverted;

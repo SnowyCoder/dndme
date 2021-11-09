@@ -12,22 +12,23 @@ import {intersectSegmentVsSegment, lineSameSlope, SegmentVsSegmentRes} from "../
 import {INTERACTION_TYPE, InteractionSystem, LineShape, shapeAabb, shapeLine} from "./back/interactionSystem";
 import {VISIBILITY_BLOCKER_TYPE, VisibilityBlocker} from "./back/visibilitySystem";
 import {ElementType, GRAPHIC_TYPE, GraphicComponent, LineElement, VisibilityType} from "../../graphics";
-import {TOOL_TYPE, ToolDriver, ToolSystem} from "./back/toolSystem";
+import {TOOL_TYPE, ToolPart, ToolSystem} from "./back/toolSystem";
 import {
     PIXI_BOARD_TYPE,
     PixiBoardSystem,
     PointerClickEvent,
     PointerMoveEvent,
-    PointerRightDownEvent
+    PointerRightDownEvent,
+    PointerEvents
 } from "./back/pixiBoardSystem";
-import {getMapPointFromMouseInteraction} from "../tools/utils";
 import {SELECTION_TYPE, SelectionSystem} from "./back/selectionSystem";
 import {Tool} from "../tools/toolType";
 import {executeAndLogCommand} from "./command/command";
 import {SpawnCommand, SpawnCommandKind} from "./command/spawnCommand";
 import {arrayRemoveElem} from "../../util/array";
 import {DeSpawnCommand} from "./command/despawnCommand";
-import { componentClone } from "../ecsUtil";
+import SafeEventEmitter from "../../util/safeEventEmitter";
+import { snapPoint } from "../tools/utils";
 
 export const WALL_TYPE = 'wall';
 export type WALL_TYPE = typeof WALL_TYPE;
@@ -57,7 +58,8 @@ export class WallSystem implements System {
         // Only masters can create walls
         if (this.world.isMaster) {
             let toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
-            toolSys.addTool(new CreateWallToolDriver(this));
+            toolSys.addToolPart(new CreateWallToolPart(this));
+            toolSys.addTool(Tool.CREATE_WALL, ['space_pan', Tool.CREATE_WALL]);
         }
 
         this.interactionSys = world.systems.get(INTERACTION_TYPE) as InteractionSystem;
@@ -392,7 +394,7 @@ export class WallSystem implements System {
     }
 }
 
-export class CreateWallToolDriver implements ToolDriver {
+export class CreateWallToolPart implements ToolPart {
     readonly name = Tool.CREATE_WALL;
 
     private readonly sys: WallSystem;
@@ -404,7 +406,7 @@ export class CreateWallToolDriver implements ToolDriver {
     createLastLineDisplay: PIXI.Graphics;
 
     isActive = false;
-    mouseLastPos: PIXI.Point = new PIXI.Point();
+    mouseLastPos: PIXI.IPointData = new PIXI.Point();
 
     constructor(sys: WallSystem) {
         this.sys = sys;
@@ -434,12 +436,14 @@ export class CreateWallToolDriver implements ToolDriver {
 
         this.sys.selectionSys.setOnlyEntities(this.createdIds);
         this.createdIds.length = 0;
-        this.sys.world.editResource(TOOL_TYPE, {
+        this.createdLastPos = undefined;
+        // don't change tool
+        /*this.sys.world.editResource(TOOL_TYPE, {
             tool: Tool.INSPECT,
-        })
+        })*/
     }
 
-    redrawCreationLastLine(pos: PIXI.Point): void {
+    redrawCreationLastLine(pos: PIXI.IPointData): void {
         this.mouseLastPos = pos;
         let g = this.createLastLineDisplay;
         g.clear();
@@ -458,7 +462,7 @@ export class CreateWallToolDriver implements ToolDriver {
         g.drawCircle(pos.x, pos.y, 10);
     }
 
-    addVertex(point: PIXI.Point): void {
+    addVertex(point: PIXI.IPointData): void {
         let lp = this.createdLastPos;
 
         if (lp === undefined) {
@@ -481,20 +485,31 @@ export class CreateWallToolDriver implements ToolDriver {
         }
     }
 
-    undoVertex(point: PIXI.Point): void {
+    undoVertex(point: PIXI.IPointData): void {
         if (this.createdLastPos === undefined) return;
         this.mouseLastPos = point;
+        let recomputeLast = true;
 
         if (this.createdIds.length === 0) {
             this.createdLastPos = undefined;
-        } else {
-            let cmd = {
-                kind: 'despawn',
-                entities: [this.createdIds.pop()],
-            } as DeSpawnCommand;
-            executeAndLogCommand(this.sys.world, cmd);
+            return;
+        } else if (this.createdIds.length === 1) {
+            const wall = this.sys.world.getComponent(this.createdIds[0], POSITION_TYPE)!! as PositionComponent;
+            this.createdLastPos = [wall.x, wall.y];
+            recomputeLast = false;
         }
-        this.recomputeCreatedLastPos();
+
+        let cmd = {
+            kind: 'despawn',
+            entities: [this.createdIds.pop()],
+        } as DeSpawnCommand;
+        executeAndLogCommand(this.sys.world, cmd);
+
+        if (recomputeLast) {
+            this.recomputeCreatedLastPos();
+        } else {
+            this.redrawCreationLastLine(this.mouseLastPos);
+        }
     }
 
     recomputeCreatedLastPos() {
@@ -514,37 +529,42 @@ export class CreateWallToolDriver implements ToolDriver {
         this.redrawCreationLastLine(this.mouseLastPos);
     }
 
-    onStart(): void {
+    onPointerMove(event: PointerMoveEvent) {
+        this.redrawCreationLastLine(snapPoint(this.sys.world, event.boardPos));
+    }
+
+    onPointerDown(event: PointerClickEvent) {
+        if (event.consumed) return;
+        event.consumed = true;
+        this.addVertex(snapPoint(this.sys.world, event.boardPos));
+    }
+
+    onPointerRightDown(event: PointerRightDownEvent) {
+        if (event.consumed) return;
+        event.consumed = true;
+        this.undoVertex(snapPoint(this.sys.world, event.boardPos));
+    }
+
+    onEnable(): void {
         this.isActive = true;
         this.initCreation();
     }
 
-    onPointerMove(event: PointerMoveEvent) {
-        let point = getMapPointFromMouseInteraction(this.sys.world, event);
-        this.redrawCreationLastLine(point);
-    }
-
-    onPointerClick(event: PointerClickEvent) {
-        let point = getMapPointFromMouseInteraction(this.sys.world, event);
-        this.addVertex(point);
-    }
-
-    onPointerRightDown(event: PointerRightDownEvent) {
-        let point = getMapPointFromMouseInteraction(this.sys.world, event);
-        this.undoVertex(point);
-    }
-
-    onEnd(): void {
+    onDisable(): void {
         this.endCreation();
         this.isActive = false;
     }
 
-    initialize(): void {
+    initialize(events: SafeEventEmitter): void {
         this.createLastLineDisplay.zIndex = DisplayPrecedence.WALL + 1;
         this.createLastLineDisplay.interactive = false;
         this.createLastLineDisplay.interactiveChildren = false;
         this.pixiBoardSys.board.addChild(this.createLastLineDisplay);
         this.pixiBoardSys.board.sortChildren();
+
+        events.on(PointerEvents.POINTER_MOVE, this.onPointerMove, this);
+        events.on(PointerEvents.POINTER_DOWN, this.onPointerDown, this);
+        events.on(PointerEvents.POINTER_RIGHT_DOWN, this.onPointerRightDown, this);
     }
 
     destroy(): void {

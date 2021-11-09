@@ -25,16 +25,17 @@ import {
     ImageScaleMode,
     VisibilityType
 } from "../../graphics";
-import {TOOL_TYPE, ToolDriver, ToolSystem} from "./back/toolSystem";
-import {PointerClickEvent} from "./back/pixiBoardSystem";
-import {getMapPointFromMouseInteraction} from "../tools/utils";
+import {TOOL_TYPE, ToolPart, ToolSystem} from "./back/toolSystem";
+import {PointerClickEvent, PointerEvents, PointerUpEvent} from "./back/pixiBoardSystem";
 import {SELECTION_TYPE, SelectionSystem} from "./back/selectionSystem";
 import {Tool} from "../tools/toolType";
-import {SpawnCommand, SpawnCommandKind} from "./command/spawnCommand";
+import {SpawnCommandKind} from "./command/spawnCommand";
 import {executeAndLogCommand} from "./command/command";
 import {componentEditCommand, EditType} from "./command/componentEdit";
 import {findForeground, LAYER_TYPE, LayerSystem} from "./back/layerSystem";
 import {LinkRelocationSystem, LINK_RELOCATION_TYPE} from "./back/linkRelocationSystem";
+import SafeEventEmitter from "../../util/safeEventEmitter";
+import { CreationInfoResource, CREATION_INFO_TYPE } from "../resource";
 
 
 export const PROP_TYPE = 'prop';
@@ -79,8 +80,10 @@ export class PropSystem implements System {
 
         if (world.isMaster) {
             const toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
-            toolSys.addTool(new CreatePropToolDriver(this));
-            toolSys.addTool(new PropTeleportLinkToolDriver(this));
+            toolSys.addToolPart(new CreatePropToolPart(this));
+            toolSys.addTool(Tool.CREATE_PROP, ['space_pan', Tool.CREATE_PROP, 'creation_flag']);
+            toolSys.addToolPart(new PropTeleportLinkToolPart(this));
+            toolSys.addTool(Tool.PROP_TELEPORT_LINK, ['space_pan', Tool.PROP_TELEPORT_LINK]);
         }
 
         let linkReloc = this.world.systems.get(LINK_RELOCATION_TYPE) as LinkRelocationSystem | undefined;
@@ -229,7 +232,7 @@ export class PropSystem implements System {
 }
 
 
-export class CreatePropToolDriver implements ToolDriver {
+export class CreatePropToolPart implements ToolPart {
     readonly name = Tool.CREATE_PROP;
     private readonly sys: PropSystem;
 
@@ -318,27 +321,43 @@ export class CreatePropToolDriver implements ToolDriver {
             } as PropComponent,
         ]);
 
-        this.sys.world.editResource(TOOL_TYPE, {
-            tool: Tool.INSPECT,
-        });
+        const creationInfo = this.sys.world.getResource(CREATION_INFO_TYPE) as CreationInfoResource | undefined;
+
+        if (creationInfo?.exitAfterCreation ?? true) {
+            this.sys.world.editResource(TOOL_TYPE, {
+                tool: Tool.INSPECT,
+            });
+        } else {
+            this.initCreation();
+        }
         executeAndLogCommand(world, cmd);
     }
 
+    onPointerUp(event: PointerUpEvent) {
+        if (this.createProp === -1) return;
+        if (event.isInside) {
+            this.confirmCreation();
+        }
+    }
 
-    onStart(): void {
+
+    onEnable(): void {
         this.initCreation();
     }
 
-    onEnd(): void {
+    onDisable(): void {
         this.cancelCreation();
     }
 
-    onPointerClick(event: PointerClickEvent) {
-        this.confirmCreation();
+    initialize(events: SafeEventEmitter): void {
+        events.on(PointerEvents.POINTER_UP, this.onPointerUp, this)
+    }
+
+    destroy(): void {
     }
 }
 
-export class PropTeleportLinkToolDriver implements ToolDriver {
+export class PropTeleportLinkToolPart implements ToolPart {
     readonly name = Tool.PROP_TELEPORT_LINK;
     private readonly sys: PropSystem;
 
@@ -346,14 +365,6 @@ export class PropTeleportLinkToolDriver implements ToolDriver {
 
     constructor(sys: PropSystem) {
         this.sys = sys;
-    }
-
-    initialize(): void {
-        this.sys.world.events.on('prop_teleport_link', this.onPropTeleportLink, this);
-    }
-
-    destroy() {
-        this.sys.world.events.off('prop_teleport_link', this.onPropTeleportLink, this);
     }
 
     private onPropTeleportLink(entity: number): void {
@@ -396,17 +407,8 @@ export class PropTeleportLinkToolDriver implements ToolDriver {
         this.currentTarget = -1;
     }
 
-    onStart(): void {
-        document.body.style.cursor = 'crosshair';
-    }
-
-    onEnd(): void {
-        this.linkCancel();
-        document.body.style.cursor = 'auto';
-    }
-
     onPointerClick(event: PointerClickEvent) {
-        let point = getMapPointFromMouseInteraction(this.sys.world, event);
+        let point = event.boardPos;
 
         let interactionSystem = this.sys.world.systems.get(INTERACTION_TYPE) as InteractionSystem;
         let query = interactionSystem.query(shapePoint(point), x => {
@@ -421,5 +423,22 @@ export class PropTeleportLinkToolDriver implements ToolDriver {
             })
             return;
         }
+    }
+
+    onEnable(): void {
+        document.body.style.cursor = 'crosshair';
+    }
+
+    onDisable(): void {
+        this.linkCancel();
+        document.body.style.cursor = 'auto';
+    }
+
+    initialize(events: SafeEventEmitter): void {
+        this.sys.world.events.on('prop_teleport_link', this.onPropTeleportLink, this);
+        events.on(PointerEvents.POINTER_CLICK, this.onPointerClick, this);
+    }
+
+    destroy() {
     }
 }

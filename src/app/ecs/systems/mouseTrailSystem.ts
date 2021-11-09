@@ -10,7 +10,7 @@ import {
     POSITION_TYPE,
     PositionComponent
 } from "../component";
-import {TOOL_TYPE, ToolDriver, ToolSystem} from "./back/toolSystem";
+import {TOOL_TYPE, ToolSystem, ToolPart} from "./back/toolSystem";
 import {
     BOARD_TRANSFORM_TYPE,
     BoardTransformResource,
@@ -32,6 +32,7 @@ import TrailImage from "Public/images/trail.png";
 import {Resource} from "../resource";
 import * as P from "../../protocol/game";
 import {PacketContainer} from "../../protocol/packet";
+import SafeEventEmitter from "../../util/safeEventEmitter";
 
 export const MOUSE_TRAIL_TYPE = 'mouse_trail';
 export type MOUSE_TRAIL_TYPE = typeof MOUSE_TRAIL_TYPE;
@@ -90,7 +91,8 @@ export class MouseTrailSystem implements System {
 
         // Add system
         let toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
-        toolSys.addTool(new MouseTrailToolDriver(this));
+        toolSys.addToolPart(new MouseTrailToolPart(this));
+        toolSys.addTool(Tool.MOUSE_TRAIL, ['space_pan', 'mouse_trail']);
 
         // Add listeners
         world.addStorage(this.storage);
@@ -314,7 +316,7 @@ export class MouseTrailSystem implements System {
     }
 }
 
-export class MouseTrailToolDriver implements ToolDriver {
+export class MouseTrailToolPart implements ToolPart {
     readonly name = Tool.MOUSE_TRAIL;
     private readonly sys: MouseTrailSystem;
 
@@ -356,19 +358,20 @@ export class MouseTrailToolDriver implements ToolDriver {
         this.sys.onSelfInput(pos.x, pos.y);
     }
 
-
-    onStart(): void {
+    onEnable(): void {
         this.initFollower();
         this.sys.pixiBoardSys.ticker.add(this.onTick, this, PIXI.UPDATE_PRIORITY.HIGH);
     }
 
-    onEnd(): void {
+    onDisable(): void {
         this.sys.pixiBoardSys.ticker.remove(this.onTick, this);
         this.killFollower();
     }
 
-    onPointerClick(event: PointerClickEvent) {
-        // nothing for now
+    initialize(events: SafeEventEmitter): void {
+    }
+
+    destroy(): void {
     }
 }
 
@@ -395,4 +398,3 @@ function cubicInterpolation(array: number[], t: number, tangentFactor: number = 
     const t3 = t * t2;
     return (2 * t3 - 3 * t2 + 1) * p[0] + (t3 - 2 * t2 + t) * m[0] + (-2 * t3 + 3 * t2) * p[1] + (t3 - t2) * m[1];
 }
-

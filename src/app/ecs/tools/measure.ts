@@ -1,28 +1,27 @@
 import {World} from "../world";
 import PIXI from "../../PIXI";
-import {PointerClickEvent, PointerDownEvent, PointerMoveEvent, PointerUpEvent} from "../systems/back/pixiBoardSystem";
-import {ToolDriver} from "../systems/back/toolSystem";
-import {getMapPointFromMouseInteraction} from "./utils";
-import {Tool} from "./toolType";
+import {PointerDownEvent, PointerEvents, PointerMoveEvent, PointerUpEvent} from "../systems/back/pixiBoardSystem";
+import {ToolPart} from "../systems/back/toolSystem";
 import {KEYBOARD_TYPE, KeyboardResource} from "../systems/back/keyboardSystem";
-import {MEASURE_TYPE, MeasureResource} from "../resource";
+import {MeasureResource} from "../resource";
+import SafeEventEmitter from "../../util/safeEventEmitter";
+import { snapPoint } from "./utils";
 
 
-export class MeasureToolDriver implements ToolDriver {
-    readonly name = Tool.MEASURE;
+export const MEASURE_TYPE = "measure";
+export type MEASURE_TYPE = typeof MEASURE_TYPE;
+export class MeasureToolPart implements ToolPart {
+    readonly name = MEASURE_TYPE;
     private readonly world: World;
     private readonly keyboard: KeyboardResource;
 
-    private startMeasure: PIXI.IPoint = new PIXI.Point();
-    private lastMeasure: PIXI.IPoint = new PIXI.Point();
+    private startMeasure: PIXI.IPointData = new PIXI.Point();
+    private lastMeasure: PIXI.IPointData = new PIXI.Point();
     private isDown: boolean = false;
 
     constructor(world: World) {
         this.world = world;
         this.keyboard = world.getResource(KEYBOARD_TYPE)! as KeyboardResource;
-    }
-
-    onPointerClick(event: PointerClickEvent) {
     }
 
     pushRes() {
@@ -41,12 +40,12 @@ export class MeasureToolDriver implements ToolDriver {
         this.world.removeResource(MEASURE_TYPE, false);
     }
 
-    onPointerDown(event: PointerDownEvent) {
+    onPointerDown(event: PointerDownEvent): void {
         event.consumed = true;
 
         this.isDown = true;
-        this.startMeasure = getMapPointFromMouseInteraction(this.world, event);
-        this.lastMeasure = this.startMeasure;
+        this.startMeasure = event.boardPos;
+        this.lastMeasure = snapPoint(this.world, this.startMeasure);
 
         this.pushRes();
     }
@@ -54,7 +53,7 @@ export class MeasureToolDriver implements ToolDriver {
     onPointerUp(event: PointerUpEvent) {
         this.isDown = false;
 
-        this.lastMeasure = getMapPointFromMouseInteraction(this.world, event);
+        this.lastMeasure = snapPoint(this.world, event.boardPos);
 
         this.pushRes();
     }
@@ -62,12 +61,24 @@ export class MeasureToolDriver implements ToolDriver {
     onPointerMove(event: PointerMoveEvent): void {
         if (!this.isDown) return;
 
-        this.lastMeasure = getMapPointFromMouseInteraction(this.world, event);
+        this.lastMeasure = snapPoint(this.world, event.boardPos);
 
         this.pushRes();
     }
 
-    onEnd(): void {
+    onEnable(): void {
+    }
+
+    onDisable(): void {
         this.removeRes();
+    }
+
+    initialize(events: SafeEventEmitter) {
+        events.on(PointerEvents.POINTER_DOWN, this.onPointerDown, this);
+        events.on(PointerEvents.POINTER_UP, this.onPointerUp, this);
+        events.on(PointerEvents.POINTER_MOVE, this.onPointerMove, this);
+    }
+
+    destroy() {
     }
 }

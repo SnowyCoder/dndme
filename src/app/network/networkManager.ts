@@ -183,6 +183,7 @@ export class PeerJsConnection implements P2pConnection {
     }
 
     send(data: any): void {
+        // console.log("SEND " + JSON.stringify(data));
         this.connection.send([this.nextOutId++, data]);
         this.updateBuffered();
     }

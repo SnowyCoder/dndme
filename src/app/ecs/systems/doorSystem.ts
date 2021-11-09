@@ -73,7 +73,8 @@ export class DoorSystem implements System {
         let wall = this.world.getComponent(door.entity, WALL_TYPE) as WallComponent;
         let pos = this.world.getComponent(door.entity, POSITION_TYPE) as PositionComponent;
 
-        let visible = this.isMasterView || this.world.getComponent(door.entity, REMEMBER_TYPE) !== undefined;
+        let visible = this.isMasterView ||
+            (this.world.getComponent(door.entity, REMEMBER_TYPE) !== undefined && door.clientVisible !== false);
         if (!visible) {
             door._display?.clear();
             return;

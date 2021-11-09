@@ -1,6 +1,5 @@
 import {GridOptions} from "../game/grid";
 import {GRID_TYPE} from "./systems/gridSystem";
-import {HideableComponent, MultiComponent} from "./component";
 import {Aabb} from "../geometry/aabb";
 
 export interface Resource {
@@ -36,5 +35,15 @@ export interface MeasureResource extends Resource {
     toX: number;
     toY: number;
     _save: false;
+    _sync: false;
+}
+
+
+export const CREATION_INFO_TYPE = "creation_info";
+export type CREATION_INFO_TYPE = typeof CREATION_INFO_TYPE;
+export interface CreationInfoResource extends Resource {
+    type: CREATION_INFO_TYPE;
+    exitAfterCreation: boolean;
+    _save: true;
     _sync: false;
 }

@@ -6,6 +6,7 @@ import {aabbSameOriginDifference} from "../../util/geometry";
 import {RECTANGULAR_SELECTION_TYPE, RectangularSelectionResource} from "../resource";
 import {SELECTION_TYPE, SelectionSystem} from "../systems/back/selectionSystem";
 import {KEYBOARD_TYPE, KeyboardResource} from "../systems/back/keyboardSystem";
+import { IPointData } from "pixi.js";
 
 type IPoint = PIXI.IPoint;
 
@@ -15,8 +16,8 @@ export class RectangularSelection {
     private readonly keyboard: KeyboardResource;
 
     isActive: boolean = false;
-    startPoint: IPoint = new PIXI.Point();
-    endPoint: IPoint = new PIXI.Point();
+    startPoint: IPointData = new PIXI.Point();
+    endPoint: IPointData = new PIXI.Point();
 
     predicate: (id: number) => boolean = _ => true;
     entitiesInside = new Set<number>();
@@ -33,7 +34,7 @@ export class RectangularSelection {
         this.selectionSys = world.systems.get(SELECTION_TYPE) as SelectionSystem;
     }
 
-    begin(pos: IPoint) {
+    begin(pos: IPointData) {
         this.entitiesSelected.clear();
         this.isActive = true;
         this.world.addResource({
@@ -52,7 +53,7 @@ export class RectangularSelection {
     }
 
 
-    moveEnd(pos: IPoint) {
+    moveEnd(pos: IPointData) {
         let added = [] as Aabb[];
         let removed = [] as Aabb[];
         aabbSameOriginDifference(this.startPoint!, this.endPoint!, pos, added, removed);

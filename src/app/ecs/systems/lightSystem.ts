@@ -3,7 +3,6 @@ import {System} from "../system";
 import {World} from "../world";
 import {CUSTOM_BLEND_MODES, DESTROY_ALL} from "../../util/pixi";
 import {SingleEcsStorage} from "../storage";
-import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {StupidPoint} from "../../geometry/point";
 import {GridResource, Resource} from "../resource";
 import PIXI from "../../PIXI";
@@ -14,7 +13,6 @@ import {Mesh} from "pixi.js";
 import {PixiBoardSystem, PIXI_BOARD_TYPE} from "./back/pixiBoardSystem";
 import hex2rgb = PIXI.utils.hex2rgb;
 import {TOOL_TYPE, ToolSystem} from "./back/toolSystem";
-import {createEmptyDriver} from "../tools/utils";
 import {Tool} from "../tools/toolType";
 import {GRID_TYPE} from "./gridSystem";
 import {STANDARD_GRID_OPTIONS} from "../../game/grid";
@@ -112,7 +110,7 @@ export class LightSystem implements System {
         this.lightContainer = new PIXI.Container();
 
         let toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
-        toolSys.addTool(createEmptyDriver(Tool.LIGHT));
+        toolSys.addToolAsCopy(Tool.LIGHT, Tool.INSPECT);
 
         world.addStorage(this.storage);
         this.lightSettings = Object.assign({

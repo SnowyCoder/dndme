@@ -15,14 +15,16 @@ import {
 import {ElementType, GRAPHIC_TYPE, GraphicComponent, PointElement, TextElement, VisibilityType} from "../../graphics";
 import {POINT_RADIUS} from "./back/pixiGraphicSystem";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
-import {TOOL_TYPE, ToolDriver, ToolSystem} from "./back/toolSystem";
-import {PointerClickEvent} from "./back/pixiBoardSystem";
+import {TOOL_TYPE, ToolSystem, ToolPart} from "./back/toolSystem";
+import {PointerEvents, PointerUpEvent} from "./back/pixiBoardSystem";
 import {SELECTION_TYPE, SelectionSystem} from "./back/selectionSystem";
 import {Tool} from "../tools/toolType";
 import {SpawnCommandKind} from "./command/spawnCommand";
 import {executeAndLogCommand} from "./command/command";
 import {findForeground, PARENT_LAYER_TYPE, ParentLayerComponent} from "./back/layerSystem";
 import { NameAsLabelComponent, NAME_AS_LABEL_TYPE } from "./back/nameAsLabelSystem";
+import SafeEventEmitter from "../../util/safeEventEmitter";
+import { CreationInfoResource, CREATION_INFO_TYPE } from "../resource";
 
 export const PIN_TYPE = 'pin';
 export type PIN_TYPE = typeof PIN_TYPE;
@@ -49,7 +51,8 @@ export class PinSystem implements System {
 
         if (world.isMaster) {
             let toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
-            toolSys.addTool(new CreatePinToolDriver(this));
+            toolSys.addToolPart(new CreatePinToolPart(this));
+            toolSys.addTool(Tool.CREATE_PIN, ['space_pan', 'create_pin', 'creation_flag']);
         }
 
         world.addStorage(this.storage);
@@ -139,7 +142,7 @@ export class PinSystem implements System {
     }
 }
 
-export class CreatePinToolDriver implements ToolDriver {
+export class CreatePinToolPart implements ToolPart {
     readonly name = Tool.CREATE_PIN;
     private readonly sys: PinSystem;
 
@@ -213,23 +216,36 @@ export class CreatePinToolDriver implements ToolDriver {
         ]);
 
         this.createPin = -1;
-        this.sys.world.editResource(TOOL_TYPE, {
-            tool: Tool.INSPECT,
-        });
+        const creationInfo = this.sys.world.getResource(CREATION_INFO_TYPE) as CreationInfoResource | undefined;
+        if (creationInfo?.exitAfterCreation ?? true) {
+            this.sys.world.editResource(TOOL_TYPE, {
+                tool: Tool.INSPECT,
+            });
+        } else {
+            this.initCreation();
+        }
         executeAndLogCommand(world, cmd);
-        //this.sys.selectionSys.setOnlyEntity(id);
     }
 
 
-    onStart(): void {
+    onEnable(): void {
         this.initCreation();
     }
 
-    onEnd(): void {
+    onDisable(): void {
         this.cancelCreation();
     }
 
-    onPointerClick(event: PointerClickEvent) {
-        this.confirmCreation();
+    onPointerUp(event: PointerUpEvent) {
+        if (event.isInside) {
+            this.confirmCreation();
+        }
+    }
+
+    initialize(events: SafeEventEmitter): void {
+        events.on(PointerEvents.POINTER_UP, this.onPointerUp, this);
+    }
+
+    destroy(): void {
     }
 }

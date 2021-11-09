@@ -9,8 +9,9 @@
       <entity-inspect v-bind:world="world"/>
     </div>
     <!----------------------------------      LIGHT SETTINGS      ---------------------------------->
-    <light-settings-edit  v-show="tool === 'light'" v-bind:world="world">
-    </light-settings-edit>
+    <light-settings-edit  v-show="tool === 'light'" v-bind:world="world"/>
+    <!----------------------------------      CREATION OPTIONS      ---------------------------------->
+    <creation-options class="px-3 py-2" v-bind:world="world"/>
 
     <template v-slot:footer>
       <div class="sidebar-footer">
@@ -28,21 +29,16 @@
 import {VComponent, VProp, Vue, VWatch} from "../vue";
 import {Resource} from "../../ecs/resource";
 import {World} from "../../ecs/world";
-import {BACKGROUND_LAYER_TYPE, BackgroundLayerResource} from "../../ecs/systems/back/layerSystem";
 import {TOOL_TYPE, ToolResource} from "../../ecs/systems/back/toolSystem";
-import {Tool} from "../../ecs/tools/toolType";
 import GridEdit from "./gridEdit.vue";
+import CreationOptions from "./creationOptions.vue";
 import LightSettingsEdit from "./lightSettingsEdit.vue";
 import EntityInspect from "../ecs/entityInspect.vue";
-import {SelectionSystem} from "../../ecs/systems/back/selectionSystem";
-import {DEFAULT_LIGHT_SETTINGS, LightSettings, LocalLightSettings} from "../../ecs/systems/lightSystem";
-import hex2string = PIXI.utils.hex2string;
-import string2hex = PIXI.utils.string2hex;
 import {NETWORK_STATUS_TYPE, NetworkStatusResource} from "../../ecs/systems/back/networkSystem";
 
 @VComponent({
   components: {
-    GridEdit, EntityInspect, LightSettingsEdit,
+    GridEdit, EntityInspect, LightSettingsEdit, CreationOptions
   }
 })
 export default class ToolBar extends Vue {

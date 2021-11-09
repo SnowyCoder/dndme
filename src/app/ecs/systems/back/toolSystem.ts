@@ -1,36 +1,24 @@
 import {System} from "../../system";
 import {
     PIXI_BOARD_TYPE,
-    PointerClickEvent,
-    PointerDownEvent,
-    PointerEvents,
-    PointerMoveEvent,
-    PointerRightDownEvent,
-    PointerRightUpEvent,
-    PointerUpEvent
 } from "./pixiBoardSystem";
 import {World} from "../../world";
 import {SELECTION_TYPE} from "./selectionSystem";
 import {Resource} from "../../resource";
-import {InspectToolDriver} from "../../tools/inspect";
+import {FilteredPanPart, InteractPart, SelectPart} from "../../tools/inspect";
 import {Tool} from "../../tools/toolType";
-import {MeasureToolDriver} from "../../tools/measure";
+import {MeasureToolPart} from "../../tools/measure";
+import { KeyboardResource, KEYBOARD_TYPE } from "./keyboardSystem";
+import SafeEventEmitter, { PRIORITY_DISABLED } from "../../../util/safeEventEmitter";
 
-export interface ToolDriver {
+export interface ToolPart {
     readonly name: string;
 
-    initialize?(): void;
-    destroy?(): void;
+    initialize(events: SafeEventEmitter): void;
+    destroy(): void;
 
-    onStart?(): void;
-    onEnd?(): void;
-
-    onPointerMove?(event: PointerMoveEvent): void;
-    onPointerDown?(event: PointerDownEvent): void;
-    onPointerUp?(event: PointerUpEvent): void;
-    onPointerRightDown?(event: PointerRightDownEvent): void;
-    onPointerRightUp?(event: PointerRightUpEvent): void;
-    onPointerClick?(event: PointerClickEvent): void;
+    onEnable(): void;
+    onDisable(): void;
 }
 
 export interface ToolResource extends Resource {
@@ -46,13 +34,18 @@ export type TOOL_TYPE = typeof TOOL_TYPE;
 export class ToolSystem implements System {
     readonly name = TOOL_TYPE;
     readonly dependencies = [SELECTION_TYPE];
-    readonly optionalDependencies = [PIXI_BOARD_TYPE];
+    readonly optionalDependencies = [PIXI_BOARD_TYPE, KEYBOARD_TYPE];
 
     private readonly world: World;
+    private initialized: boolean = false;
+
+    subEvents = new SafeEventEmitter();
 
     standardTool: Tool = Tool.INSPECT;
-    tools = new Map<string, ToolDriver>();
-    currentTool?: ToolDriver;
+    parts = new Map<string, ToolPart>();
+    tools = new Map<string, Array<string>>();
+    currentTool?: string;
+    currentParts = new Array<string>();
 
     constructor(world: World) {
         this.world = world;
@@ -67,19 +60,44 @@ export class ToolSystem implements System {
         const events = world.events;
         events.on('resource_edited', this.onResourceEdited, this);
 
-        events.on(PointerEvents.POINTER_MOVE, this.onPointerMove, this);
-        events.on(PointerEvents.POINTER_DOWN, this.onPointerDown, this);
-        events.on(PointerEvents.POINTER_UP, this.onPointerUp, this);
-        events.on(PointerEvents.POINTER_RIGHT_DOWN, this.onPointerRightDown, this);
-        events.on(PointerEvents.POINTER_RIGHT_UP, this.onPointerRightUp, this);
-        events.on(PointerEvents.POINTER_CLICK, this.onPointerClick, this);
+        const keyboard = this.world.getResource(KEYBOARD_TYPE) as KeyboardResource | undefined;
 
-        this.addTool(new MeasureToolDriver(world));
-        this.addTool(new InspectToolDriver(world));
+        this.addToolPart(new FilteredPanPart(world, 'click_pan', () => true));
+        this.addToolPart(new FilteredPanPart(world, 'space_pan', () => !!keyboard?.pressedKeys?.has(' ')));
+        this.addToolPart(new InteractPart(world));
+        this.addToolPart(new SelectPart(world));
+        this.addToolPart(new MeasureToolPart(world));
+        this.addToolPart(new FlagToolPart('creation_flag'));
+
+        this.addTool(Tool.INSPECT, ['space_pan', 'interact', 'select'])
     }
 
-    addTool(tool: ToolDriver): void {
-        this.tools.set(tool.name, tool);
+    addToolPart(tool: ToolPart): void {
+        this.parts.set(tool.name, tool);
+        if (this.initialized) {
+            console.warn("Adding tool part after initialization");
+            tool.initialize(this.subEvents);
+        }
+    }
+
+    addTool(name: string, parts: Iterable<string>): void {
+        let p = [...parts];
+        for (let part of p) {
+            if (!this.parts.has(part)) {
+                console.warn("Cannot find part " + part);
+            }
+        }
+        this.tools.set(name, p);
+    }
+
+    addToolAsCopy(name: string, original: string): void {
+        const parts = this.tools.get(original);
+        if (parts === undefined) throw new Error("Original tool not found");
+        this.tools.set(name, parts);
+    }
+
+    isToolPartEnabled(name: string): boolean {
+        return this.currentParts.includes(name);
     }
 
     private onResourceEdited(r: Resource, edited: any): void {
@@ -88,66 +106,51 @@ export class ToolSystem implements System {
 
             let toolName = ct.tool || this.standardTool;
 
-            let tool = this.tools.get(toolName);
-            if (tool === undefined) {
+            let parts = this.tools.get(toolName);
+            if (parts === undefined) {
                 console.warn("Unregistered tool requested: " + ct.tool);
-                tool = this.tools.get(this.standardTool)!;
+                toolName = this.standardTool;
+                parts = this.tools.get(this.standardTool)!;
             }
 
-            if (tool === this.currentTool) {
+            if (toolName === this.currentTool) {
                 return;
             }
 
-            console.log("Changing tool from " + (this.currentTool?.name || 'none')  + " to " + tool.name);
+            console.log("Changing tool from " + (this.currentTool || 'none')  + " to " + toolName);
+            this.currentTool = toolName;
 
-            if (this.currentTool !== undefined && this.currentTool.onEnd !== undefined) {
-                this.currentTool.onEnd();
+            // Disable all old parts
+            for (let x of this.parts.values()) {
+                const oldEnabled = this.currentParts.includes(x.name);
+                const newEnable = parts.includes(x.name);
+
+                if (oldEnabled && !newEnable) {
+                    x.onDisable();
+                }
             }
+            // Enable all new parts
+            for (let x of this.parts.values()) {
+                const oldEnabled = this.currentParts.includes(x.name);
+                const newEnable = parts.includes(x.name);
 
-            this.currentTool = tool;
-            if (tool.onStart !== undefined) tool.onStart();
-        }
-    }
-
-    private onPointerMove(e: PointerMoveEvent): void {
-        if (this.currentTool !== undefined && this.currentTool.onPointerMove !== undefined) {
-            this.currentTool.onPointerMove(e);
-        }
-    }
-
-    private onPointerDown(e: PointerDownEvent): void {
-        if (this.currentTool !== undefined && this.currentTool.onPointerDown !== undefined) {
-            this.currentTool.onPointerDown(e);
-        }
-    }
-
-    private onPointerUp(e: PointerUpEvent): void {
-        if (this.currentTool !== undefined && this.currentTool.onPointerUp !== undefined) {
-            this.currentTool.onPointerUp(e);
-        }
-    }
-
-    private onPointerRightDown(e: PointerRightDownEvent): void {
-        if (this.currentTool !== undefined && this.currentTool.onPointerRightDown !== undefined) {
-            this.currentTool.onPointerRightDown(e);
-        }
-    }
-
-    private onPointerRightUp(e: PointerRightUpEvent): void {
-        if (this.currentTool !== undefined && this.currentTool.onPointerRightUp !== undefined) {
-            this.currentTool.onPointerRightUp(e);
-        }
-    }
-
-    private onPointerClick(e: PointerClickEvent): void {
-        if (this.currentTool !== undefined && this.currentTool.onPointerClick !== undefined) {
-            this.currentTool.onPointerClick(e);
+                if (!oldEnabled && newEnable) {
+                    x.onEnable();
+                }
+            }
+            this.currentParts = parts;
+            // Reorder events
+            const order = parts.map((x) => this.parts.get(x)).reverse();
+            this.subEvents.reorderObjects(order, PRIORITY_DISABLED);
         }
     }
 
     enable(): void {
-        for (let tool of this.tools.values()) {
-            if (tool.initialize !== undefined) tool.initialize();
+        this.initialized = true;
+
+        this.world.events.addChild(this.subEvents);
+        for (let part of this.parts.values()) {
+            part.initialize(this.subEvents);
         }
 
         if (this.currentTool === undefined) {
@@ -158,8 +161,24 @@ export class ToolSystem implements System {
     }
 
     destroy(): void {
-        for (let tool of this.tools.values()) {
-            if (tool.destroy !== undefined) tool.destroy();
+        for (let part of this.parts.values()) {
+            part.destroy();
         }
+        this.world.events.removeChild(this.subEvents);
+    }
+}
+
+export class FlagToolPart implements ToolPart {
+    readonly name: string;
+    constructor(name: string) {
+        this.name = name;
+    }
+    initialize(events: SafeEventEmitter): void {
+    }
+    destroy(): void {
+    }
+    onEnable(): void {
+    }
+    onDisable(): void {
     }
 }
