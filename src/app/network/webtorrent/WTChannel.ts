@@ -32,6 +32,9 @@ interface PeerData {
     peerId: string;
     id: number;
     socket: SimplePeer.Instance;
+    afterSendBounded: (e: Error | undefined | null) => void,
+    sending: boolean;
+    packets: Uint8Array[];
     partial?: {
         index: number;
         size: number;
@@ -98,7 +101,7 @@ export class WTChannel {
             throw new Error("Cannot find reciver");
         }
         const encoded = encode(data);
-        this.sendRaw(encoded, [receiver]);
+        this.sendRaw(encoded, receiver);
     }
 
     broadcast(data: object): void {
@@ -112,7 +115,7 @@ export class WTChannel {
         }
     }
 
-    private sendRaw(data: Uint8Array, onlyTo?: PeerData[]): void {
+    private sendRaw(data: Uint8Array, onlyTo?: PeerData): void {
         // We don't have to worry here about forwarded packets
         // they are handled on the receiving end.
         if (data.byteLength <= MAX_MESSAGE_LENGTH - MIN_HEADER_LENGTH) {
@@ -143,20 +146,38 @@ export class WTChannel {
         }
     }
 
-    private sendPacketRaw(packet: Uint8Array, onlyTo?: PeerData[], adjustFlags: boolean = true, broadcastExclde?: PeerData): void {
+    private sendPacketRaw(packet: Uint8Array, onlyTo?: PeerData, adjustFlags: boolean = true, broadcastExclde?: PeerData): void {
+        const sendRaw = (x: PeerData): void => {
+            if (x.sending) {
+                x.packets.push(packet);
+            } else {
+                x.sending = true;
+                x.socket.write(packet, undefined, x.afterSendBounded);
+            }
+        };
+
         let dataView = adjustFlags ? new DataView(packet.buffer, packet.byteOffset) : null;
+
         if (onlyTo === undefined) {
             dataView?.setUint32(1 + 4, RECEIVER_BROADCAST, ENDIANESS);
             for (let x of this.peers.values()) {
                 if (x === broadcastExclde) continue;
-                x.socket.send(packet);
+                sendRaw(x);
             }
         } else {
-            for (let x of onlyTo) {
-                dataView?.setUint32(1 + 4, x.id, ENDIANESS);
-                x.socket.send(packet);
-            }
+            dataView?.setUint32(1 + 4, onlyTo.id, ENDIANESS);
+
+            sendRaw(onlyTo);
         }
+    }
+
+    private afterDataSend(peer: PeerData, e: Error | null | undefined): void {
+        const nextData = peer.packets.shift();
+        if (nextData === undefined) {
+            peer.sending = false;
+            return;
+        }
+        peer.socket.write(nextData, undefined, peer.afterSendBounded);
     }
 
     private onPeer(peer: SimplePeer.Instance, peerId: string): void {
@@ -164,7 +185,11 @@ export class WTChannel {
             peerId,
             id: this.discovery.isMaster ? this.nextId++ : 0,
             socket: peer,
+            packets: [],
+            sending: false,
+            afterSendBounded: _ => {},
         } as PeerData;
+        data.afterSendBounded = e => this.afterDataSend(data, e);
         this.peers.set(peerId, data);
 
         peer.once('connect', () => {
@@ -251,7 +276,7 @@ export class WTChannel {
             if (peer.partial) {
                 peer.partial.forwardTo = receiver;
             } else {
-                this.sendPacketRaw(chunk, [recv], false);
+                this.sendPacketRaw(chunk, recv, false);
             }
             return;
         }
@@ -280,7 +305,7 @@ export class WTChannel {
         } else {
             let target = this.connections.get(peer.partial.forwardTo!!);
             if (target === undefined) return;
-            this.sendPacketRaw(chunk, []);
+            this.sendPacketRaw(chunk, target, false);
         }
 
         if (isDone) {
