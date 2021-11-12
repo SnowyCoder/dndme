@@ -15,7 +15,7 @@ export class HostEditMapPhase extends EditMapPhase {
     private beforeUnloadListener: any;
 
     constructor(map: GameMap) {
-        super('editHost', true);
+        super('editHost', undefined);
 
         this.map = map;
         if (this.map.levels.size == 0) {

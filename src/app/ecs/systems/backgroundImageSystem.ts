@@ -84,23 +84,20 @@ export class BackgroundImageSystem implements System {
             this.world.despawnEntity(bkgImg.entity);
             return;
         }
-        if (image.byteOffset !== 0) {
-            // Copy array to remove offset (TODO: fix)
-            // https://github.com/peers/peerjs/issues/715
-            image = new Uint8Array(image);
-            bkgImg.image = this.bigStorage.replace(bkgImg.image, image, true)!!;
-        }
 
         let visMap: Uint32Array | undefined = undefined;
         if (bkgImg.visMap !== undefined) {
             visMap = this.bigStorage.requestUse<Uint32Array>(bkgImg.visMap)?.data;
-            if (visMap !== undefined && visMap.byteOffset !== 0) {
-                visMap = new Uint32Array(new Uint8Array(visMap).buffer);
-                bkgImg.visMap = this.bigStorage.replace(bkgImg.visMap, visMap);
-            }
         }
 
-        let tex = await loadTexture(image, bkgImg.imageType);
+        let tex;
+        try {
+            tex = await loadTexture(image, bkgImg.imageType);
+        } catch (e) {
+            console.error("Failed to load image: ", e);
+            this.world.removeComponent(c);
+            return;
+        }
 
         this.world.addComponent(c.entity, {
             type: GRAPHIC_TYPE,

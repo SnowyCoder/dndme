@@ -16,7 +16,6 @@ import {
     BoardTransformResource,
     PIXI_BOARD_TYPE,
     PixiBoardSystem,
-    PointerClickEvent
 } from "./back/pixiBoardSystem";
 import {Tool} from "../tools/toolType";
 import {
@@ -31,8 +30,8 @@ import {LayerOrder} from "../../phase/editMap/layerOrder";
 import TrailImage from "Public/images/trail.png";
 import {Resource} from "../resource";
 import * as P from "../../protocol/game";
-import {PacketContainer} from "../../protocol/packet";
 import SafeEventEmitter from "../../util/safeEventEmitter";
+import { PacketInfo } from "../../network/webtorrent/WTChannel";
 
 export const MOUSE_TRAIL_TYPE = 'mouse_trail';
 export type MOUSE_TRAIL_TYPE = typeof MOUSE_TRAIL_TYPE;
@@ -288,8 +287,8 @@ export class MouseTrailSystem implements System {
         }
     }
 
-    private onMouseTrailPacket(pkt: P.MouseTrailPacket, container: PacketContainer): void {
-        this.onFuture(container.sender, pkt.fut);
+    private onMouseTrailPacket(pkt: P.MouseTrailPacket, info: PacketInfo): void {
+        this.onFuture(info.senderId, pkt.fut);
     }
 
     enable(): void {
@@ -307,11 +306,11 @@ export class MouseTrailSystem implements System {
 
 
         this.pixiBoardSys.ticker.add(this.onTick, this);
-        this.networkSys.channel.eventEmitter.on('mtrail', this.onMouseTrailPacket, this);
+        this.networkSys.channel.packets.on('mtrail', this.onMouseTrailPacket, this);
     }
 
     destroy(): void {
-        this.networkSys.channel.eventEmitter.off('mtrail', this.onMouseTrailPacket, this);
+        this.networkSys.channel.packets.off('mtrail', this.onMouseTrailPacket, this);
         this.pixiBoardSys.ticker.remove(this.onTick, this);
     }
 }

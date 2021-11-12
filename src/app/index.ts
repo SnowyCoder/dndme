@@ -1,5 +1,4 @@
 import {Stage} from "./phase/stage";
-import PIXI from "./PIXI";
 
 import {HomePhase} from "./phase/homePhase";
 
@@ -17,10 +16,8 @@ Vue.use(BootstrapVue)
 
 import "Public/style.css";
 import {ClientEditMapPhase} from "./phase/editMap/clientEditMapPhase";
-import {addCustomBlendModes} from "./util/pixi";
 import {loadAssets} from "./assetsLoader";
 import {LoadingPhase} from "./phase/loadingPhase";
-import {DEFAULT_BACKGROUND} from "./ecs/systems/lightSystem";
 
 export const windowEventEmitter = new EventEmitterWrapper((event, emitter) => {
     window.addEventListener(event, data => {
@@ -34,8 +31,8 @@ export const stage = new Stage("main");
 function onHashCahnge() {
     if (window.location.hash) {
         const roomId = window.location.hash.substr(1);// Remove #
-        if (roomId.startsWith('p')) {
-            console.log("Connecting with: peerj2");
+        if (roomId.startsWith('t')) {
+            console.log("Connecting with: torrent");
             stage.setPhase(new ClientEditMapPhase(roomId.substr(1)));
         } else {
             console.log("Invalid hash")

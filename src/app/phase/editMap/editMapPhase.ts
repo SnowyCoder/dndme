@@ -1,10 +1,6 @@
 import EditMapComponent from "../../ui/edit/editMap.vue";
-import {stage} from "../../index";
 import {BackgroundImageSystem} from "../../ecs/systems/backgroundImageSystem";
 import {SelectionSystem} from "../../ecs/systems/back/selectionSystem";
-import {NetworkManager} from "../../network/networkManager";
-import {HostEditMapPhase} from "./hostEditMapPhase";
-import {GameMap} from "../../map/gameMap";
 import {PinSystem} from "../../ecs/systems/pinSystem";
 import {WallSystem} from "../../ecs/systems/wallSystem";
 import {LightSystem} from "../../ecs/systems/lightSystem";
@@ -33,13 +29,16 @@ import {MouseTrailSystem} from "../../ecs/systems/mouseTrailSystem";
 import {CopyPasteSystem} from "../../ecs/systems/copyPasteSystem";
 import { LinkRelocationSystem } from "../../ecs/systems/back/linkRelocationSystem";
 import { NameAsLabelSystem } from "../../ecs/systems/back/nameAsLabelSystem";
+import { WTChannel } from "../../network/webtorrent/WTChannel";
 
 
 export class EditMapPhase extends EcsPhase {
-    networkManager!: NetworkManager;
+    channel!: WTChannel;
+    private readonly gameId: string | undefined;
 
-    constructor(name: string, isHost: boolean) {
-        super(name, isHost);
+    constructor(name: string, gameId?: string) {
+        super(name, gameId === undefined);
+        this.gameId = gameId;
     }
 
     ecsSetup() {
@@ -51,7 +50,7 @@ export class EditMapPhase extends EcsPhase {
     registerSystems() {
         super.registerSystems();
         let w = this.world;
-        w.addSystem(new CommonNetworkSystem(w, this.networkManager.channel));
+        w.addSystem(new CommonNetworkSystem(w, this.channel));
 
         w.addSystem(new CommandSystem(w));
         if (w.isMaster) {
@@ -89,45 +88,16 @@ export class EditMapPhase extends EcsPhase {
     }
 
     setupNetworkManager() {
-        this.networkManager = new NetworkManager(this.world.isMaster);
-        this.networkManager.on("ready", this.onNetworkReady, this);
-        this.networkManager.on("error", this.onNetworkError, this);
+        this.channel = new WTChannel();
+        if (this.world.isMaster) {
+            this.channel.startMaster();
+            history.replaceState(null, "", '#t' + this.channel.getConnectSecret());
+        } else {
+            this.channel.startClient(this.gameId!!);
+        }
     }
 
     // overrides
-
-    private onNetworkReady() {
-        console.log("Network is ready! side: " + (this.networkManager.isHost ? "master" : "player"));
-        if (this.networkManager.isHost) {
-            history.replaceState(null, "", '#p' + this.networkManager.peer.id);
-        }
-    }
-
-    private onNetworkError(err: any) {
-        // TODO: open modal or something
-        console.error("Error from peerjs: ", err.type);
-        if (err.type === 'server-error') {
-            alert("Error connecting to peerjs instance, you're offline now");
-
-            if (!this.world.isMaster) {
-                stage.setPhase(new HostEditMapPhase(new GameMap()));
-            }
-        } else if (err.type === 'peer-unavailable') {
-            console.log("Invalid invite link");
-
-            alert("Invalid invite link");
-
-            history.replaceState(null, "", ' ');
-            if (!this.world.isMaster) {
-                stage.setPhase(new HostEditMapPhase(new GameMap()));
-            }
-        } else if (err.ty === 'network') {
-            alert("Connection lost");
-        } else {
-            alert(err);
-        }
-    }
-
 
     ui() {
         return new EditMapComponent({
@@ -140,6 +110,6 @@ export class EditMapPhase extends EcsPhase {
     disable() {
         super.disable();
 
-        this.networkManager.disconnect();
+        this.channel.destroy();
     }
 }

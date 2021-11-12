@@ -10,6 +10,9 @@
     "downlevelIteration": true,
     "moduleResolution": "node",
     "experimentalDecorators": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "typeRoots": [
+      "./types", "./node_modules/@types"
+    ]
   }
 }

@@ -9,7 +9,6 @@ export class EcsPhase extends Phase {
         super(name);
         this.world = new World(isMaster);
 
-        this.ecsSetup();
     }
 
     ecsSetup(): void {
@@ -22,6 +21,7 @@ export class EcsPhase extends Phase {
     }
 
     enable() {
+        this.ecsSetup();
         super.enable();
         this.world.enable();
     }

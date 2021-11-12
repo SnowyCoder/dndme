@@ -4,8 +4,9 @@ import {Resource} from "../../resource";
 import {Component} from "../../component";
 import {SingleEcsStorage} from "../../storage";
 import {DeSpawnCommand} from "../command/despawnCommand";
-import {commandRegisterPreConsequence} from "../command/command";
+import {commandRegisterPreConsequence, emitCommand} from "../command/command";
 import {LayerOrder} from "../../../phase/editMap/layerOrder";
+import { SpawnCommandKind } from "../command/spawnCommand";
 
 
 export const LAYER_TYPE = "layer";
@@ -166,7 +167,7 @@ export class LayerSystem implements System {
 
         let layer = this.layerStorage.getComponent(id);
         if (layer === undefined) {
-            console.warn("Invalid layer id: " + layer);
+            console.warn("Invalid layer id: " + id);
             return this.backgroundLayer;
         }
         return layer;
@@ -188,10 +189,13 @@ export function findForeground(world: World): number {
         return x.entity;// There's only 1 layer for now (foreground)
     }
     // If it's not present we need to create it
-    return world.spawnEntity({
+    let cmd = SpawnCommandKind.from(world, [{
         type: LAYER_TYPE,
         name: 'Foreground',
         priority: LayerOrder.FOREGROUND,
         locked: false,
-    } as LayerComponent);
+    } as LayerComponent]);
+
+    emitCommand(world, cmd, true);
+    return cmd.data.entities[0];
 }

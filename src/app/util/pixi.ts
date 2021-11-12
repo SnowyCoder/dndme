@@ -21,10 +21,7 @@ function validateImageMimeType(type: string): void {
 
 export function loadTexture(data: ArrayBuffer, dataType: string): Promise<PIXI.Texture> {
     validateImageMimeType(dataType);
-    let typedArray = new Uint8Array(data);
-    let b64 = 'data:' + dataType + ';base64,' + btoa(typedArray.reduce((data, byte) => {
-        return data + String.fromCharCode(byte);
-    }, ''));
+    let b64 = 'data:' + dataType + ';base64,' + Buffer.from(data).toString('base64');
 
     return new Promise<PIXI.Texture>((resolve, reject) => {
         let image = new Image();

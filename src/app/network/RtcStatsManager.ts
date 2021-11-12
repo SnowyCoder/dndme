@@ -3,7 +3,7 @@ export type ConnectionStatsSummary = {
     remote: string;
 };
 
-
+/*
 export class RtcStatsManager {
     private readonly conn: RTCPeerConnection;
     onSummary?: (stats: ConnectionStatsSummary) => void;
@@ -100,3 +100,4 @@ export class RtcStatsManager {
     }
 }
 
+*/

@@ -1,15 +1,13 @@
 import {System} from "../../system";
 import {World} from "../../world";
-import {Channel} from "../../../network/channel";
 import * as P from "../../../protocol/game";
-import {PacketContainer} from "../../../protocol/packet";
 import {Command, emitCommand} from "../command/command";
 import {Resource} from "../../resource";
 import {Component} from "../../component";
 import {SingleEcsStorage} from "../../storage";
-import {SpawnCommand, SpawnCommandKind} from "../command/spawnCommand";
-import {generateRandomId} from "../../ecsUtil";
+import {SpawnCommandKind} from "../command/spawnCommand";
 import {DeSpawnCommand} from "../command/despawnCommand";
+import { PacketInfo, WTChannel } from "../../../network/webtorrent/WTChannel";
 
 export const NETWORK_TYPE = 'network';
 export type NETWORK_TYPE = typeof NETWORK_TYPE;
@@ -17,7 +15,7 @@ export type NETWORK_TYPE = typeof NETWORK_TYPE;
 export interface NetworkSystem extends System{
     isOnline(): boolean;
 
-    readonly channel: Channel;
+    readonly channel: WTChannel;
 }
 
 export const NETWORK_ENTITY_TYPE = 'network_entity';
@@ -46,14 +44,14 @@ export class CommonNetworkSystem implements NetworkSystem {
     readonly name = NETWORK_TYPE;
     readonly dependencies = [];
 
-    readonly channel: Channel;
+    readonly channel: WTChannel;
     private world: World;
 
     private res: NetworkStatusResource;
 
     storage = new SingleEcsStorage<NetworkEntityComponent>(NETWORK_ENTITY_TYPE, true, false);
 
-    constructor(world: World, channel: Channel) {
+    constructor(world: World, channel: WTChannel) {
         this.channel = channel;
         this.world = world;
 
@@ -101,23 +99,23 @@ export class CommonNetworkSystem implements NetworkSystem {
         this.res.myId = this.channel.myId;
 
         if (this.world.isMaster) {
-            this.spawnDeviceEntity(this.channel.myId);
-            for (let c of this.channel.connections) {
-                this.spawnDeviceEntity(c.channelId);
+            this.spawnDeviceEntity(this.res.myId);
+            for (let pid of this.channel.connections.keys()) {
+                this.spawnDeviceEntity(pid);
             }
         }
     }
 
     private updateConnectionCount() {
-        const connectionCount = this.channel.connections.length;
+        const connectionCount = this.channel.connections.size;
         this.world.editResource(NETWORK_STATUS_TYPE, { connectionCount });
     }
 
-    private spawnDeviceEntity(connId: number) {
+    private spawnDeviceEntity(peerId: number) {
         const cmd = SpawnCommandKind.from(this.world, [
             {
                 type: NETWORK_ENTITY_TYPE,
-                networkId: connId,
+                networkId: peerId,
                 color: Math.floor(Math.random() * 0xFFFFFF),
             } as NetworkEntityComponent
         ]);
@@ -148,26 +146,28 @@ export class CommonNetworkSystem implements NetworkSystem {
     }
 
     onDeviceBufferUpdate() {
-        const isBuffering = this.channel.bufferingChannels > 0;
+        // TODO: buffering
+        const isBuffering = false; // this.channel.bufferingChannels > 0;
         this.world.editResource(NETWORK_STATUS_TYPE, { isBuffering });
     }
 
     isOnline(): boolean {
-        return this.channel.connections.length !== 0;
+        return this.channel.connections.size !== 0;
     }
 
     enable(): void {
-        let chEvents = this.channel.eventEmitter;
-        chEvents.on('_device_join', this.onDeviceJoin, this);
-        chEvents.on('_device_left', this.onDeviceLeave, this);
-        chEvents.on('_buffering_update', this.onDeviceBufferUpdate, this);
+        let chEvents = this.channel.events;
+        chEvents.on('device_join', this.onDeviceJoin, this);
+        chEvents.on('device_left', this.onDeviceLeave, this);
+        chEvents.on('buffering_update', this.onDeviceBufferUpdate, this);
+        //this.channel.events.on('message', x => console.log("RECEIVED: " + JSON.stringify(x)));
     }
 
     destroy(): void {
-        let chEvents = this.channel.eventEmitter;
-        chEvents.off('_device_join', this.onDeviceJoin, this);
-        chEvents.off('_device_left', this.onDeviceLeave, this);
-        chEvents.off('_buffering_update', this.onDeviceBufferUpdate, this);
+        let chEvents = this.channel.events;
+        chEvents.off('device_join', this.onDeviceJoin, this);
+        chEvents.off('device_left', this.onDeviceLeave, this);
+        chEvents.off('buffering_update', this.onDeviceBufferUpdate, this);
     }
 }
 
@@ -178,9 +178,9 @@ export class HostNetworkSystem {
     readonly dependencies = [] as string[];
 
     readonly world: World;
-    private channel: Channel;
+    private channel: WTChannel;
 
-    constructor(world: World, ch: Channel) {
+    constructor(world: World, ch: WTChannel) {
         this.world = world;
         this.channel = ch;
 
@@ -200,8 +200,8 @@ export class HostNetworkSystem {
         } as P.EcsBootrstrap, chId);
     }
 
-    private onCommandPacket(pkt: P.CommandPacket, container: PacketContainer) {
-        const sender = container.sender;
+    private onCommandPacket(pkt: P.CommandPacket, info: PacketInfo) {
+        const sender = info.senderId;
         for (let cmd of pkt.data) {
             if (!this.checkCommand(sender, cmd)) continue;
             this.world.events.emit("command_emit", cmd, false);
@@ -222,13 +222,13 @@ export class HostNetworkSystem {
     }
 
     enable(): void {
-        this.channel.eventEmitter.on('_device_join', this.onDeviceJoin, this);
-        this.channel.eventEmitter.on('cmd', this.onCommandPacket, this);
+        this.channel.events.on('device_join', this.onDeviceJoin, this);
+        this.channel.packets.on('cmd', this.onCommandPacket, this);
     }
 
     destroy(): void {
-        this.channel.eventEmitter.off('_device_join', this.onDeviceJoin, this);
-        this.channel.eventEmitter.off('cmd', this.onCommandPacket, this);
+        this.channel.events.off('device_join', this.onDeviceJoin, this);
+        this.channel.packets.off('cmd', this.onCommandPacket, this);
     }
 }
 
@@ -239,23 +239,23 @@ export class ClientNetworkSystem {
     readonly dependencies = [] as string[];
 
     readonly world: World;
-    private channel: Channel;
+    private channel: WTChannel;
 
-    constructor(ecs: World, channel: Channel) {
+    constructor(ecs: World, channel: WTChannel) {
         this.world = ecs;
         this.channel = channel;
     }
 
-    private onEcsBootstrap(packet: P.EcsBootrstrap, container: PacketContainer): void {
-        if (container.sender !== 0) return; // Only admin
+    private onEcsBootstrap(packet: P.EcsBootrstrap, info: PacketInfo): void {
+        if (info.senderId !== 0) return; // Only admin
 
         this.world.clear();
         this.world.deserialize(packet.payload, {});
     }
 
-    private onCmd(packet: P.CommandPacket, container: PacketContainer): void {
+    private onCmd(packet: P.CommandPacket, info: PacketInfo): void {
         for (let cmd of packet.data) {
-            if (!this.checkCommand(container.sender, cmd)) continue;
+            if (!this.checkCommand(info.senderId, cmd)) continue;
             this.world.events.emit("command_emit", cmd);
         }
     }
@@ -267,13 +267,13 @@ export class ClientNetworkSystem {
     }
 
     enable(): void {
-        this.channel.eventEmitter.on('ecs_bootstrap', this.onEcsBootstrap, this);
-        this.channel.eventEmitter.on('cmd', this.onCmd, this);
+        this.channel.packets.on('ecs_bootstrap', this.onEcsBootstrap, this);
+        this.channel.packets.on('cmd', this.onCmd, this);
     }
 
     destroy(): void {
-        this.channel.eventEmitter.off('ecs_bootstrap', this.onEcsBootstrap, this);
-        this.channel.eventEmitter.off('cmd', this.onCmd, this);
+        this.channel.packets.off('ecs_bootstrap', this.onEcsBootstrap, this);
+        this.channel.packets.off('cmd', this.onCmd, this);
     }
 
 }

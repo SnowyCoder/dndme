@@ -70,6 +70,7 @@ export class ToolSystem implements System {
         this.addToolPart(new FlagToolPart('creation_flag'));
 
         this.addTool(Tool.INSPECT, ['space_pan', 'interact', 'select'])
+        this.addTool(Tool.MEASURE, ['space_pan', 'interact', 'measure'])
     }
 
     addToolPart(tool: ToolPart): void {

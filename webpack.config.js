@@ -10,6 +10,7 @@ const DotEnv = require('dotenv-webpack');
 const webpack = require('webpack');
 
 const gitRevisionPlugin = new GitRevisionPlugin();
+const NodePolyfillPlugin = require("node-polyfill-webpack-plugin")
 
 const config = {
     entry: './src/app/index.ts',
@@ -105,7 +106,8 @@ const config = {
         }),
         new webpack.DefinePlugin({
             __COMMIT_HASH__: JSON.stringify(gitRevisionPlugin.version()),
-        })
+        }),
+        new NodePolyfillPlugin(),
     ]
 };
 
