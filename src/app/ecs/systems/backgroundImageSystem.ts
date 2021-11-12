@@ -22,7 +22,7 @@ export const BACKGROUND_IMAGE_TYPE = 'background_image';
 export interface BackgroundImageComponent extends Component {
     type: BACKGROUND_TYPE;
     image: BigStorageIndex<Uint8Array>;
-    visMap: BigStorageIndex<Uint32Array> | undefined;
+    visMap: BigStorageIndex<Uint8Array> | undefined;
     imageType: string;
 }
 
@@ -85,9 +85,9 @@ export class BackgroundImageSystem implements System {
             return;
         }
 
-        let visMap: Uint32Array | undefined = undefined;
+        let visMap: Uint8Array | undefined = undefined;
         if (bkgImg.visMap !== undefined) {
-            visMap = this.bigStorage.requestUse<Uint32Array>(bkgImg.visMap)?.data;
+            visMap = this.bigStorage.requestUse<Uint8Array>(bkgImg.visMap)?.data;
         }
 
         let tex;

@@ -87,7 +87,7 @@ export interface ImageElement extends DisplayElement, AnchorableElement {
     // Output of the visible image, only available if visib=REMEMBER_BIT_BY_BIT and it's an image
     // updated when the entity is serialized, when it is EVENT_REMEMBER_BIT_BY_BIY_MASK_UPDATE is fired with a list
     // of updated entities.
-    visMap?: Uint32Array;
+    visMap?: Uint8Array;
 }
 
 export interface LineElement extends DisplayElement, ColorableElement {

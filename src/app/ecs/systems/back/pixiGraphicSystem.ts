@@ -520,7 +520,7 @@ export class PixiGraphicSystem implements System {
                 target[i >>> 5] |= 1 << (i & 0b11111);
             }
         }
-        c.visMap = target;
+        c.visMap = new Uint8Array(target.buffer);
         c._visMapChanged = false;
         return true;
     }
@@ -550,9 +550,9 @@ export class PixiGraphicSystem implements System {
         let visMap = c.visMap;
         if ((c.visMap.byteOffset & (0x4 - 1)) !== 0) {
             // Not aligned, realign
-            visMap = new Uint32Array(c.visMap);
+            visMap = c.visMap.slice(0);
         }
-        let set = new BitSet(visMap);
+        let set = new BitSet(new Uint32Array(visMap.buffer, visMap.byteOffset));
         let len = texData.length;
         for (let i = 0; i < len; i++) {
             texData[i] = set.get(i) ? 0xFFFFFFFF : 0;
@@ -978,7 +978,6 @@ export class PixiGraphicSystem implements System {
                 dim.rotation = trans?.rotation || 0;
                 dim.scale.set(sx, sy);
                 dim.tint = par._selected ? 0x7986CB : 0xFFFFFF;
-
 
                 if (el.visib === VisibilityType.REMEMBER_BIT_BY_BIT) {
                     if (el._oldTex !== el.texture) {
