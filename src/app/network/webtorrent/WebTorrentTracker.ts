@@ -57,7 +57,7 @@ export interface TrackerConfig {
 const RECONNECT_MINIMUM = 10 * 1000;
 const RECONNECT_MAXIMUM = 60 * 60 * 1000;
 const RECONNECT_VARIANCE = 5 * 60 * 1000;
-const OFFER_TIMEOUT = 50 * 1000;
+const OFFER_TIMEOUT = 30 * 1000;
 
 /*
  * Protocol: 3-way handshake

@@ -5,14 +5,12 @@ import {OfferFilterData, TrackerConfig, WebTorrentTracker} from "./WebTorrentTra
 
 // https://github.com/ngosang/trackerslist/blob/master/trackers_all_ws.txt
 const TRACKERS = [
-    'ws://localhost:8000',
-    //'wss://tracker.openwebtorrent.com',
-    //'wss://tracker.btorrent.xyz',
-    //'wss://tracker.fastcast.nz',
-    //'wss://tracker.files.fm:7073/announce',
+    //'ws://localhost:8000',
+    'wss://tracker.openwebtorrent.com',
+    'wss://tracker.btorrent.xyz',
+    'wss://tracker.files.fm:7073/announce',
     //'wss://spacetradersapi-chatbox.herokuapp.com:443/announce',
     //'wss://peertube.cpy.re:443/tracker/socket',
-    //'ws://tracker.files.fm:7072/announce',
 ]
 
 const WAITING_FOR_INIT = {};
@@ -75,6 +73,11 @@ export class WTDiscovery {
                 console.log("Offer rejected (already present): " + e.offer);
                 return;
             }
+            this.peers.set(e.peerId, WAITING_FOR_INIT);
+        });
+        tracker.events.on('offer_timeout', (peerId: string) => {
+            // someone passed offer_filter, received an answer but didn't reply back
+            this.peers.delete(peerId);
         });
         tracker.events.on('peer', (peer: SimplePeer.Instance, peerId: string) => {
             const oldPeerData = this.peers.get(peerId);
