@@ -8,7 +8,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "predeploy": "npx webpack --mode=development",
     "deploy": "gh-pages -d dist",
-    "serve": "webpack serve --mode=development"
+    "serve": "webpack serve --mode=development",
+    "serve-lan": "webpack serve --mode=development --host 0.0.0.0"
   },
   "keywords": [],
   "author": "",

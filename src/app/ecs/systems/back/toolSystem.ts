@@ -1,6 +1,6 @@
 import {System} from "../../system";
 import {
-    PIXI_BOARD_TYPE,
+    PIXI_BOARD_TYPE, PointerDownEvent,
 } from "./pixiBoardSystem";
 import {World} from "../../world";
 import {SELECTION_TYPE} from "./selectionSystem";
@@ -64,12 +64,15 @@ export class ToolSystem implements System {
 
         this.addToolPart(new FilteredPanPart(world, 'click_pan', () => true));
         this.addToolPart(new FilteredPanPart(world, 'space_pan', () => !!keyboard?.pressedKeys?.has(' ')));
+        this.addToolPart(new FilteredPanPart(world, 'touch_pan', (w: World, e: PointerDownEvent) => {
+            return (e.originalEvent as PointerEvent).pointerType !== "mouse" || !this.world.isMaster;
+        }));
         this.addToolPart(new InteractPart(world));
         this.addToolPart(new SelectPart(world));
         this.addToolPart(new MeasureToolPart(world));
         this.addToolPart(new FlagToolPart('creation_flag'));
 
-        this.addTool(Tool.INSPECT, ['space_pan', 'interact', 'select'])
+        this.addTool(Tool.INSPECT, ['space_pan', 'touch_pan', 'interact', 'select'])
         this.addTool(Tool.MEASURE, ['space_pan', 'interact', 'measure'])
     }
 
