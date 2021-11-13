@@ -54,9 +54,9 @@ export interface TrackerConfig {
     offerData: any;
 }
 
-const RECONNECT_MINIMUM = 10 * 1000;
-const RECONNECT_MAXIMUM = 60 * 60 * 1000;
-const RECONNECT_VARIANCE = 5 * 60 * 1000;
+const RECONNECT_MINIMUM = 5 * 1000;
+const RECONNECT_MAXIMUM = 60 * 1000;
+const RECONNECT_VARIANCE = 10 * 1000;
 const OFFER_TIMEOUT = 30 * 1000;
 
 /*
@@ -132,7 +132,7 @@ export class WebTorrentTracker {
 
     destroy(): Promise<void> {
         return new Promise(resolve => {
-            if (this.destroyed) return;
+            if (this.destroyed) return resolve();
 
             this.destroyed = true;
 
@@ -153,6 +153,10 @@ export class WebTorrentTracker {
             socket.onclose = noop;
             socket.onerror = noop;
             this.socket = undefined;
+
+            if (socket.readyState === WebSocket.CLOSED || socket.readyState === WebSocket.CLOSING) {
+                return resolve();
+            }
 
             socket.onclose = () => resolve();
 
@@ -227,8 +231,9 @@ export class WebTorrentTracker {
 
     }
 
-    private async onSocketClose(): Promise<void> {
+    private async onSocketClose(ev: CloseEvent): Promise<void> {
         if (this.destroyed) return;
+        console.log("Socket closed", ev);
         await this.destroy();
         this.startReconnecting();
     }
@@ -236,9 +241,11 @@ export class WebTorrentTracker {
     private startReconnecting(): void {
         const ms = Math.floor(Math.random() * RECONNECT_VARIANCE) + Math.min(Math.pow(2, this.reconnectRetries) * RECONNECT_MINIMUM, RECONNECT_MAXIMUM)
 
+        console.log("Reconnecting in " + ms / 1000);
         this.reconnecting = true;
         clearTimeout(this.reconnectTimer);
         this.reconnectTimer = setTimeout(() => {
+            console.log("Reconnecting...");
             this.reconnectRetries++;
             this.openSocket();
         }, ms);
