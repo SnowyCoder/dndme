@@ -72,7 +72,7 @@ export class ToolSystem implements System {
         this.addToolPart(new MeasureToolPart(world));
         this.addToolPart(new FlagToolPart('creation_flag'));
 
-        this.addTool(Tool.INSPECT, ['space_pan', 'touch_pan', 'interact', 'select'])
+        this.addTool(Tool.INSPECT, ['space_pan', 'select', 'touch_pan', 'interact'])
         this.addTool(Tool.MEASURE, ['space_pan', 'interact', 'measure'])
     }
 

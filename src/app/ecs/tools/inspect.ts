@@ -103,9 +103,9 @@ export class SelectPart implements ToolPart {
 
     private isDown = false;
 
-    private justSelected: number[] = [];
     private lastDownEntities: number[] = [];
     private lastDownSelected: number[] = [];
+    private justSelected: number | undefined;
 
     private canMoveSelected: boolean = false;
     private isMoving: boolean = false;
@@ -124,9 +124,9 @@ export class SelectPart implements ToolPart {
     private onPointerDown(event: PointerDownEvent): void {
         if (event.consumed) return;
         this.isDown = true;
-        this.justSelected.length = 0;
         this.lastDownEntities.length = 0;
         this.lastDownSelected.length = 0;
+        this.justSelected = undefined;
 
         for (let entity of event.entitiesHovered()) {
             if (this.layerSys.getEntityLayer(entity).locked) {
@@ -148,33 +148,37 @@ export class SelectPart implements ToolPart {
         const ctrlPressed = this.keyboard.ctrl;
         if (ctrlPressed) {
             let selected = this.selectionSys.selectedEntities;
+            let e = [];
             for (let entity of this.lastDownSelected) {
                 if (!selected.has(entity)) {
-                    this.justSelected.push(entity);
+                    e.push(entity);
                 }
             }
-            this.selectionSys.addEntities(this.justSelected);
+            this.selectionSys.addEntities(e);
         } else if (this.lastDownSelected.length > 0) {
             const entity = this.lastDownSelected[0];
-
-            if (!this.selectionSys.selectedEntities.has(entity)) {
-                this.justSelected.push(entity);
-            }
-
-            this.selectionSys.setOnlyEntity(entity);
+            this.justSelected = entity;
         }
 
         // TODO: better move system
-        this.canMoveSelected = this.world.isMaster;
+        this.canMoveSelected = this.world.isMaster && !ctrlPressed;
         if (!this.canMoveSelected) return;
-
 
         this.movingStart.copyFrom(event.boardPos);
         this.lastMove.set(0, 0);
     }
 
-    private onPointerUp(event: PointerDownEvent): void {
+    private onPointerUp(event: PointerUpEvent): void {
+        this.canMoveSelected = false;
         this.isDown = false;
+
+        if (event.isClick) {
+            if (event.entitiesHovered().length === 0) {
+                this.selectionSys.clear();
+            } else if (this.justSelected !== undefined) {
+                this.selectionSys.setOnlyEntity(this.justSelected);
+            }
+        }
 
         if (this.rectSelection.isActive) {
             this.rectSelection.done();
@@ -197,6 +201,9 @@ export class SelectPart implements ToolPart {
             this.rectSelection.moveEnd(event.boardPos)
         } else {
             if (!this.isMoving) {
+                if (this.justSelected !== undefined && !this.selectionSys.selectedEntities.has(this.justSelected)) {
+                    this.selectionSys.setOnlyEntity(this.justSelected);
+                }
                 this.isMoving = true;
                 this.world.events.emit('tool_move_begin');
             }
