@@ -233,7 +233,7 @@ export class WebTorrentTracker {
 
     private async onSocketClose(ev: CloseEvent): Promise<void> {
         if (this.destroyed) return;
-        console.log("Socket closed", ev);
+        console.log("Tracker closed", ev);
         await this.destroy();
         this.startReconnecting();
     }

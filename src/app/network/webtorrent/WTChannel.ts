@@ -219,7 +219,7 @@ export class WTChannel {
 
 
         peer.on('close', () => {
-            console.error("Peer closed");
+            console.info("Peer closed");
             this.connections.delete(data.id);
             this.peers.delete(peerId);
             this.events.emit('device_left', data.id);

@@ -552,7 +552,7 @@ export class PixiGraphicSystem implements System {
             // Not aligned, realign
             visMap = c.visMap.slice(0);
         }
-        let set = new BitSet(new Uint32Array(visMap.buffer, visMap.byteOffset));
+        let set = new BitSet(new Uint32Array(visMap.buffer, visMap.byteOffset, visMap.byteLength / 4));
         let len = texData.length;
         for (let i = 0; i < len; i++) {
             texData[i] = set.get(i) ? 0xFFFFFFFF : 0;
