@@ -143,7 +143,11 @@ function compute0(pos: StupidPoint, segments: Segment[]): Array<number> {
 
         let orig = i;// The original point index
         let vertex = points[i];
-        let oldSegment = segmentPriorityQueue.peek()!;
+        let oldSegment = segmentPriorityQueue.peek();
+        if (oldSegment === undefined) {
+            // Should be impossible but becomes possible when NaN is around
+            throw new Error("No old segment");
+        }
 
         do {
             let currSegment = points[i].segment!

@@ -44,13 +44,13 @@ export default class EcsPlayer extends Vue {
   }
 
   @VWatchImmediate('component.nightVision')
-  onCNightVisionChanged(val: boolean) {
-    this.nightVision = val;
+  onCNightVisionChanged(val: boolean | undefined) {
+    this.nightVision = !!val;
   }
 
   @VWatchImmediate('component.range')
-  onCRangeChanged(val: number) {
-    this.range = val + '';
+  onCRangeChanged(val: number | undefined) {
+    this.range = (val ?? '') + '';
   }
 }
 </script>

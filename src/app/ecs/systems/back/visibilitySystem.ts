@@ -192,6 +192,10 @@ export class VisibilitySystem implements System {
         if (this.world.getComponent(c.entity, HOST_HIDDEN_TYPE)) return;
         if (c.type === VISIBILITY_TYPE) {
             if ('range' in changes) {
+                let vc = c as VisibilityComponent;
+                if (isNaN(vc.range) || vc.range === undefined) {
+                    vc.range = 50;
+                }
                 this.updatePolygon(c as VisibilityComponent);
             }
         } else if (c.type === POSITION_TYPE) {
