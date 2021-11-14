@@ -5,18 +5,20 @@
       <b-radio value="none"><i class="fas fa-border-none"></i></b-radio>
       <b-radio value="square"><i class="far fa-square"></i></b-radio>
       <b-radio value="hex">
-        <svg role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"
-             class="svg-inline--fa fa-hexagon fa-w-18">
-          <path fill="currentColor"
-                d="M441.5 39.8C432.9 25.1 417.1 16 400 16H176c-17.1 0-32.9 9.1-41.5 23.8l-112 192c-8.7 14.9-8.7 33.4 0 48.4l112 192c8.6 14.7 24.4 23.8 41.5 23.8h224c17.1 0 32.9-9.1 41.5-23.8l112-192c8.7-14.9 8.7-33.4 0-48.4l-112-192zM400 448H176L64 256 176 64h224l112 192-112 192z"
-                class=""></path>
-        </svg>
+        <hexagon-icon />
       </b-radio>
     </b-radio-group>
 
     <div v-if="grid.type !== 'none'">
       <div class="d-flex flex-row align-items-center">
-        <div class="">Size:</div>
+        <div>Unit:</div>
+        <div class="p-2">
+          <b-input type="string" v-model="grid.unit" size="sm"></b-input>
+        </div>
+      </div>
+
+      <div class="d-flex flex-row align-items-center">
+        <div>Size:</div>
         <div class="p-2">
           <b-input type="number" v-model="grid.size" min="10" max="512" size="sm"></b-input>
         </div>
@@ -64,6 +66,8 @@
 
 <script lang="ts">
 
+import HexagonIcon from "../icons/hexagonIcon.vue";
+
 import {VComponent, VProp, Vue, VWatch} from "../vue";
 import {GridType} from "../../game/grid";
 import {GridResource, Resource} from "../../ecs/resource";
@@ -74,6 +78,7 @@ import {ResourceEditCommand} from "../../ecs/systems/command/resourceEditCommand
 
 type RenderGridOpts = {
   type: string;
+  unit: string;
   size: number;
   offX: number;
   offY: number;
@@ -82,13 +87,16 @@ type RenderGridOpts = {
   thick: number;
 }
 
-@VComponent
+@VComponent({
+  components: { HexagonIcon }
+})
 export default class GridEdit extends Vue {
   @VProp({ required: true })
   world!: World;
 
   grid: RenderGridOpts = {
     type: "none",
+    unit: '0 m',
     size: 1,
     offX: 0,
     offY: 0,
@@ -115,6 +123,7 @@ export default class GridEdit extends Vue {
       this.grid.type = 'none';
     }
     let opts = grid;
+    this.grid.unit = grid.unitMul + ' ' + grid.unitName;
     this.grid.size = opts.size;
     this.grid.offX = opts.offX;
     this.grid.offY = opts.offY;
@@ -137,6 +146,22 @@ export default class GridEdit extends Vue {
 
   onResourceEdited(res: Resource) {
     if (res.type === 'grid') this.reloadGrid();
+  }
+
+  parseUnit(s: string): { name: string, mul: number} | undefined {
+    const pattern = /^\s*([0-9.,]+)(.+)$/g;
+
+    let res = pattern.exec(s);
+    if (res == null) return undefined;
+    let mul = 1;
+    try {
+      mul = parseFloat(res[1]);
+    } catch(e) {}
+
+    return {
+      name: res[2].trim(),
+      mul,
+    }
   }
 
   @VWatch('grid', { deep: true })
@@ -173,6 +198,12 @@ export default class GridEdit extends Vue {
         opacity: parseFloat(newGrid.opacity),
         thick: newGrid.thick,
       } as GridResource;
+      let unit = this.parseUnit(newGrid.unit);
+      if (unit !== undefined) {
+        let grid = cmd.edit.grid as GridResource;
+        grid.unitMul = unit.mul;
+        grid.unitName = unit.name;
+      }
     } else {
       cmd.edit['grid'] = {
         visible: false,

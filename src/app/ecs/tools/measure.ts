@@ -41,16 +41,18 @@ export class MeasureToolPart implements ToolPart {
     }
 
     onPointerDown(event: PointerDownEvent): void {
+        if (event.consumed) return;
         event.consumed = true;
 
         this.isDown = true;
-        this.startMeasure = event.boardPos;
-        this.lastMeasure = snapPoint(this.world, this.startMeasure);
+        this.startMeasure = snapPoint(this.world, event.boardPos);
+        this.lastMeasure = this.startMeasure;
 
         this.pushRes();
     }
 
     onPointerUp(event: PointerUpEvent) {
+        if (!this.isDown) return;
         this.isDown = false;
 
         this.lastMeasure = snapPoint(this.world, event.boardPos);

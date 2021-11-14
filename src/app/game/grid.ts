@@ -17,7 +17,12 @@ export interface GridPlacementOptions {
     offY: number;
 }
 
-export interface GridOptions extends GridGraphicalOptions, GridPlacementOptions {}
+export interface GridUnitsOptions {
+    unitMul: number;
+    unitName: string;
+}
+
+export interface GridOptions extends GridGraphicalOptions, GridPlacementOptions, GridUnitsOptions {}
 
 export const STANDARD_GRID_OPTIONS = {
     visible: true,
@@ -28,4 +33,6 @@ export const STANDARD_GRID_OPTIONS = {
     size: 128,
     offX: 0,
     offY: 0,
+    unitMul: 1.5,
+    unitName: 'm',
 } as GridOptions;

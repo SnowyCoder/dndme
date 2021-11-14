@@ -7,7 +7,6 @@ import PIXI from "../../PIXI";
 import {Line} from "../../geometry/line";
 import {WALL_TYPE, WallComponent, WallSystem} from "./wallSystem";
 import {rotatePointByOrig} from "../../geometry/collision";
-import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {REMEMBER_TYPE} from "./back/pixiGraphicSystem";
 import {LOCAL_LIGHT_SETTINGS_TYPE, LocalLightSettings} from "./lightSystem";
 import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./back/pixiBoardSystem";

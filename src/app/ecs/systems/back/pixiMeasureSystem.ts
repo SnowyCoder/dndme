@@ -18,6 +18,8 @@ export class PixiMeasureSystem implements System {
     private text: PIXI.Text;
 
     private gridSize: number = STANDARD_GRID_OPTIONS.size;
+    private gridUnitMul: number = STANDARD_GRID_OPTIONS.unitMul;
+    private gridUnitName: string = STANDARD_GRID_OPTIONS.unitName;
     private boardScale: number = 1;
 
     constructor(world: World) {
@@ -78,7 +80,7 @@ export class PixiMeasureSystem implements System {
             if (rot > Math.PI / 2) rot -= Math.PI;
             this.text.position.set(midX, midY);
             this.text.rotation = rot;
-            this.text.text = '' + Math.sqrt(distSq).toFixed(4);
+            this.text.text = (Math.sqrt(distSq) * this.gridUnitMul).toFixed(4) + ' ' + this.gridUnitName;
         }
     }
 
@@ -98,7 +100,10 @@ export class PixiMeasureSystem implements System {
         if (res.type === MEASURE_TYPE) {
             this.redrawRes(res as MeasureResource);
         } else if (res.type === GRID_TYPE) {
-            this.gridSize = (res as GridResource).size;
+            let grid = res as GridResource;
+            this.gridSize = grid.size;
+            this.gridUnitMul = grid.unitMul;
+            this.gridUnitName = grid.unitName;
             redraw = true;
         } else if (res.type === BOARD_TRANSFORM_TYPE) {
             this.boardScale = (res as BoardTransformResource).scaleX || 1;
