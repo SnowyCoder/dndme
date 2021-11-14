@@ -10,6 +10,9 @@
     <side-bar v-bind:world="world">
     </side-bar>
 
+    <reconnection-modal v-if="!world.isMaster" v-bind:world="world">
+    </reconnection-modal>
+
     <a id="hidden-download-link" style="display: none;"/>
   </div>
 </template>
@@ -18,9 +21,10 @@
 import Vue from "vue";
 import ToolBar from "./toolBar.vue";
 import SideBar from "./sideBar.vue";
+import ReconnectionModal from "./reconnectionModal.vue";
 
 export default Vue.extend({
-  components: {ToolBar, SideBar},
+  components: {ToolBar, SideBar, ReconnectionModal},
   props: ['world'],
 });
 </script>

@@ -40,6 +40,7 @@ export class Phase {
     disable() {
         console.log(`[${this.name}] Disabling`);
         if (this.vue) {
+            this.vue.$destroy();
             document.body.removeChild(this.vue.$el);
         }
     }

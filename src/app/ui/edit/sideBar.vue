@@ -15,6 +15,10 @@
 
     <template v-slot:footer>
       <div class="sidebar-footer">
+        {{ trackerCount }}
+        <div style="margin-left: 0.2rem">
+          <i class="fas fa-server"></i>
+        </div>
         {{ connectionCount }}
         <div v-bind:class="{ rotate: connectionBuffering }" style="margin-left: 0.2rem">
           <i class="fas fa-sync-alt"></i>
@@ -47,6 +51,7 @@ export default class ToolBar extends Vue {
 
   tool = 'inspect';
   connectionCount = 0;
+  trackerCount = 0;
   connectionBuffering = false;
 
   mounted() {
@@ -62,6 +67,7 @@ export default class ToolBar extends Vue {
       this.tool = (res as ToolResource).tool!;
     } else if (res.type === NETWORK_STATUS_TYPE) {
       let r = res as NetworkStatusResource;
+      this.trackerCount = r.trackerCount;
       this.connectionCount = r.connectionCount;
       this.connectionBuffering = r.isBuffering;
     }

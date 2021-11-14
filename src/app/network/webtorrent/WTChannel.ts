@@ -74,6 +74,7 @@ export class WTChannel {
         this.connectedSecret = Buffer.from([]);
         this.discovery = new WTDiscovery();
         this.discovery.onPeerCallback = this.onPeer.bind(this);
+        this.discovery.onTrackerConnectionCountEdit = (c: number) => this.events.emit('tracker_connections', c);
     }
 
     startMaster(): void {

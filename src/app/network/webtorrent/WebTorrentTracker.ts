@@ -84,6 +84,7 @@ const OFFER_TIMEOUT = 30 * 1000;
 export class WebTorrentTracker {
     readonly config: TrackerConfig;
     events: SafeEventEmitter;
+    isConnected: boolean = false;
 
     announceUrl: string;
     socket?: WebSocket;
@@ -133,6 +134,11 @@ export class WebTorrentTracker {
     destroy(): Promise<void> {
         return new Promise(resolve => {
             if (this.destroyed) return resolve();
+
+            if (this.isConnected) {
+                this.isConnected = false;
+                this.events.emit('disconnect');
+            }
 
             this.destroyed = true;
 
@@ -190,6 +196,7 @@ export class WebTorrentTracker {
 
     private onSocketConnect(): void {
         if (this.destroyed) return;
+        this.isConnected = true;
         this.events.emit('connect');
 
         if (this.reconnecting) {
@@ -235,6 +242,7 @@ export class WebTorrentTracker {
         if (this.destroyed) return;
         console.log("Tracker closed", ev);
         await this.destroy();
+
         this.startReconnecting();
     }
 

@@ -23,7 +23,10 @@ export class WTDiscovery {
     private trackerConfig: TrackerConfig;
     readonly peerId: string;
     peers = new Map<string, SimplePeer.Instance | typeof WAITING_FOR_INIT>();
+    connectedTrackers: number;
     onPeerCallback: (peer: SimplePeer.Instance, peerId: string) => void = () => {};
+    onTrackerConnectionCountEdit: (count: number) => void = () => {};
+
     isMaster: boolean = false;
     isPaused = true;
     trackers: {[trackerUrl: string]: WebTorrentTracker} = {};
@@ -42,6 +45,7 @@ export class WTDiscovery {
             offerData: {},
         };
         this.peerId = peerId.toString('hex');
+        this.connectedTrackers = 0;
     }
 
     async setInfoHash(str: string): Promise<void> {
@@ -60,6 +64,16 @@ export class WTDiscovery {
         this.trackers[trackerUrl] = tracker;
         tracker.events.on('connect', () => {
             console.log('Tracker connection established ' + trackerUrl);
+            this.connectedTrackers++;
+            this.onTrackerConnectionCountEdit(this.connectedTrackers);
+        });
+        tracker.events.on('disconnect', (ev: CloseEvent) => {
+            console.log("Tracker closed", ev);
+            this.connectedTrackers--;
+            this.onTrackerConnectionCountEdit(this.connectedTrackers);
+        });
+        tracker.events.on('error', x => {
+            console.error('Tracker error', x);
         });
         tracker.events.on('offer_filter', (e: OfferFilterData) => {
             if ((!!(e.offer as OfferData).master) === this.isMaster) {
@@ -101,9 +115,6 @@ export class WTDiscovery {
         });
         tracker.events.on('warning', x => {
             console.warn('warning', x);
-        });
-        tracker.events.on('error', x => {
-            console.error('error', x);
         });
     }
 

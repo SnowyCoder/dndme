@@ -28,7 +28,7 @@ export const windowEventEmitter = new EventEmitterWrapper((event, emitter) => {
 // Main
 export const stage = new Stage("main");
 
-function onHashCahnge() {
+export function onHashChange() {
     if (window.location.hash) {
         const roomId = window.location.hash.substr(1);// Remove #
         if (roomId.startsWith('t')) {
@@ -51,10 +51,10 @@ function onHashCahnge() {
 
     await loadAssets();
 
-    onHashCahnge();
+    onHashChange();
 
     window.onhashchange = function () {
         console.log("Hash change" + location.hash);
-        onHashCahnge();
+        onHashChange();
     }
 })();

@@ -19,3 +19,9 @@ export function VWatchImmediate(name: string): VueDecorator {
     return Watch(name, { immediate: true });
 }
 
+export const networkStatus = Vue.observable({
+    isOnline: navigator.onLine,
+});
+
+window.addEventListener('online', () => networkStatus.isOnline = true);
+window.addEventListener('offline', () => networkStatus.isOnline = false);

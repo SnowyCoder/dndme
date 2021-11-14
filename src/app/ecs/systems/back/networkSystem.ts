@@ -32,9 +32,12 @@ export type NETWORK_STATUS_TYPE = typeof NETWORK_STATUS_TYPE;
 export interface NetworkStatusResource extends Resource {
     type: NETWORK_STATUS_TYPE;
     connectionCount: number;
+    trackerCount: number;
     isBuffering: boolean;
     myId: number;
     entityIndex: Map<number, number>;
+
+    isBootstrapDone: boolean;
 
     _save: false;
     _sync: false;
@@ -60,6 +63,7 @@ export class CommonNetworkSystem implements NetworkSystem {
         this.res = {
             type: NETWORK_STATUS_TYPE,
             connectionCount: 0,
+            trackerCount: this.channel.discovery.connectedTrackers,
             isBuffering: false,
             entityIndex: new Map<number, number>(),
             _save: false,
@@ -67,6 +71,12 @@ export class CommonNetworkSystem implements NetworkSystem {
         } as NetworkStatusResource;
 
         world.addResource(this.res);
+
+        this.channel.events.on('tracker_connections', trackerCount => {
+            this.world.editResource(this.res.type, {
+                trackerCount,
+            });
+        });
 
         world.events.on('component_add', this.onComponentAdd, this);
         world.events.on('component_remove', this.onComponentRemove, this);
@@ -224,6 +234,7 @@ export class HostNetworkSystem {
     enable(): void {
         this.channel.events.on('device_join', this.onDeviceJoin, this);
         this.channel.packets.on('cmd', this.onCommandPacket, this);
+        this.world.editResource(NETWORK_STATUS_TYPE, { isBootstrapDone: true });
     }
 
     destroy(): void {
@@ -251,6 +262,7 @@ export class ClientNetworkSystem {
 
         this.world.clear();
         this.world.deserialize(packet.payload, {});
+        this.world.editResource(NETWORK_STATUS_TYPE, { isBootstrapDone: true });
     }
 
     private onCmd(packet: P.CommandPacket, info: PacketInfo): void {
