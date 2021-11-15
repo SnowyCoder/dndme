@@ -30,6 +30,7 @@ import {CopyPasteSystem} from "../../ecs/systems/copyPasteSystem";
 import { LinkRelocationSystem } from "../../ecs/systems/back/linkRelocationSystem";
 import { NameAsLabelSystem } from "../../ecs/systems/back/nameAsLabelSystem";
 import { WTChannel } from "../../network/webtorrent/WTChannel";
+import { PlayerLocatorSystem } from "../../ecs/systems/playerLocator";
 
 
 export class EditMapPhase extends EcsPhase {
@@ -84,6 +85,7 @@ export class EditMapPhase extends EcsPhase {
         w.addSystem(new PinSystem(w));
         w.addSystem(new PropSystem(w));
         w.addSystem(new PlayerSystem(w));
+        w.addSystem(new PlayerLocatorSystem(w));
         w.addSystem(new LightSystem(w));
     }
 

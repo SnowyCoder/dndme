@@ -18,3 +18,7 @@ export function arrayFilterInPlace<T>(a: T[], condition: (x: T) => boolean) {
     a.length = j;
     return a;
 }
+
+export function arrayRandomElement<T>(a: T[]): T {
+    return a[Math.floor(Math.random() * a.length)];
+}

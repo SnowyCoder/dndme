@@ -13,7 +13,7 @@
       <div class="d-flex flex-row align-items-center">
         <div>Unit:</div>
         <div class="p-2">
-          <b-input type="string" v-model="grid.unit" size="sm"></b-input>
+          <b-input v-model="grid.unit" size="sm"></b-input>
         </div>
       </div>
 

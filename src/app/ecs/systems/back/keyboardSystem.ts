@@ -2,7 +2,6 @@ import {System} from "../../system";
 import {World} from "../../world";
 import {Resource} from "../../resource";
 
-
 export const KEYBOARD_KEY_UP = 'keyboard_key_up';
 export const KEYBOARD_KEY_DOWN = 'keyboard_key_down';
 
@@ -29,6 +28,7 @@ export class WebKeyboardSystem implements System {
 
     private keyDownListener: any;
     private keyUpListener: any;
+    private blurListener: any;
 
     private keyboard: KeyboardResource;
 
@@ -47,7 +47,7 @@ export class WebKeyboardSystem implements System {
         this.world.addResource(this.keyboard);
     }
 
-    onKeyDown(event: KeyboardEvent) {
+    onKeyDown(event: KeyboardEvent): void {
         if (event.target instanceof HTMLInputElement) {
             return;
         }
@@ -63,7 +63,7 @@ export class WebKeyboardSystem implements System {
         }
     }
 
-    onKeyUp(event: KeyboardEvent) {
+    onKeyUp(event: KeyboardEvent): void {
         let edit = {
             shift: event.shiftKey,
             ctrl: event.ctrlKey,
@@ -72,8 +72,23 @@ export class WebKeyboardSystem implements System {
 
         if (event.key) {
             let key = event.key.toLowerCase();
+            if (this.keyboard.pressedKeys.delete(key)) {
+                this.world.events.emit(KEYBOARD_KEY_DOWN, key);
+            }
+        }
+    }
+
+    onBlur(event: FocusEvent): void {
+        if (this.keyboard.shift || this.keyboard.ctrl) {
+            const edit = {
+                shift: false, ctrl: false,
+            };
+            this.world.editResource(KEYBOARD_TYPE, edit);
+        }
+        let pressedKeys = [...this.keyboard.pressedKeys];
+        for (let key of pressedKeys) {
             this.keyboard.pressedKeys.delete(key);
-            this.world.events.emit(KEYBOARD_KEY_DOWN, key)
+            this.world.events.emit(KEYBOARD_KEY_DOWN, key);
         }
     }
 
@@ -83,6 +98,9 @@ export class WebKeyboardSystem implements System {
 
         this.keyUpListener = this.onKeyUp.bind(this);
         document.addEventListener('keyup', this.keyUpListener);
+
+        this.blurListener = this.onBlur.bind(this);
+        document.addEventListener('blur', this.blurListener);
     }
 
     destroy(): void {

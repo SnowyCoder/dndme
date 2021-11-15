@@ -263,6 +263,7 @@ export class ClientNetworkSystem {
         this.world.clear();
         this.world.deserialize(packet.payload, {});
         this.world.editResource(NETWORK_STATUS_TYPE, { isBootstrapDone: true });
+        this.world.events.emit('focus_on_random_party');
     }
 
     private onCmd(packet: P.CommandPacket, info: PacketInfo): void {

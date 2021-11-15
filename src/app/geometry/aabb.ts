@@ -1,5 +1,6 @@
 import {Point} from "./point";
 import PIXI from "../PIXI";
+import { IPointData } from "pixi.js";
 
 export class Aabb {
     minX: number;
@@ -32,6 +33,12 @@ export class Aabb {
         return (this.maxX - this.minX + this.maxY - this.minY) * 2;
     }
 
+    distancePoint(p: IPointData): number {
+        const dx = Math.max(this.minX - p.x, 0, p.x - this.maxX);
+        const dy = Math.max(this.minY - p.y, 0, p.y - this.maxY);
+        return Math.sqrt(dx*dx + dy*dy);
+    }
+
     translate(x: number, y: number, target: Aabb): void {
         target.minX = this.minX + x;
         target.minY = this.minY + y;
@@ -56,8 +63,8 @@ export class Aabb {
     extend(amount: number, target: Aabb): void {
         target.minX = this.minX - amount;
         target.minY = this.minY - amount;
-        target.maxX = this.maxX - amount;
-        target.maxY = this.maxY - amount;
+        target.maxX = this.maxX + amount;
+        target.maxY = this.maxY + amount;
     }
 
     scale(dx: number, dy: number, target: Aabb): void {
@@ -131,5 +138,3 @@ export class Aabb {
         );
     }
 }
-
-
