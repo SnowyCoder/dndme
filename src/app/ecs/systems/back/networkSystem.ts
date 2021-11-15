@@ -273,6 +273,10 @@ export class ClientNetworkSystem {
         }
     }
 
+    private onDeviceLeave(connId: number): void {
+        this.world.editResource(NETWORK_STATUS_TYPE, { isBootstrapDone: false });
+    }
+
     private checkCommand(sender: number, command: Command): boolean {
         if (sender === 0) return true;
         console.warn("Received command from non-admin: ", command);
@@ -280,13 +284,18 @@ export class ClientNetworkSystem {
     }
 
     enable(): void {
-        this.channel.packets.on('ecs_bootstrap', this.onEcsBootstrap, this);
-        this.channel.packets.on('cmd', this.onCmd, this);
+        let packets = this.channel.packets;
+        packets.on('ecs_bootstrap', this.onEcsBootstrap, this);
+        packets.on('cmd', this.onCmd, this);
+        let chEvents = this.channel.events;
+        chEvents.on('device_left', this.onDeviceLeave, this);
     }
 
     destroy(): void {
-        this.channel.packets.off('ecs_bootstrap', this.onEcsBootstrap, this);
-        this.channel.packets.off('cmd', this.onCmd, this);
+        let packets = this.channel.packets;
+        packets.off('ecs_bootstrap', this.onEcsBootstrap, this);
+        packets.off('cmd', this.onCmd, this);
+        let chEvents = this.channel.events;
+        chEvents.off('device_left', this.onDeviceLeave, this);
     }
-
 }
