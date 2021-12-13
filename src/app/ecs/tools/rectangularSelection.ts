@@ -1,7 +1,7 @@
 import * as PIXI from "pixi.js";
 import {Aabb} from "../../geometry/aabb";
 import {World} from "../world";
-import {INTERACTION_TYPE, InteractionSystem, shapeAabb} from "../systems/back/interactionSystem";
+import {INTERACTION_TYPE, InteractionSystem, shapeAabb, shapeIntersect} from "../systems/back/interactionSystem";
 import {aabbSameOriginDifference} from "../../util/geometry";
 import {RECTANGULAR_SELECTION_TYPE, RectangularSelectionResource} from "../resource";
 import {SELECTION_TYPE, SelectionSystem} from "../systems/back/selectionSystem";
@@ -58,16 +58,18 @@ export class RectangularSelection {
         let removed = [] as Aabb[];
         aabbSameOriginDifference(this.startPoint!, this.endPoint!, pos, added, removed);
 
+        const newAabb = new Aabb(this.startPoint!.x, this.startPoint!.y, pos.x, pos.y);
+
         for (let x of added) {
             this.addRect(x);
         }
         for (let x of removed) {
-            this.removeRect(x);
+            this.removeRect(x, newAabb);
         }
         this.endPoint = pos;
 
         this.world.editResource(RECTANGULAR_SELECTION_TYPE, {
-            aabb: new Aabb(this.startPoint!.x, this.startPoint!.y, pos.x, pos.y),
+            aabb: newAabb,
         });
     }
 
@@ -106,10 +108,11 @@ export class RectangularSelection {
         }
     }
 
-    removeRect(aabb: Aabb) {
+    removeRect(aabb: Aabb, newAabb: Aabb) {
         let sys = this.world.systems.get(INTERACTION_TYPE) as InteractionSystem;
         let ents = sys.queryVisible(shapeAabb(aabb), c => {
-            return this.entitiesInside.has(c.entity);
+            return this.entitiesInside.has(c.entity) &&
+                    !shapeIntersect(shapeAabb(newAabb), c.shape);
         });
         for (let c of ents) {
             this.entitiesInside.delete(c.entity);
