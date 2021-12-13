@@ -8,9 +8,6 @@ const TRACKERS = [
     //'ws://localhost:8000',
     'wss://tracker.openwebtorrent.com',
     'wss://tracker.btorrent.xyz',
-    'wss://tracker.files.fm:7073/announce',
-    //'wss://spacetradersapi-chatbox.herokuapp.com:443/announce',
-    //'wss://peertube.cpy.re:443/tracker/socket',
 ]
 
 const WAITING_FOR_INIT = {};
