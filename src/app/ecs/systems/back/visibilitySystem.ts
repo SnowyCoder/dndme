@@ -257,6 +257,11 @@ export class VisibilitySystem implements System {
 
     private removeVisibility(c: VisibilityComponent) {
         this.removeTreePolygon(c);
+        this.world.editComponent(c.entity, c.type, {
+            polygon: undefined,
+            polygonAabb: undefined,
+            aabb: undefined,
+        });
     }
 
     private removeVisibilityBlocker(c: VisibilityBlocker) {
