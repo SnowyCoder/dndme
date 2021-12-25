@@ -1,10 +1,10 @@
 <template>
   <div>
     <div class="d-flex align-items-center">
-      X: <editable-number :readonly="!isAdmin" v-model="x" @change="onChange"/>
+      X: <editable-number class="flex-grow-1" :readonly="!isAdmin" v-model="x" @change="onChange"/>
     </div>
     <div class="d-flex align-items-center">
-      Y: <editable-number :readonly="!isAdmin" v-model="y" @change="onChange"/>
+      Y: <editable-number class="flex-grow-1" :readonly="!isAdmin" v-model="y" @change="onChange"/>
     </div>
   </div>
 </template>

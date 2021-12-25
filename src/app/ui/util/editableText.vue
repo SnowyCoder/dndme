@@ -1,8 +1,9 @@
 <template>
-  <div class="util_editable-text_div">
+  <div class="util_editable-text_div w-fit-content">
     <input type="text" v-bind:value="value" v-on:input="onEvent('input', $event)"
-             :readonly="readonly" :placeholder="placeholder" @change="onEvent('change', $event)"
-             class="form-control-plaintext hprior util_editable-text_input">
+           :size="size"
+           :readonly="readonly" :placeholder="placeholder" @change="onEvent('change', $event)"
+           class="form-control-plaintext hprior util_editable-text_input">
     <span class="util_editable-text_border"></span>
   </div>
 </template>
@@ -20,7 +21,10 @@ export default class EditableText extends Vue {
   readonly!: boolean;
 
   @VProp({default: ''})
-  placeholder!: string
+  placeholder!: string;
+
+  @VProp()
+  size?: number;
 
   @VProp({default: undefined})
   filter?: (text: string) => string;
@@ -68,4 +72,3 @@ export default class EditableText extends Vue {
   outline: none;
 }
 </style>
-

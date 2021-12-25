@@ -12,7 +12,7 @@ import {
     NAME_TYPE,
     NameComponent
 } from "../component";
-import {ElementType, GRAPHIC_TYPE, GraphicComponent, PointElement, TextElement, VisibilityType} from "../../graphics";
+import {ElementType, GRAPHIC_TYPE, GraphicComponent, PointElement, VisibilityType} from "../../graphics";
 import {POINT_RADIUS} from "./back/pixiGraphicSystem";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {TOOL_TYPE, ToolSystem, ToolPart} from "./back/toolSystem";
@@ -24,7 +24,7 @@ import {executeAndLogCommand} from "./command/command";
 import {findForeground, PARENT_LAYER_TYPE, ParentLayerComponent} from "./back/layerSystem";
 import { NameAsLabelComponent, NAME_AS_LABEL_TYPE } from "./back/nameAsLabelSystem";
 import SafeEventEmitter from "../../util/safeEventEmitter";
-import { CreationInfoResource, CREATION_INFO_TYPE } from "../resource";
+import { CreationInfoResource, CREATION_INFO_TYPE, Resource } from "../resource";
 
 export const PIN_TYPE = 'pin';
 export type PIN_TYPE = typeof PIN_TYPE;
@@ -32,6 +32,14 @@ export type PIN_TYPE = typeof PIN_TYPE;
 export interface PinComponent extends Component {
     type: PIN_TYPE;
     color: number;
+    size?: number;
+}
+
+export const DEFAULT_SIZE: number = 1;
+
+export interface PinResource extends Resource {
+    type: PIN_TYPE;
+    defaultSize: number;
 }
 
 
@@ -44,6 +52,8 @@ export class PinSystem implements System {
 
     readonly storage = new SingleEcsStorage<PinComponent>(PIN_TYPE, true, true);
 
+    res: PinResource;
+
     constructor(world: World) {
         this.world = world;
 
@@ -55,9 +65,16 @@ export class PinSystem implements System {
             toolSys.addTool(Tool.CREATE_PIN, ['space_pan', 'create_pin', 'creation_flag']);
         }
 
+        world.addResource({
+            type: PIN_TYPE,
+            defaultSize: DEFAULT_SIZE,
+        } as PinResource, 'ignore');
+        this.res = world.getResource(PIN_TYPE)!! as PinResource;
+
         world.addStorage(this.storage);
         world.events.on('component_add', this.onComponentAdd, this);
         world.events.on('component_edited', this.onComponentEdited, this);
+        world.events.on('resource_edited', this.onResourceEdited, this);
     }
 
     private onComponentAdd(c: Component): void {
@@ -76,12 +93,13 @@ export class PinSystem implements System {
             } as GraphicComponent;
             this.world.addComponent(c.entity, display);
         }
-        this.redrawComponent(pin, display.display as PointElement);
 
         this.world.addComponent(c.entity, {
             type: NAME_AS_LABEL_TYPE,
             initialOffset: {x: 0, y: -POINT_RADIUS},
         } as NameAsLabelComponent);
+
+        this.redrawComponent(pin, display.display as PointElement);
 
         // In some older versions there was a label field that was printed on top of the point,
         // this has been removed in favour of the "name" components (and the 'name_as_label' system)
@@ -117,6 +135,16 @@ export class PinSystem implements System {
         }
     }
 
+    private onResourceEdited(res: Resource, changed: any): void {
+        if (res.type === PIN_TYPE) {
+            for (let c of this.storage.getComponents()) {
+                if (c.size !== undefined && c.size !== 0) continue;
+                let gc = this.world.getComponent(c.entity, GRAPHIC_TYPE) as GraphicComponent;
+                this.redrawComponent(c, gc.display as PointElement);
+            }
+        }
+    }
+
     createElement(): PointElement {
         return {
             type: ElementType.POINT,
@@ -125,14 +153,20 @@ export class PinSystem implements System {
             ignore: false,
             interactive: true,
             color: 0xFFFFFF,
+            scale: 1,
             children: [],
         } as PointElement;
     }
 
     private redrawComponent(pin: PinComponent, display: PointElement): void {
         display.color = pin.color;
+        display.scale = pin.size || this.res.defaultSize;
 
         this.world.editComponent(pin.entity, GRAPHIC_TYPE, { display }, undefined, false);
+
+        this.world.editComponent(pin.entity, NAME_AS_LABEL_TYPE, {
+            initialOffset: {x: 0, y: -POINT_RADIUS * display.scale},
+        } as NameAsLabelComponent);
     }
 
     enable() {
@@ -160,6 +194,7 @@ export class CreatePinToolPart implements ToolPart {
         let display = this.sys.createElement();
         display.color = color;
         display.visib = VisibilityType.ALWAYS_VISIBLE;
+        display.scale = this.sys.res.defaultSize;
 
         this.createPin = this.sys.world.spawnEntity(
             {
@@ -242,8 +277,17 @@ export class CreatePinToolPart implements ToolPart {
         }
     }
 
+    onResourceEdited(res: Resource) {
+        if (res.type == PIN_TYPE && this.createPin !== -1) {
+            const comp = this.sys.world.getComponent(this.createPin, GRAPHIC_TYPE) as GraphicComponent;
+            (comp.display as PointElement).scale = (res as PinResource).defaultSize;
+            this.sys.world.editComponent(this.createPin, GRAPHIC_TYPE, { display: comp.display }, undefined, false);
+        }
+    }
+
     initialize(events: SafeEventEmitter): void {
         events.on(PointerEvents.POINTER_UP, this.onPointerUp, this);
+        events.on('resource_edited', this.onResourceEdited, this);
     }
 
     destroy(): void {

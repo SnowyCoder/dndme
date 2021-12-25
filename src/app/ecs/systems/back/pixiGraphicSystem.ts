@@ -135,7 +135,6 @@ export class PixiGraphicSystem implements System {
     interactionSystem: InteractionSystem;
     playerSystem?: PlayerSystem;
     renderTexturePool = new RenderTexturePool();
-    circleTex?: PIXI.Texture;
 
     masterVisibility: boolean = false;
 
@@ -810,7 +809,7 @@ export class PixiGraphicSystem implements System {
                 res = new PIXI.Graphics();
                 break;
             case ElementType.POINT:
-                res = new PIXI.Sprite(this.circleTex);
+                res = new PIXI.Graphics();
                 break;
             case ElementType.TEXT:
                 res = new PIXI.Text("");
@@ -1016,11 +1015,17 @@ export class PixiGraphicSystem implements System {
                 break;
             }
             case ElementType.POINT: {
-                let color = (desc as PointElement).color;
+                let el = (desc as PointElement);
+                let color = el.color;
                 if (par._selected) {
                     color = lerpColor(color, 0x7986CB, 0.3);
                 }
-                (d as PIXI.Sprite).tint = color;
+                let g = d as PIXI.Graphics;
+                g.clear();
+                g.beginFill(color);
+                g.lineStyle(0);
+                g.drawCircle(0, 0, el.scale * POINT_RADIUS);
+                g.endFill();
                 break;
             }
             case ElementType.TEXT: {
@@ -1045,13 +1050,6 @@ export class PixiGraphicSystem implements System {
     enable(): void {
         this.playerSystem = this.world.systems.get(PLAYER_TYPE) as PlayerSystem;
         this.masterVisibility = (this.world.systems.get(LIGHT_TYPE) as LightSystem).localLightSettings.visionType === 'dm';
-
-        let g = new PIXI.Graphics();
-        g.beginFill(0xFFFFFF);
-        g.lineStyle(0);
-        g.drawCircle(POINT_RADIUS, POINT_RADIUS, POINT_RADIUS);
-        this.circleTex = this.pixiBoardSystem.renderer.generateTexture(g, PIXI.SCALE_MODES.LINEAR, 1);
-        this.circleTex.defaultAnchor.set(0.5, 0.5);
     }
 
     destroy(): void {

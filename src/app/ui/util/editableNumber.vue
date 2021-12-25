@@ -1,6 +1,6 @@
 <template>
   <editable-text v-bind:value="value" :readonly="readonly" :placeholder="placeholder"
-                 @change="$emit('change', parseFloat($event))"
+                 @change="$emit('change', parseFloat($event))" :size="digits"
                  @input="$emit('input', $event)" :filter="filter"/>
 </template>
 
@@ -27,6 +27,9 @@ export default class EditableNumber extends Vue {
   @VProp({default: true})
   canBeNegative!: boolean;
 
+  @VProp()
+  digits?: number;
+
   filter = (s: string) => {
     let neg = false;
     if (s[0] === '-') {
@@ -45,4 +48,3 @@ export default class EditableNumber extends Vue {
 
 <style>
 </style>
-

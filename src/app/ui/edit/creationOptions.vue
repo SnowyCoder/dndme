@@ -4,23 +4,37 @@
       Create once:
       <b-form-checkbox v-model="exitAfterCreation" @input="onChange"></b-form-checkbox>
     </div>
+    <div style="display: flex; align-items: center;" v-if="currentTool == 'create_pin'">
+      Default size
+      <editable-range v-model="pinDefaultSize"
+                      min="0.5" max=10 step="0.1" @change="onPinSizeChanged"/>
+    </div>
   </section>
 </template>
 
 <script lang="ts">
 
 import {VComponent, VProp, Vue} from "../vue";
-import {CreationInfoResource, CREATION_INFO_TYPE, GridResource, Resource} from "../../ecs/resource";
+import {CreationInfoResource, CREATION_INFO_TYPE, Resource} from "../../ecs/resource";
 import {World} from "../../ecs/world";
 import { ToolSystem } from "../../ecs/systems/back/toolSystem";
+import { PinResource, PIN_TYPE } from "../../ecs/systems/pinSystem";
+import EditableRange from "../util/editableRange.vue";
 
-@VComponent
+@VComponent({
+  components: {
+    EditableRange
+  }
+})
 export default class GridEdit extends Vue {
   @VProp({ required: true })
   world!: World;
 
+  currentTool: string = "";
   visible: boolean = false;
   exitAfterCreation: boolean = false;
+
+  pinDefaultSize: number = 1;
 
   reloadResource() {
     const info = this.world.getResource(CREATION_INFO_TYPE) as CreationInfoResource | undefined;
@@ -44,10 +58,20 @@ export default class GridEdit extends Vue {
     this.world.events.off('resource_edited', this.onResourceEdited, this);
   }
 
+  onPinSizeChanged() {
+    this.world.editResource(PIN_TYPE, {
+      defaultSize: this.pinDefaultSize,
+    });
+  }
+
   onResourceEdited(res: Resource) {
     if (res.type === CREATION_INFO_TYPE) this.reloadResource();
     else if (res.type === 'tool') {
-        this.visible = (this.world.systems.get('tool') as ToolSystem).isToolPartEnabled('creation_flag');
+      const toolSys = this.world.systems.get('tool') as ToolSystem;
+      this.currentTool = toolSys.currentTool ?? "uninitialized";
+      this.visible = toolSys.isToolPartEnabled('creation_flag');
+    } else if (res.type == PIN_TYPE) {
+      this.pinDefaultSize = (res as PinResource).defaultSize;
     }
   }
 }

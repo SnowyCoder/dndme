@@ -76,6 +76,14 @@ div.under-navbar {
     grid-row: 1;
 }
 
+.w-fit-content {
+    width: fit-content;
+}
+
+.flex-grow-1 {
+    flex-grow: 1;
+}
+
 .rotate {
     animation: rotation 1s infinite linear;
 }
@@ -90,5 +98,3 @@ div.under-navbar {
         transform: rotate(359deg);
     }
 }
-
-

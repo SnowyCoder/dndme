@@ -97,6 +97,7 @@ export interface LineElement extends DisplayElement, ColorableElement {
 
 export interface PointElement extends DisplayElement, ColorableElement {
     type: ElementType.POINT;
+    scale: number;
 }
 
 export interface TextElement extends DisplayElement, AnchorableElement, ColorableElement {
