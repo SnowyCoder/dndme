@@ -100,11 +100,12 @@ export class WebKeyboardSystem implements System {
         document.addEventListener('keyup', this.keyUpListener);
 
         this.blurListener = this.onBlur.bind(this);
-        document.addEventListener('blur', this.blurListener);
+        window.addEventListener('blur', this.blurListener);
     }
 
     destroy(): void {
         document.removeEventListener('keydown', this.keyDownListener);
         document.removeEventListener('keyup', this.keyUpListener);
+        window.removeEventListener('blur', this.blurListener);
     }
 }
