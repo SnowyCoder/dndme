@@ -406,14 +406,19 @@ export class SelectionSystem implements System {
             });
         }
 
-        if (this.hasEveryoneType(PIN_TYPE) && !(this.hasComponentType(LIGHT_TYPE) || this.hasComponentType(PLAYER_TYPE))) {
-            res.push({
-                type: LIGHT_TYPE,
-                name: 'Light'
-            }, {
-                type: PLAYER_TYPE,
-                name: 'Player',
-            });
+        if (this.hasEveryoneType(PIN_TYPE)) {
+            if (!this.hasComponentType(LIGHT_TYPE)) {
+                res.push({
+                    type: LIGHT_TYPE,
+                    name: 'Light',
+                });
+            }
+            if (!this.hasComponentType(PLAYER_TYPE)) {
+                res.push({
+                    type: PLAYER_TYPE,
+                    name: 'Player',
+                });
+            }
         } else if (this.hasEveryoneType(WALL_TYPE) && !this.hasComponentType(DOOR_TYPE)) {
             res.push({
                 type: DOOR_TYPE,

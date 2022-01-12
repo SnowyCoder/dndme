@@ -6,7 +6,7 @@ import {SingleEcsStorage} from "../storage";
 import {StupidPoint} from "../../geometry/point";
 import {GridResource, Resource} from "../resource";
 import PIXI from "../../PIXI";
-import {VISIBILITY_TYPE, VisibilityComponent} from "./back/visibilitySystem";
+import {VISIBILITY_TYPE, VisibilityComponent, VISIBILITY_DETAILS_TYPE, VisibilityDetailsComponent} from "./back/visibilitySystem";
 import * as PointLightRender from "../../game/pointLightRenderer";
 import {PLAYER_TYPE, PlayerComponent} from "./playerSystem";
 import {Mesh} from "pixi.js";
@@ -34,6 +34,7 @@ export interface LightComponent extends Component {
     range: number;
 
     _lightDisplay?: PIXI.Mesh;
+    _visIndex: number;
 }
 
 export interface CustomPlayerComponent extends PlayerComponent {
@@ -164,38 +165,33 @@ export class LightSystem implements System {
         mesh.visible = false;
     }
 
-    updateVisPolygon(entity: number, target: Mesh, color: number, pos?: PositionComponent, vis?: VisibilityComponent): void {
-        if (pos === undefined) {
-            pos = this.world.getComponent(entity, POSITION_TYPE) as PositionComponent;
-            if (pos === undefined) return;
-        }
+    updateVisPolygon(entity: number, target: Mesh | undefined, color: number, visId: number): void {
+        let pos = this.world.getComponent(entity, POSITION_TYPE) as PositionComponent;
+        if (pos === undefined || target === undefined) return;
 
-        if (vis === undefined) {
-            vis = this.world.getComponent(entity, VISIBILITY_TYPE) as VisibilityComponent;
+        const vis = this.world.getComponent(entity, VISIBILITY_TYPE, visId) as VisibilityComponent;
             if (vis === undefined) {
                 this.disableVisMesh(target);
                 return;
             }
-        }
 
-        if (vis.polygon === undefined) {
+            const visDet = this.world.getComponent(entity, VISIBILITY_DETAILS_TYPE) as VisibilityDetailsComponent;
+
+        if (visDet.polygon === undefined) {
             this.disableVisMesh(target);
         } else {
             let range = vis.range * this.gridSize;
-            this.updateVisMesh(target, pos, vis.polygon);
+            this.updateVisMesh(target, pos, visDet.polygon);
             this.updateVisUniforms(target, pos, range * range, color);
         }
     }
 
-    updateLightVisPolygon(light: LightComponent, pos?: PositionComponent, vis?: VisibilityComponent): void {
-        this.updateVisPolygon(light.entity, light._lightDisplay!, light.color, pos, vis);
+    updateLightVisPolygon(light: LightComponent): void {
+        this.updateVisPolygon(light.entity, light._lightDisplay, light.color, light._visIndex);
     }
 
-    updatePlayerVisPolygon(player: CustomPlayerComponent, pos?: PositionComponent, vis?: VisibilityComponent): void {
-        if (player._lightVisionDisplay === undefined) {
-            player._lightVisionDisplay = this.createPlayerVisMesh();
-        }
-        this.updateVisPolygon(player.entity, player._lightVisionDisplay, 0, pos, vis);
+    updatePlayerVisPolygon(player: CustomPlayerComponent): void {
+        this.updateVisPolygon(player.entity, player._lightVisionDisplay, 0, player._visIndex);
     }
 
     private onComponentAdd(comp: Component): void {
@@ -207,20 +203,17 @@ export class LightSystem implements System {
                 type: VISIBILITY_TYPE,
                 range: light.range,
                 trackWalls: true,
+                requester: LIGHT_TYPE,
             } as VisibilityComponent;
             this.world.addComponent(comp.entity, vis);
-            this.updateLightVisPolygon(light, undefined, vis);
+            light._visIndex = vis.multiId;
+            this.updateLightVisPolygon(light);
         } else if (comp.type === PLAYER_TYPE) {
             let player = comp as CustomPlayerComponent;
             if (player._lightVisionDisplay === undefined) {
                 player._lightVisionDisplay = this.createPlayerVisMesh();
             }
-
-            let vis = this.world.getComponent(player.entity, VISIBILITY_TYPE) as VisibilityComponent;
-            if (vis === undefined) {
-                console.error("Player does not have a visibility type")
-            }
-            this.updatePlayerVisPolygon(player, undefined, vis);
+            this.updatePlayerVisPolygon(player);
         }
     }
 
@@ -230,26 +223,27 @@ export class LightSystem implements System {
             if ('range' in changes) {
                 this.world.editComponent(c.entity, VISIBILITY_TYPE, {
                     range: c.range
-                });
+                }, c._visIndex);
             } else {
                 let pos = this.world.getComponent(c.entity, POSITION_TYPE) as PositionComponent;
-                let vis = this.world.getComponent(c.entity, VISIBILITY_TYPE) as VisibilityComponent;
-                if (vis.polygon !== undefined) {
+                let vis = this.world.getComponent(c.entity, VISIBILITY_TYPE, c._visIndex) as VisibilityComponent;
+                let visDet = this.world.getComponent(c.entity, VISIBILITY_DETAILS_TYPE, c._visIndex) as VisibilityDetailsComponent;
+                if (visDet.polygon !== undefined) {
                     let range = vis.range * this.gridSize;
                     this.updateVisUniforms(c._lightDisplay!, pos, range * range, c.color);
                 }
             }
-        } else if (comp.type === VISIBILITY_TYPE) {
-            let vis = comp as VisibilityComponent;
+        } else if (comp.type === VISIBILITY_DETAILS_TYPE) {
+            let vis = comp as VisibilityDetailsComponent;
             if (!('polygon' in changes)) return;
             let light = this.storage.getComponent(vis.entity);
             if (light !== undefined)  {
-                this.updateLightVisPolygon(light, undefined, vis);
-            } else {
-                let player = this.world.getComponent(vis.entity, PLAYER_TYPE) as CustomPlayerComponent;
-                if (player !== undefined) {
-                    this.updatePlayerVisPolygon(player, undefined, vis);
-                }
+                this.updateLightVisPolygon(light);
+            }
+
+            let player = this.world.getComponent(vis.entity, PLAYER_TYPE) as CustomPlayerComponent;
+            if (player !== undefined) {
+                this.updatePlayerVisPolygon(player);
             }
         }
     }
@@ -278,8 +272,9 @@ export class LightSystem implements System {
         if (comp.type === LIGHT_TYPE) {
             let light = comp as LightComponent;
             light._lightDisplay?.destroy(DESTROY_ALL);
+            light._lightDisplay = undefined;
 
-            let vis = this.world.getComponent(comp.entity, VISIBILITY_TYPE);
+            let vis = this.world.getComponent(comp.entity, VISIBILITY_TYPE, light._visIndex);
             if (vis !== undefined) {
                 this.world.removeComponent(vis);
             } else {
@@ -288,6 +283,7 @@ export class LightSystem implements System {
         } else if (comp.type === PLAYER_TYPE) {
             let player = comp as CustomPlayerComponent;
             player._lightVisionDisplay?.destroy(DESTROY_ALL);
+            player._lightVisionDisplay = undefined;
         }
     }
 

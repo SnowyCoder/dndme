@@ -269,11 +269,13 @@ export class PixiGraphicSystem implements System {
             if (com === undefined || !com._bitByBit) return;
             // Now you're visible! say hello
             this.updateBBBVisAround(com);
-        } else if (c.type === REMEMBER_TYPE && this.world.isDespawning.indexOf(c.entity) < 0) {
+        } else if (c.type === REMEMBER_TYPE && !this.world.isDespawning.includes(c.entity)) {
             const comp = this.storage.getComponent(c.entity);
             if (comp === undefined) return;
             if (comp._visibListener === VisibListenerLevel.REMEMBER) {
                 this.playerSystem!.addPlayerVisListener(comp.entity, comp.isWall);
+                // The wall is already there so we don't need to recompute visibility polygons
+                // We just need to see if it's already being counted on.
                 (this.world.systems.get(VISIBILITY_AWARE_TYPE) as VisibilityAwareSystem)?.manualRecomputeWall(comp.entity);
             }
 
