@@ -7,7 +7,7 @@
     <div style="display: flex; align-items: center;" v-if="currentTool == 'create_pin'">
       Default size
       <editable-range v-model="pinDefaultSize"
-                      min="0.5" max=10 step="0.1" @change="onPinSizeChanged"/>
+                      min="0.5" max=10 step="0.1" @input="onPinSizeChanged"/>
     </div>
   </section>
 </template>
@@ -20,6 +20,7 @@ import {World} from "../../ecs/world";
 import { ToolSystem } from "../../ecs/systems/back/toolSystem";
 import { PinResource, PIN_TYPE } from "../../ecs/systems/pinSystem";
 import EditableRange from "../util/editableRange.vue";
+import { ResourceEditCommand } from "../../ecs/systems/command/resourceEditCommand";
 
 @VComponent({
   components: {
@@ -42,10 +43,10 @@ export default class GridEdit extends Vue {
   }
 
   onChange() {
-      this.world.addResource({
-          type: CREATION_INFO_TYPE,
-          exitAfterCreation: this.exitAfterCreation,
-      } as CreationInfoResource, 'update');
+    this.world.addResource({
+        type: CREATION_INFO_TYPE,
+        exitAfterCreation: this.exitAfterCreation,
+    } as CreationInfoResource, 'update');
   }
 
   mounted() {
@@ -59,9 +60,16 @@ export default class GridEdit extends Vue {
   }
 
   onPinSizeChanged() {
-    this.world.editResource(PIN_TYPE, {
+    let cmd = {
+      kind: 'redit',
+      add: [], remove: [],
+      edit: {},
+    } as ResourceEditCommand;
+
+    cmd.edit[PIN_TYPE] = {
       defaultSize: this.pinDefaultSize,
-    });
+    };
+    this.world.events.emit('command_log', cmd);
   }
 
   onResourceEdited(res: Resource) {

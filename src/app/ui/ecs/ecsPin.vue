@@ -9,7 +9,7 @@
         Size:
         <input type="checkbox" title="Specify" v-model="sizeSpecify" :readonly="!isAdmin" @change="onChange"/>
         <editable-range :readonly="!isAdmin || !sizeSpecify" v-model="size"
-                        min="0.5" max=10 step="0.1" @change="onChange"/>
+                        min="0.5" max=10 step="0.1" @input="onChange"/>
       </div>
     </template>
   </div>

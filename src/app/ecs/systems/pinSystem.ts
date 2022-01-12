@@ -40,6 +40,8 @@ export const DEFAULT_SIZE: number = 1;
 export interface PinResource extends Resource {
     type: PIN_TYPE;
     defaultSize: number;
+    _save: true;
+    _sync: true;
 }
 
 
@@ -68,6 +70,8 @@ export class PinSystem implements System {
         world.addResource({
             type: PIN_TYPE,
             defaultSize: DEFAULT_SIZE,
+            _save: true,
+            _sync: true,
         } as PinResource, 'ignore');
         this.res = world.getResource(PIN_TYPE)!! as PinResource;
 
