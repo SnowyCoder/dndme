@@ -508,7 +508,7 @@ export class SelectionSystem implements System {
                             comp = {
                                 type: LIGHT_TYPE,
                                 color: 0xFFFFFF,
-                                range: 2,
+                                range: 8,
                             } as LightComponent;
                             break;
                         case PLAYER_TYPE:

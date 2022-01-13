@@ -24,7 +24,9 @@ import {executeAndLogCommand} from "./command/command";
 import {findForeground, PARENT_LAYER_TYPE, ParentLayerComponent} from "./back/layerSystem";
 import { NameAsLabelComponent, NAME_AS_LABEL_TYPE } from "./back/nameAsLabelSystem";
 import SafeEventEmitter from "../../util/safeEventEmitter";
-import { CreationInfoResource, CREATION_INFO_TYPE, Resource } from "../resource";
+import { CreationInfoResource, CREATION_INFO_TYPE, GridResource, Resource } from "../resource";
+import { GRID_TYPE } from "./gridSystem";
+import { STANDARD_GRID_OPTIONS } from "../../game/grid";
 
 export const PIN_TYPE = 'pin';
 export type PIN_TYPE = typeof PIN_TYPE;
@@ -55,6 +57,7 @@ export class PinSystem implements System {
     readonly storage = new SingleEcsStorage<PinComponent>(PIN_TYPE, true, true);
 
     res: PinResource;
+    gridSize = 1;
 
     constructor(world: World) {
         this.world = world;
@@ -66,6 +69,8 @@ export class PinSystem implements System {
             toolSys.addToolPart(new CreatePinToolPart(this));
             toolSys.addTool(Tool.CREATE_PIN, ['space_pan', 'create_pin', 'creation_flag']);
         }
+
+        this.gridSize = (this.world.getResource(GRID_TYPE) as GridResource ?? STANDARD_GRID_OPTIONS).size / STANDARD_GRID_OPTIONS.size;
 
         world.addResource({
             type: PIN_TYPE,
@@ -103,7 +108,7 @@ export class PinSystem implements System {
             initialOffset: {x: 0, y: -POINT_RADIUS},
         } as NameAsLabelComponent);
 
-        this.redrawComponent(pin, display.display as PointElement);
+        this.redrawComponent(pin);
 
         // In some older versions there was a label field that was printed on top of the point,
         // this has been removed in favour of the "name" components (and the 'name_as_label' system)
@@ -132,10 +137,7 @@ export class PinSystem implements System {
     private onComponentEdited(comp: Component, changed: any): void {
         if (comp.type === PIN_TYPE) {
             let pin = comp as PinComponent;
-
-            let grapc = this.world.getComponent(comp.entity, GRAPHIC_TYPE) as GraphicComponent;
-            let pinDisplay = grapc.display as PointElement;
-            this.redrawComponent(pin, pinDisplay);
+            this.redrawComponent(pin);
         }
     }
 
@@ -143,8 +145,13 @@ export class PinSystem implements System {
         if (res.type === PIN_TYPE) {
             for (let c of this.storage.getComponents()) {
                 if (c.size !== undefined && c.size !== 0) continue;
-                let gc = this.world.getComponent(c.entity, GRAPHIC_TYPE) as GraphicComponent;
-                this.redrawComponent(c, gc.display as PointElement);
+                this.redrawComponent(c);
+            }
+        } else if (res.type === GRID_TYPE) {
+            let grid = res as GridResource;
+            this.gridSize = grid.size / STANDARD_GRID_OPTIONS.size;
+            for (let c of this.storage.getComponents()) {
+                this.redrawComponent(c);
             }
         }
     }
@@ -162,9 +169,11 @@ export class PinSystem implements System {
         } as PointElement;
     }
 
-    private redrawComponent(pin: PinComponent, display: PointElement): void {
+    private redrawComponent(pin: PinComponent): void {
+        const gc = this.world.getComponent(pin.entity, GRAPHIC_TYPE) as GraphicComponent;
+        const display = gc.display as PointElement;
         display.color = pin.color;
-        display.scale = pin.size || this.res.defaultSize;
+        display.scale = (pin.size || this.res.defaultSize) * this.gridSize;
 
         this.world.editComponent(pin.entity, GRAPHIC_TYPE, { display }, undefined, false);
 

@@ -104,7 +104,7 @@ function lerpColor(a: number, b: number, t: number): number {
     return tr << 16 | tg << 8 | tb;
 }
 
-export const POINT_RADIUS = 12;
+export const POINT_RADIUS = 42;
 
 export const PIXI_GRAPHIC_TYPE = 'pixi_graphic';
 export type PIXI_GRAPHIC_TYPE = typeof PIXI_GRAPHIC_TYPE;
