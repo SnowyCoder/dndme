@@ -2,16 +2,19 @@
   <b-sidebar id="sidebar-right" title="Sidebar"
              bg-variant="dark" text-variant="light" right visible no-header shadow
              sidebar-class="under-navbar">
-    <!----------------------------------      GRID CONTROL      ---------------------------------->
-    <grid-edit class="px-3 py-2" v-show="tool === 'grid'" v-bind:world="world"/>
-    <!----------------------------------      ENTITY INSPECTOR      ---------------------------------->
+    <!--
+    < !----------------------------------      GRID CONTROL      ---------------------------------- >
+    <grid-edit class="px-3 py-2" v-show="tool === 'grid'"/>
+    < !----------------------------------      ENTITY INSPECTOR      ---------------------------------- >
     <div v-show="tool === 'inspect'">
-      <entity-inspect v-bind:world="world"/>
+      <entity-inspect/>
     </div>
-    <!----------------------------------      LIGHT SETTINGS      ---------------------------------->
-    <light-settings-edit  v-show="tool === 'light'" v-bind:world="world"/>
-    <!----------------------------------      CREATION OPTIONS      ---------------------------------->
-    <creation-options class="px-3 py-2" v-bind:world="world"/>
+    < !----------------------------------      LIGHT SETTINGS      ---------------------------------- >
+    <light-settings-edit  v-show="tool === 'light'"/>
+    < !----------------------------------      CREATION OPTIONS      ---------------------------------- >
+    <creation-options class="px-3 py-2"/>
+    -->
+    <component :is="compType" v-bind="compProps" v-if="compType !== undefined"></component>
 
     <template v-slot:footer>
       <div class="sidebar-footer">
@@ -30,26 +33,22 @@
 
 <script lang="ts">
 
-import {VComponent, VProp, Vue, VWatch} from "../vue";
+import {shallowRef, ShallowRef, VComponent, Vue} from "../vue";
 import {Resource} from "../../ecs/resource";
 import {World} from "../../ecs/world";
-import {TOOL_TYPE, ToolResource} from "../../ecs/systems/back/toolSystem";
-import GridEdit from "./gridEdit.vue";
-import CreationOptions from "./creationOptions.vue";
-import LightSettingsEdit from "./lightSettingsEdit.vue";
-import EntityInspect from "../ecs/entityInspect.vue";
 import {NETWORK_STATUS_TYPE, NetworkStatusResource} from "../../ecs/systems/back/networkSystem";
+import { VueConstructor } from "vue/types/umd";
+import { SidebarResource, SIDEBAR_TYPE } from "../../ecs/systems/toolbarSystem";
 
 @VComponent({
-  components: {
-    GridEdit, EntityInspect, LightSettingsEdit, CreationOptions
-  }
+  inject: ['world'],
 })
 export default class ToolBar extends Vue {
-  @VProp({ required: true })
   world!: World;
 
-  tool = 'inspect';
+  compType: VueConstructor | undefined;
+  compProps: ShallowRef<object> = shallowRef({});
+
   connectionCount = 0;
   trackerCount = 0;
   connectionBuffering = false;
@@ -63,8 +62,10 @@ export default class ToolBar extends Vue {
   }
 
   onResourceEdited(res: Resource) {
-    if (res.type === TOOL_TYPE) {
-      this.tool = (res as ToolResource).tool!;
+    if (res.type === SIDEBAR_TYPE) {
+      const r = res as SidebarResource;
+      this.compType = r.current;
+      this.compProps.value = r.currentProps ?? {};
     } else if (res.type === NETWORK_STATUS_TYPE) {
       let r = res as NetworkStatusResource;
       this.trackerCount = r.trackerCount;

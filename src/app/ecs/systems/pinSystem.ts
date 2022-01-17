@@ -18,7 +18,7 @@ import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {TOOL_TYPE, ToolSystem, ToolPart} from "./back/toolSystem";
 import {PointerEvents, PointerUpEvent} from "./back/pixiBoardSystem";
 import {SELECTION_TYPE, SelectionSystem} from "./back/selectionSystem";
-import {Tool} from "../tools/toolType";
+import {ToolType} from "../tools/toolType";
 import {SpawnCommandKind} from "./command/spawnCommand";
 import {executeAndLogCommand} from "./command/command";
 import {findForeground, PARENT_LAYER_TYPE, ParentLayerComponent} from "./back/layerSystem";
@@ -27,6 +27,8 @@ import SafeEventEmitter from "../../util/safeEventEmitter";
 import { CreationInfoResource, CREATION_INFO_TYPE, GridResource, Resource } from "../resource";
 import { GRID_TYPE } from "./gridSystem";
 import { STANDARD_GRID_OPTIONS } from "../../game/grid";
+
+import PinCreationOptions from "../../ui/edit/pinCreationOptions.vue";
 
 export const PIN_TYPE = 'pin';
 export type PIN_TYPE = typeof PIN_TYPE;
@@ -67,7 +69,7 @@ export class PinSystem implements System {
         if (world.isMaster) {
             let toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
             toolSys.addToolPart(new CreatePinToolPart(this));
-            toolSys.addTool(Tool.CREATE_PIN, ['space_pan', 'create_pin', 'creation_flag']);
+            toolSys.addCreationTool(ToolType.CREATE_PIN, ['space_pan', 'create_pin', 'creation_flag'], PinCreationOptions);
         }
 
         this.gridSize = (this.world.getResource(GRID_TYPE) as GridResource ?? STANDARD_GRID_OPTIONS).size / STANDARD_GRID_OPTIONS.size;
@@ -190,7 +192,7 @@ export class PinSystem implements System {
 }
 
 export class CreatePinToolPart implements ToolPart {
-    readonly name = Tool.CREATE_PIN;
+    readonly name = ToolType.CREATE_PIN;
     private readonly sys: PinSystem;
 
     // Entity of the pin to be created (or -1)
@@ -267,7 +269,7 @@ export class CreatePinToolPart implements ToolPart {
         const creationInfo = this.sys.world.getResource(CREATION_INFO_TYPE) as CreationInfoResource | undefined;
         if (creationInfo?.exitAfterCreation ?? true) {
             this.sys.world.editResource(TOOL_TYPE, {
-                tool: Tool.INSPECT,
+                tool: ToolType.INSPECT,
             });
         } else {
             this.initCreation();

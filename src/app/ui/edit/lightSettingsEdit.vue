@@ -36,9 +36,10 @@ import {DEFAULT_LIGHT_SETTINGS, LightSettings, LocalLightSettings} from "../../e
 import string2hex = PIXI.utils.string2hex;
 import hex2string = PIXI.utils.hex2string;
 
-@VComponent
+@VComponent({
+  inject: ['world'],
+})
 export default class GridEdit extends Vue {
-  @VProp({ required: true })
   world!: World;
 
   ambientLight = '#000000';

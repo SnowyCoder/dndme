@@ -29,9 +29,10 @@ import { World } from "../../ecs/world";
 import {networkStatus, VComponent, VProp, Vue} from "../vue";
 import { onHashChange } from "../../index";
 
-@VComponent
+@VComponent({
+  inject: ['world']
+})
 export default class ReconnectionModal extends Vue {
-  @VProp({ required: true })
   world!: World;
   trackerCount: number = 0;
   connectionCount: number = 0;

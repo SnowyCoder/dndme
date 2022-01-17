@@ -22,7 +22,7 @@ import {
     PointerEvents
 } from "./back/pixiBoardSystem";
 import {SELECTION_TYPE, SelectionSystem} from "./back/selectionSystem";
-import {Tool} from "../tools/toolType";
+import {ToolType} from "../tools/toolType";
 import {executeAndLogCommand} from "./command/command";
 import {SpawnCommand, SpawnCommandKind} from "./command/spawnCommand";
 import {arrayRemoveElem} from "../../util/array";
@@ -59,7 +59,9 @@ export class WallSystem implements System {
         if (this.world.isMaster) {
             let toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
             toolSys.addToolPart(new CreateWallToolPart(this));
-            toolSys.addTool(Tool.CREATE_WALL, ['space_pan', Tool.CREATE_WALL]);
+            toolSys.addTool(ToolType.CREATE_WALL, {
+                parts: ['space_pan', ToolType.CREATE_WALL],
+            });
         }
 
         this.interactionSys = world.systems.get(INTERACTION_TYPE) as InteractionSystem;
@@ -395,7 +397,7 @@ export class WallSystem implements System {
 }
 
 export class CreateWallToolPart implements ToolPart {
-    readonly name = Tool.CREATE_WALL;
+    readonly name = ToolType.CREATE_WALL;
 
     private readonly sys: WallSystem;
     private readonly pixiBoardSys: PixiBoardSystem;

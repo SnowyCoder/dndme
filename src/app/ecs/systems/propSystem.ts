@@ -28,7 +28,7 @@ import {
 import {TOOL_TYPE, ToolPart, ToolSystem} from "./back/toolSystem";
 import {PointerClickEvent, PointerEvents, PointerUpEvent} from "./back/pixiBoardSystem";
 import {SELECTION_TYPE, SelectionSystem} from "./back/selectionSystem";
-import {Tool} from "../tools/toolType";
+import {ToolType} from "../tools/toolType";
 import {SpawnCommandKind} from "./command/spawnCommand";
 import {executeAndLogCommand} from "./command/command";
 import {componentEditCommand, EditType} from "./command/componentEdit";
@@ -81,9 +81,13 @@ export class PropSystem implements System {
         if (world.isMaster) {
             const toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
             toolSys.addToolPart(new CreatePropToolPart(this));
-            toolSys.addTool(Tool.CREATE_PROP, ['space_pan', Tool.CREATE_PROP, 'creation_flag']);
+            toolSys.addTool(ToolType.CREATE_PROP, {
+                parts: ['space_pan', ToolType.CREATE_PROP, 'creation_flag'],
+            });
             toolSys.addToolPart(new PropTeleportLinkToolPart(this));
-            toolSys.addTool(Tool.PROP_TELEPORT_LINK, ['space_pan', Tool.PROP_TELEPORT_LINK]);
+            toolSys.addTool(ToolType.PROP_TELEPORT_LINK, {
+                parts: ['space_pan', ToolType.PROP_TELEPORT_LINK]
+            });
         }
 
         let linkReloc = this.world.systems.get(LINK_RELOCATION_TYPE) as LinkRelocationSystem | undefined;
@@ -233,7 +237,7 @@ export class PropSystem implements System {
 
 
 export class CreatePropToolPart implements ToolPart {
-    readonly name = Tool.CREATE_PROP;
+    readonly name = ToolType.CREATE_PROP;
     private readonly sys: PropSystem;
 
     // Entity of the prop to be created
@@ -325,7 +329,7 @@ export class CreatePropToolPart implements ToolPart {
 
         if (creationInfo?.exitAfterCreation ?? true) {
             this.sys.world.editResource(TOOL_TYPE, {
-                tool: Tool.INSPECT,
+                tool: ToolType.INSPECT,
             });
         } else {
             this.initCreation();
@@ -358,7 +362,7 @@ export class CreatePropToolPart implements ToolPart {
 }
 
 export class PropTeleportLinkToolPart implements ToolPart {
-    readonly name = Tool.PROP_TELEPORT_LINK;
+    readonly name = ToolType.PROP_TELEPORT_LINK;
     private readonly sys: PropSystem;
 
     currentTarget: number = -1;
@@ -376,7 +380,7 @@ export class PropTeleportLinkToolPart implements ToolPart {
         this.currentTarget = entity;
 
         this.sys.world.editResource(TOOL_TYPE, {
-            tool: Tool.PROP_TELEPORT_LINK,
+            tool: ToolType.PROP_TELEPORT_LINK,
         })
     }
 
@@ -419,7 +423,7 @@ export class PropTeleportLinkToolPart implements ToolPart {
             this.linkTo(found.entity);
             this.sys.selectionSys.setOnlyEntity(oldTper);
             this.sys.world.editResource(TOOL_TYPE, {
-                tool: Tool.INSPECT,
+                tool: ToolType.INSPECT,
             })
             return;
         }

@@ -17,7 +17,7 @@ import {
     PIXI_BOARD_TYPE,
     PixiBoardSystem,
 } from "./back/pixiBoardSystem";
-import {Tool} from "../tools/toolType";
+import {ToolType} from "../tools/toolType";
 import {
     NETWORK_ENTITY_TYPE,
     NETWORK_STATUS_TYPE,
@@ -91,7 +91,9 @@ export class MouseTrailSystem implements System {
         // Add system
         let toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
         toolSys.addToolPart(new MouseTrailToolPart(this));
-        toolSys.addTool(Tool.MOUSE_TRAIL, ['space_pan', 'mouse_trail']);
+        toolSys.addTool(ToolType.MOUSE_TRAIL, {
+            parts: ['space_pan', 'mouse_trail'],
+        });
 
         // Add listeners
         world.addStorage(this.storage);
@@ -316,7 +318,7 @@ export class MouseTrailSystem implements System {
 }
 
 export class MouseTrailToolPart implements ToolPart {
-    readonly name = Tool.MOUSE_TRAIL;
+    readonly name = ToolType.MOUSE_TRAIL;
     private readonly sys: MouseTrailSystem;
 
     follower: number = -1;

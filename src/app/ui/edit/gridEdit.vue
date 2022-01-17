@@ -88,10 +88,10 @@ type RenderGridOpts = {
 }
 
 @VComponent({
-  components: { HexagonIcon }
+  components: { HexagonIcon },
+  inject: ['world'],
 })
 export default class GridEdit extends Vue {
-  @VProp({ required: true })
   world!: World;
 
   grid: RenderGridOpts = {

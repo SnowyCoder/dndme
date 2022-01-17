@@ -94,7 +94,7 @@ export class InteractPart implements ToolPart {
 }
 
 export class SelectPart implements ToolPart {
-    name = "select";
+    readonly name = "select";
     private readonly world: World;
     private readonly layerSys: LayerSystem;
     private readonly selectionSys: SelectionSystem;

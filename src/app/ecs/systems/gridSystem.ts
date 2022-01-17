@@ -8,8 +8,10 @@ import {System} from "../system";
 import {BOARD_TRANSFORM_TYPE, BoardTransformResource, PIXI_BOARD_TYPE, PixiBoardSystem} from "./back/pixiBoardSystem";
 import {TOOL_TYPE, ToolSystem} from "./back/toolSystem";
 import {SELECTION_TYPE} from "./back/selectionSystem";
-import {Tool} from "../tools/toolType";
+import {ToolType} from "../tools/toolType";
 import {LayerOrder} from "../../phase/editMap/layerOrder";
+
+import GridEditComponent from "Ui/edit/gridEdit.vue";
 
 
 const SQRT3 = Math.sqrt(3);
@@ -43,7 +45,10 @@ export class GridSystem implements System {
         this.sprite.zIndex = LayerOrder.GRID;
 
         let toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
-        toolSys.addToolAsCopy(Tool.GRID, Tool.INSPECT);
+        toolSys.addToolAsCopy(ToolType.GRID, ToolType.INSPECT, {
+            sideBar: GridEditComponent,
+            sideBarProps: {},
+        });
 
         world.events.on('resource_edited', this.onResourceEdited, this);
         world.events.on('resource_remove', this.onResourceRemove, this);

@@ -10,7 +10,7 @@
 
 <script lang="ts">
 import Vue from "vue";
-import {VComponent} from "../vue";
+import { VComponent } from "../vue";
 
 const LOADING_PHRASES = [
   "Persuading dragons to cooperate...",

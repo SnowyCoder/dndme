@@ -6,10 +6,16 @@ import {World} from "../../world";
 import {SELECTION_TYPE} from "./selectionSystem";
 import {Resource} from "../../resource";
 import {FilteredPanPart, InteractPart, SelectPart} from "../../tools/inspect";
-import {Tool} from "../../tools/toolType";
+import {ToolType} from "../../tools/toolType";
 import {MeasureToolPart} from "../../tools/measure";
 import { KeyboardResource, KEYBOARD_TYPE } from "./keyboardSystem";
 import SafeEventEmitter, { PRIORITY_DISABLED } from "../../../util/safeEventEmitter";
+import { VueConstructor } from "vue";
+
+import EntityInspectComponent from "Ui/ecs/entityInspect.vue";
+import { SIDEBAR_TYPE } from "../toolbarSystem";
+
+import CreationOptionsComponent from "Ui/edit/creationOptions.vue";
 
 export interface ToolPart {
     readonly name: string;
@@ -29,6 +35,12 @@ export interface ToolResource extends Resource {
     tool?: string;
 }
 
+export interface Tool {
+    parts: Array<string>;
+    sideBar?: VueConstructor;
+    sideBarProps?: object;
+}
+
 export const TOOL_TYPE = 'tool';
 export type TOOL_TYPE = typeof TOOL_TYPE;
 export class ToolSystem implements System {
@@ -41,11 +53,11 @@ export class ToolSystem implements System {
 
     subEvents = new SafeEventEmitter();
 
-    standardTool: Tool = Tool.INSPECT;
+    standardTool: ToolType = ToolType.INSPECT;
     parts = new Map<string, ToolPart>();
-    tools = new Map<string, Array<string>>();
-    currentTool?: string;
-    currentParts = new Array<string>();
+    tools = new Map<string, Tool>();
+    currentToolName?: string;
+    currentTool: Tool | undefined;
 
     constructor(world: World) {
         this.world = world;
@@ -72,8 +84,13 @@ export class ToolSystem implements System {
         this.addToolPart(new MeasureToolPart(world));
         this.addToolPart(new FlagToolPart('creation_flag'));
 
-        this.addTool(Tool.INSPECT, ['space_pan', 'select', 'touch_pan', 'interact'])
-        this.addTool(Tool.MEASURE, ['space_pan', 'interact', 'measure'])
+        this.addTool(ToolType.INSPECT, {
+            parts: ['space_pan', 'select', 'touch_pan', 'interact'],
+            sideBar: EntityInspectComponent,
+        });
+        this.addTool(ToolType.MEASURE, {
+            parts: ['space_pan', 'interact', 'measure'],
+        });
     }
 
     addToolPart(tool: ToolPart): void {
@@ -84,24 +101,41 @@ export class ToolSystem implements System {
         }
     }
 
-    addTool(name: string, parts: Iterable<string>): void {
-        let p = [...parts];
-        for (let part of p) {
+    addTool(name: string, tool: Tool): void {
+        tool.parts = [...tool.parts];
+        for (let part of tool.parts) {
             if (!this.parts.has(part)) {
                 console.warn("Cannot find part " + part);
             }
         }
-        this.tools.set(name, p);
+        this.tools.set(name, tool);
     }
 
-    addToolAsCopy(name: string, original: string): void {
-        const parts = this.tools.get(original);
-        if (parts === undefined) throw new Error("Original tool not found");
-        this.tools.set(name, parts);
+    addCreationTool(name: string, parts: Array<string>, additionalOptions?: VueConstructor) {
+        this.addTool(name, {
+            parts: parts.concat('creation_flag'),
+            sideBar: CreationOptionsComponent,
+            sideBarProps: {
+                additionalOptions,
+            },
+        });
+    }
+
+    addToolAsCopy(name: string, original: string, changes?: Partial<Tool>): void {
+        if (changes === undefined) {
+            changes = {};
+        }
+        const tool = this.tools.get(original);
+        if (tool === undefined) throw new Error("Original tool not found");
+        this.addTool(name, {
+            parts: changes.parts ?? tool.parts,
+            sideBar: changes.sideBar ?? tool.sideBar,
+            sideBarProps: changes.sideBarProps ?? tool.sideBarProps,
+        });
     }
 
     isToolPartEnabled(name: string): boolean {
-        return this.currentParts.includes(name);
+        return this.currentTool?.parts.includes(name) || false;
     }
 
     private onResourceEdited(r: Resource, edited: any): void {
@@ -110,24 +144,24 @@ export class ToolSystem implements System {
 
             let toolName = ct.tool || this.standardTool;
 
-            let parts = this.tools.get(toolName);
-            if (parts === undefined) {
+            let tool = this.tools.get(toolName);
+            if (tool === undefined) {
                 console.warn("Unregistered tool requested: " + ct.tool);
                 toolName = this.standardTool;
-                parts = this.tools.get(this.standardTool)!;
+                tool = this.tools.get(this.standardTool)!;
             }
 
-            if (toolName === this.currentTool) {
+            if (toolName === this.currentToolName) {
                 return;
             }
 
-            console.log("Changing tool from " + (this.currentTool || 'none')  + " to " + toolName);
-            this.currentTool = toolName;
+            console.log("Changing tool from " + (this.currentToolName || 'none')  + " to " + toolName);
+            this.currentToolName = toolName;
 
             // Disable all old parts
             for (let x of this.parts.values()) {
-                const oldEnabled = this.currentParts.includes(x.name);
-                const newEnable = parts.includes(x.name);
+                const oldEnabled = this.currentTool?.parts.includes(x.name) || false;
+                const newEnable = tool.parts.includes(x.name);
 
                 if (oldEnabled && !newEnable) {
                     x.onDisable();
@@ -135,17 +169,23 @@ export class ToolSystem implements System {
             }
             // Enable all new parts
             for (let x of this.parts.values()) {
-                const oldEnabled = this.currentParts.includes(x.name);
-                const newEnable = parts.includes(x.name);
+                const oldEnabled = this.currentTool?.parts.includes(x.name) || false;
+                const newEnable = tool.parts.includes(x.name);
 
                 if (!oldEnabled && newEnable) {
                     x.onEnable();
                 }
             }
-            this.currentParts = parts;
             // Reorder events
-            const order = parts.map((x) => this.parts.get(x)).reverse();
+            const order = tool.parts.map((x) => this.parts.get(x)).reverse();
             this.subEvents.reorderObjects(order, PRIORITY_DISABLED);
+
+            // Change Sidebar
+            this.world.editResource(SIDEBAR_TYPE, {
+                current: tool.sideBar,
+                currentProps: tool.sideBarProps,
+            });
+            this.currentTool = tool;
         }
     }
 
@@ -157,7 +197,7 @@ export class ToolSystem implements System {
             part.initialize(this.subEvents);
         }
 
-        if (this.currentTool === undefined) {
+        if (this.currentToolName === undefined) {
             this.world.editResource(TOOL_TYPE, {
                 tool: this.standardTool,
             });

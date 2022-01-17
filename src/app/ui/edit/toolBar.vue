@@ -10,7 +10,9 @@
       </b-button>
     </b-button-group>
 
-    <b-radio-group buttons v-model="tool">
+    <component v-bind:is="entry.icon" v-bind="entry.iconProps.value" v-for="entry in entries" :key="entry.id"></component>
+
+    <!--b-radio-group buttons v-model="tool">
       <b-radio ref="radioinspect" title="Inspect" value="inspect" squared
                :class="{'toolbar-btn': this.backgroundLocked, 'btn-warning': !this.backgroundLocked}">
         <i class="fas fa-hand-pointer"></i>
@@ -36,7 +38,7 @@
       <b-radio title="Mouse trail" value="mouse_trail" squared class="toolbar-btn plz-prioritize">
         <mouse-trail-icon/>
       </b-radio>
-    </b-radio-group>
+    </b-radio-group-->
     <b-button title="Export map" squared variant="success" class="btn-xs"
               v-on:click="world.events.emit('export_map')" v-if="world.isMaster">
       <i class="fas fa-download"/>
@@ -51,26 +53,44 @@
 
 <script lang="ts">
 
-import {VComponent, VProp, Vue, VWatch} from "../vue";
-import {Resource} from "../../ecs/resource";
-import {World} from "../../ecs/world";
-import {BACKGROUND_LAYER_TYPE, BackgroundLayerResource} from "../../ecs/systems/back/layerSystem";
-import {TOOL_TYPE, ToolResource} from "../../ecs/systems/back/toolSystem";
-import {Tool} from "../../ecs/tools/toolType";
+import { shallowRef, ShallowRef, VComponent, Vue } from "../vue";
+import { Resource } from "../../ecs/resource";
+import { World } from "../../ecs/world";
+import { BACKGROUND_LAYER_TYPE, BackgroundLayerResource } from "../../ecs/systems/back/layerSystem";
+import { TOOL_TYPE, ToolResource } from "../../ecs/systems/back/toolSystem";
 
 import MouseTrailIcon from "../icons/mouseTrailIcon.vue";
 import WallIcon from "../icons/wallIcon.vue";
+import { VueConstructor } from "vue";
+import { ToolbarItemComponent, TOOLBAR_ITEM_TYPE } from "../../ecs/systems/toolbarSystem";
+import { SingleEcsStorage } from "../../ecs/storage";
+import { Component } from "../../ecs/component";
+import { arrayRemoveIf } from "../../util/array";
+
+interface EntryData {
+  id: number;
+  icon: VueConstructor | string;
+  iconProps: ShallowRef<object>;
+  priority: number;
+}
 
 
 @VComponent({
-  components: {MouseTrailIcon, WallIcon}
+  components: {MouseTrailIcon, WallIcon},
+  provide() {
+    return {
+      currentTool: (this as any).currentTool,
+    }
+  },
+  inject: ['world'],
 })
 export default class ToolBar extends Vue {
-  @VProp({ required: true })
   world!: World;
 
-  tool = 'inspect';
+  currentTool = shallowRef('inspect');
   backgroundLocked: boolean = true;
+
+  entries: EntryData[] = [];
 
   canUndo = false;
   canRedo = false;
@@ -82,16 +102,68 @@ export default class ToolBar extends Vue {
     let x = (this.$refs.radioinspect as Vue);
     x.$el.addEventListener('click', (e) => {
       if (!(e.target instanceof HTMLInputElement)) return;
-      if (this.tool === 'inspect') {
+      if (this.currentTool.value === 'inspect') {
         let locked = (this.world.getResource(BACKGROUND_LAYER_TYPE) as BackgroundLayerResource).locked;
         this.world.editResource(BACKGROUND_LAYER_TYPE, { locked: !locked });
       }
     });
+
+    this.entries = [];
+    const toolbarStorage = this.world.getStorage(TOOLBAR_ITEM_TYPE) as SingleEcsStorage<ToolbarItemComponent>;
+    for (let x of toolbarStorage.getComponents()) {
+      this.entries.push({
+        id: x.entity,
+        icon: x.icon,
+        iconProps: shallowRef(x.iconProps),
+        priority: x.priority,
+      })
+    }
+    this.world.events.on('component_add', this.onComponentAdd, this);
+    this.world.events.on('component_edited', this.onComponentEdited, this);
+    this.world.events.on('component_remove', this.onComponentRemove, this);
   }
 
-  unmounted() {
+  sortEntries() {
+    this.entries.sort((a, b) => a.priority - b.priority);
+  }
+
+  onComponentAdd(c: Component) {
+    if (c.type === TOOLBAR_ITEM_TYPE) {
+      const e = c as ToolbarItemComponent;
+      this.entries.push({
+        id: e.entity,
+        icon: e.icon,
+        iconProps: shallowRef(e.iconProps),
+        priority: e.priority,
+      });
+      this.sortEntries();
+    }
+  }
+
+  onComponentEdited(c: Component) {
+    if (c.type === TOOLBAR_ITEM_TYPE) {
+      const e = this.entries.find(x => x.id == c.entity);
+      if (e === undefined) return;
+      const x = c as ToolbarItemComponent;
+      e.icon = x.icon;
+      e.priority = x.priority;
+      e.iconProps = shallowRef(x.iconProps);
+      this.sortEntries();
+    }
+  }
+
+  onComponentRemove(c: Component) {
+    if (c.type === TOOLBAR_ITEM_TYPE) {
+      arrayRemoveIf(this.entries, e => e.id == c.entity);
+    }
+  }
+
+  beforeDestroy() {
     this.world.events.off('resource_edited', this.onResourceEdited, this);
     this.world.events.off('command_history_change', this.onCommandHistoryChange, this);
+    this.world.events.off('component_add', this.onComponentAdd, this);
+    this.world.events.off('component_edited', this.onComponentEdited, this);
+    this.world.events.off('component_remove', this.onComponentRemove, this);
   }
 
   onCommandHistoryChange(canUndo: boolean, canRedo: boolean) {
@@ -103,13 +175,8 @@ export default class ToolBar extends Vue {
     if (res.type === BACKGROUND_LAYER_TYPE) {
       this.backgroundLocked = (res as BackgroundLayerResource).locked;
     } else if (res.type === TOOL_TYPE) {
-      this.tool = (res as ToolResource).tool!;
+      this.currentTool.value = (res as ToolResource).tool!;
     }
-  }
-
-  @VWatch('tool')
-  onToolEdit(tool: Tool) {
-    this.world.editResource('tool', {tool});
   }
 
   undo() {
@@ -123,14 +190,6 @@ export default class ToolBar extends Vue {
 </script>
 
 <style>
-
-.toolbar-btn.plz-prioritize {
-  color: #fff;
-  background-color: #2C3E50;
-  border-color: #2C3E50;
-}
-
-
 .plz-prioritize.undo-redo-btn.disabled, .plz-prioritize.undo-redo-btn:disabled {
   background-color: #343a40;
   border-color: #343a40;

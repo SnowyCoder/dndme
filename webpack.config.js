@@ -78,6 +78,7 @@ const config = {
 
             'App': path.resolve(__dirname, 'src/app/'),
             'Public': path.resolve(__dirname, 'src/public/'),
+            'Ui': path.resolve(__dirname, 'src/app/ui'),
         }
     },
     output: {

@@ -13,10 +13,12 @@ import {Mesh} from "pixi.js";
 import {PixiBoardSystem, PIXI_BOARD_TYPE} from "./back/pixiBoardSystem";
 import hex2rgb = PIXI.utils.hex2rgb;
 import {TOOL_TYPE, ToolSystem} from "./back/toolSystem";
-import {Tool} from "../tools/toolType";
+import {ToolType} from "../tools/toolType";
 import {GRID_TYPE} from "./gridSystem";
 import {STANDARD_GRID_OPTIONS} from "../../game/grid";
 import {LayerOrder} from "../../phase/editMap/layerOrder";
+
+import LightSettingsEditComponent from "Ui/edit/lightSettingsEdit.vue";
 
 export const DEFAULT_BACKGROUND = 0x6e472c;
 
@@ -111,7 +113,10 @@ export class LightSystem implements System {
         this.lightContainer = new PIXI.Container();
 
         let toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
-        toolSys.addToolAsCopy(Tool.LIGHT, Tool.INSPECT);
+        toolSys.addToolAsCopy(ToolType.LIGHT, ToolType.INSPECT, {
+            sideBar: LightSettingsEditComponent,
+            sideBarProps: {},
+        });
 
         world.addStorage(this.storage);
         this.lightSettings = Object.assign({

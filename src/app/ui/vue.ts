@@ -25,3 +25,26 @@ export const networkStatus = Vue.observable({
 
 window.addEventListener('online', () => networkStatus.isOnline = true);
 window.addEventListener('offline', () => networkStatus.isOnline = false);
+
+export class ShallowRef<T> {
+    value: T;
+
+    constructor(value: T) {
+        this.value = value;
+    }
+
+    /**
+     * Overrides the `Object.prototype.toString.call(obj)` result.
+     * This is done to hide this object and its children from observers (see https://github.com/vuejs/vue/issues/2637)
+     * @returns {string} - type name
+     * @see {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/toStringTag}
+     */
+    get [Symbol.toStringTag]() {
+        // Anything can go here really as long as it's not 'Object'
+        return 'ObjectNoObserve';
+    }
+}
+
+export function shallowRef<T>(x: T): ShallowRef<T> {
+    return new ShallowRef(x);
+}

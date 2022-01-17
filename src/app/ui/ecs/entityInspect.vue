@@ -46,10 +46,10 @@ import {componentClone} from "../../ecs/ecsUtil";
 @VComponent({
   components: {
     EcsComponentWrapper,
-  }
+  },
+  inject: ['world'],
 })
 export default class EntityInspect extends Vue {
-  @VProp({required: true})
   world!: World;
 
   data: SelectionUiData = {

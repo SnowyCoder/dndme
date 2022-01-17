@@ -1,4 +1,4 @@
-export enum Tool {
+export enum ToolType {
     INSPECT= 'inspect',
     CREATE_WALL = 'create_wall',
     CREATE_PIN = 'create_pin',
