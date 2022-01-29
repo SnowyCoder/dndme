@@ -5,3 +5,4 @@ node_modules
 .test_cache
 
 dist
+stats.html
