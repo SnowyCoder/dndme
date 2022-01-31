@@ -6,7 +6,7 @@
 // so we also have something similar to a "multiple component".
 
 import {EcsStorage, SingleEcsStorage} from "./storage";
-import {Component, SerializedFlag, SERIALIZED_TYPE, SHARED_TYPE} from "./component";
+import {Component, SerializedFlag, SERIALIZED_TYPE, SharedFlag, SHARED_TYPE} from "./component";
 import {Resource} from "./resource";
 import {SystemGraph} from "./systemGraph";
 import {System} from "./system";
@@ -90,11 +90,13 @@ const DEFAULT_SERIALIZE_OPTIONS = {
 export interface DeserializeOptions {
     remap: boolean,
     thenSelect: boolean,
+    addShare: boolean,
 }
 
 const DEFAULT_DESERIALIZE_OPTIONS = {
     remap: false,
     thenSelect: false,
+    addShare: false,
 } as DeserializeOptions;
 
 export class World {
@@ -499,6 +501,7 @@ export class World {
         for (let entity of data.entities) {
             let realEnt = mapping(entity);
             this.addComponent(realEnt, { type: SERIALIZED_TYPE, entity: -1 } as SerializedFlag);
+            if (options.addShare) this.addComponent(realEnt, { type: SHARED_TYPE, entity: -1 } as SharedFlag);
         }
 
         for (let type in data.storages) {

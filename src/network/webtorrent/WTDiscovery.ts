@@ -1,6 +1,6 @@
-import SimplePeer from "simple-peer";
 import { Buffer } from "buffer";
 import { randombytes } from "../../util/jsobj";
+import { WrtcConnection } from "../channel/WrtcConnection";
 import {OfferFilterData, TrackerConfig, WebTorrentTracker} from "./WebTorrentTracker";
 
 // https://github.com/ngosang/trackerslist/blob/master/trackers_all_ws.txt
@@ -10,7 +10,7 @@ const TRACKERS = [
     'wss://tracker.btorrent.xyz',
 ]
 
-const WAITING_FOR_INIT = {};
+const WAITING_FOR_INIT = Symbol();
 
 export interface OfferData {
     master?: true,
@@ -19,9 +19,9 @@ export interface OfferData {
 export class WTDiscovery {
     private trackerConfig: TrackerConfig;
     readonly peerId: string;
-    peers = new Map<string, SimplePeer.Instance | typeof WAITING_FOR_INIT>();
+    peers = new Map<string, WrtcConnection | typeof WAITING_FOR_INIT>();
     connectedTrackers: number;
-    onPeerCallback: (peer: SimplePeer.Instance, peerId: string) => void = () => {};
+    onPeerCallback: (peer: WrtcConnection, peerId: string) => void = () => {};
     onTrackerConnectionCountEdit: (count: number) => void = () => {};
 
     isMaster: boolean = false;
@@ -34,11 +34,6 @@ export class WTDiscovery {
             peerIdBinary: peerId.toString('binary'),
             infoHashBinary: '',
             defAnnounceOptions: {},
-            peerOptions: {
-                channelConfig: {
-                    ordered: true,
-                },
-            },
             offerData: {},
         };
         this.peerId = peerId.toString('hex');
@@ -90,7 +85,7 @@ export class WTDiscovery {
             // someone passed offer_filter, received an answer but didn't reply back
             this.peers.delete(peerId);
         });
-        tracker.events.on('peer', (peer: SimplePeer.Instance, peerId: string) => {
+        tracker.events.on('peer', (peer: WrtcConnection, peerId: string) => {
             const oldPeerData = this.peers.get(peerId);
             if (oldPeerData !== undefined && oldPeerData !== WAITING_FOR_INIT) {
                 console.error("Opened another socket for an already connected peer");
@@ -99,14 +94,14 @@ export class WTDiscovery {
             }
             console.log('Peer connected', peerId);
             this.peers.set(peerId, peer);
-            peer.once('connect', () => {
+            peer.events.once('connect', () => {
                 if (!this.isMaster) {
                     console.log("Master connected, pausing.")
                     this.pause();
                 }
             });
             this.onPeerCallback(peer, peerId);
-            peer.once('close', () => {
+            peer.events.once('close', () => {
                 this.peers.delete(peerId);
             })
         });

@@ -9,6 +9,7 @@ import { objectClone, objectFilterInplace } from "../../../util/jsobj";
 export interface SpawnCommand extends Command {
     kind: 'spawn';
     data: SerializedEntities;
+    addShare?: boolean;
 }
 
 export class SpawnCommandKind implements CommandKind {
@@ -20,7 +21,9 @@ export class SpawnCommandKind implements CommandKind {
     }
 
     applyInvert(cmd: SpawnCommand): DeSpawnCommand {
-        this.world.deserialize(cmd.data, {});
+        this.world.deserialize(cmd.data, {
+            addShare: cmd.addShare,
+        });
 
         return {
             kind: 'despawn',

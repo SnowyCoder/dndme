@@ -1,7 +1,7 @@
-import SimplePeer from 'simple-peer';
 import {randombytes} from "../../util/jsobj";
 import { Buffer } from "buffer";
 import SafeEventEmitter from '../../util/safeEventEmitter';
+import { WrtcConnection, WrtcConnectionConfig } from "../channel/WrtcConnection";
 
 interface Offer {
     offer: any;
@@ -33,7 +33,7 @@ export interface OfferFilterData {
 
 export interface PeerEventData {
     peerId: string;
-    peer: SimplePeer.Instance;
+    peer: WrtcConnection;
 }
 
 export interface AnnounceOptions {
@@ -42,16 +42,16 @@ export interface AnnounceOptions {
 }
 
 interface ConnectingPeer {
-    peer?: SimplePeer.Instance;
+    peer?: WrtcConnection;
     offerTimeout?: any;
 }
 
 export interface TrackerConfig {
-    peerOptions: SimplePeer.Options
     peerIdBinary: string;
     infoHashBinary: string;
     defAnnounceOptions: AnnounceOptions;
     offerData: any;
+    peerOptions?: WrtcConnectionConfig;
 }
 
 const RECONNECT_MINIMUM = 5 * 1000;
@@ -297,7 +297,7 @@ export class WebTorrentTracker {
     }
 
     private async onAnnounceResponse(data: AnnounceResponse): Promise<void> {
-        //console.log("Announce response: " + JSON.stringify(data));
+        // console.log("Announce response: " + JSON.stringify(data));
         if (data.info_hash !== this.config.infoHashBinary) {
             return;
         }
@@ -347,12 +347,12 @@ export class WebTorrentTracker {
                 offer_id: data.offer_id,
             } as any;
             if (this.trackerId) params.trackerId = this.trackerId;
-            //console.log("Answering offer");
+            // console.log("Answering offer");
             this.send(params);
         }
 
         if (data.answer && data.peer_id) {
-            //console.log("Received answer");
+            // console.log("Received answer");
             const offerId = Buffer.from(data.offer_id, 'binary').toString('hex');
 
             let offerData = this.connectingPeers[offerId];
@@ -364,10 +364,10 @@ export class WebTorrentTracker {
 
             delete this.connectingPeers[offerId];
             if (offerData.peer === undefined) {
-                //console.log("Received second");
+                // console.log("Received second");
                 // Received the second message of the 3-way handshake!
                 const peer = this.createPeer({});
-                peer.once('signal', answer => {
+                peer.events.once('signal', answer => {
                     const params = {
                         action: 'announce',
                         info_hash: this.config.infoHashBinary,
@@ -378,13 +378,13 @@ export class WebTorrentTracker {
                     } as any;
                     if (this.trackerId) params.trackerId = this.trackerId;
                     this.send(params);
-                    //console.log("Sending third message");
+                    // console.log("Sending third message");
 
                 });
                 peer.signal(data.answer);
                 this.events.emit('peer', peer, peerId);
             } else {
-                //console.log("Received third");
+                // console.log("Received third");
                 clearTimeout(offerData.offerTimeout);
 
                 this.events.emit('peer', offerData.peer, peerId);
@@ -400,29 +400,28 @@ export class WebTorrentTracker {
         this.socket!!.send(message);
     }
 
-    private createPeer(options: {}): SimplePeer.Instance {
+    private createPeer(options: {}): WrtcConnection {
         const peerOpts = Object.assign({}, options, this.config.peerOptions);
-        peerOpts.trickle = false;
 
-        let peer = new SimplePeer(peerOpts);
+        let peer = new WrtcConnection(peerOpts);
 
         const onErr = (err: Error) => {
             console.error(err);
             peer.destroy();
         };
-        peer.once('error', onErr);
-        peer.once('connect', () => {
-            peer.removeListener('error', onErr);
+        peer.events.once('error', onErr);
+        peer.events.once('connect', () => {
+            peer.events.off('error', onErr);
         });
         return peer;
     }
 
-    private createInitPeer(peerId: string, offerId: Buffer, options: {}): Promise<SimplePeer.SignalData> {
+    private createInitPeer(peerId: string, offerId: Buffer, options: {}): Promise<WrtcConnection> {
         return new Promise(resolve => {
             const offerHex = offerId.toString('hex');
             const peer = this.createPeer(Object.assign({ initiator: true }, options));
 
-            peer.once('signal',  offer => {
+            peer.events.once('signal',  offer => {
                 resolve(offer);
             })
             const offerTimeout = setTimeout(() => {

@@ -5,7 +5,7 @@ import {Command, emitCommand} from "../command/command";
 import {Resource} from "../../resource";
 import {Component, SharedFlag, SHARED_TYPE} from "../../component";
 import {SingleEcsStorage} from "../../storage";
-import {SpawnCommandKind} from "../command/spawnCommand";
+import {SpawnCommand, SpawnCommandKind} from "../command/spawnCommand";
 import {DeSpawnCommand} from "../command/despawnCommand";
 import { PacketInfo, WTChannel } from "../../../network/webtorrent/WTChannel";
 
@@ -264,7 +264,9 @@ export class ClientNetworkSystem {
         if (info.senderId !== 0) return; // Only admin
 
         this.world.clear();
-        this.world.deserialize(packet.payload, {});
+        this.world.deserialize(packet.payload, {
+            addShare: true,
+        });
         this.world.editResource(NETWORK_STATUS_TYPE, { isBootstrapDone: true });
         this.world.events.emit('focus_on_random_party');
     }
@@ -272,6 +274,9 @@ export class ClientNetworkSystem {
     private onCmd(packet: P.CommandPacket, info: PacketInfo): void {
         for (let cmd of packet.data) {
             if (!this.checkCommand(info.senderId, cmd)) continue;
+            if (cmd.kind === 'spawn') {
+                (cmd as SpawnCommand).addShare = true;
+            }
             this.world.events.emit("command_emit", cmd);
         }
     }

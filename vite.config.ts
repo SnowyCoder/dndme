@@ -24,6 +24,5 @@ export default defineConfig({
   },
   define: {
     __COMMIT_HASH__: JSON.stringify(commitHash),
-    'global.crypto': "window.crypto",
   },
 })

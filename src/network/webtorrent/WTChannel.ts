@@ -1,16 +1,10 @@
-import SimplePeer from "simple-peer";
 import SafeEventEmitter from "../../util/safeEventEmitter";
 import { WTDiscovery } from "./WTDiscovery";
 import { encode, decode } from "@msgpack/msgpack";
 import { base64UrlToBuffer, bufferToBase64Url, randombytes } from "../../util/jsobj";
 import { Buffer } from "buffer";
-
-declare module 'simple-peer' {
-    interface Instance {
-        _pc: RTCPeerConnection | null;
-        _channel: RTCDataChannel | null;
-    }
-}
+import { WrtcConnection } from "../channel/WrtcConnection";
+import { WrtcChannel } from "../channel/WrtcChannel";
 
 /**
  * Header structure:
@@ -31,8 +25,9 @@ const ENDIANESS = true;
 interface PeerData {
     peerId: string;
     id: number;
-    socket: SimplePeer.Instance;
-    afterSendBounded: (e: Error | undefined | null) => void,
+    connection: WrtcConnection;
+    socket: WrtcChannel;
+    afterSendBounded: () => void;
     sending: boolean;
     packets: Uint8Array[];
     partial?: {
@@ -42,8 +37,8 @@ interface PeerData {
         // That's an XOR between buffer and forwardTo,
         // but typescript won't let me write this in an
         // algebraic type.
-        buffer?: Uint8Array,
-        forwardTo?: number,
+        buffer?: Uint8Array;
+        forwardTo?: number;
     },
 }
 
@@ -54,10 +49,9 @@ export interface PacketInfo {
 
 /**
  * WebRTC data channel limit beyond which data is split into chunks
- * Chose 16KB considering Chromium
- * https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API/Using_data_channels#Concerns_with_large_messages
+ * Modern browsers all support 65535
  */
-const MAX_MESSAGE_LENGTH = 16300;
+const MAX_MESSAGE_LENGTH = 65535;
 
 export class WTChannel {
     readonly discovery: WTDiscovery;
@@ -112,7 +106,7 @@ export class WTChannel {
     destroy(): void {
         this.discovery.stop();
         for (let p of this.peers.values()) {
-            p.socket.destroy();
+            p.socket.close();
         }
     }
 
@@ -153,7 +147,7 @@ export class WTChannel {
                 x.packets.push(packet);
             } else {
                 x.sending = true;
-                x.socket.write(packet, undefined, x.afterSendBounded);
+                x.socket.send(packet, x.afterSendBounded);
             }
         };
 
@@ -172,31 +166,37 @@ export class WTChannel {
         }
     }
 
-    private afterDataSend(peer: PeerData, e: Error | null | undefined): void {
+    private afterDataSend(peer: PeerData): void {
         const nextData = peer.packets.shift();
         if (nextData === undefined) {
             peer.sending = false;
             return;
         }
-        peer.socket.write(nextData, undefined, peer.afterSendBounded);
+        peer.socket.send(nextData, peer.afterSendBounded);
     }
 
-    private onPeer(peer: SimplePeer.Instance, peerId: string): void {
+    private onPeer(peer: WrtcConnection, peerId: string): void {
+        const socket = peer.createDataChannel('main', {
+            negotiated: true,
+            id: 1,
+            ordered: true,
+        });
         const data = {
             peerId,
             id: this.discovery.isMaster ? this.nextId++ : 0,
-            socket: peer,
+            connection: peer,
+            socket,
             packets: [],
             sending: false,
-            afterSendBounded: _ => {},
+            afterSendBounded: () => {},
         } as PeerData;
-        data.afterSendBounded = e => this.afterDataSend(data, e);
+        data.afterSendBounded = () => this.afterDataSend(data);
         this.peers.set(peerId, data);
 
-        peer.once('connect', () => {
+        if (socket.handle.readyState !== 'connecting') throw Error("Already connected");
+        socket.events.once('open', () => {
             if (this.discovery.isMaster) {
-                peer.send('' + data.id);
-                postBootstrap();
+                socket.send('' + data.id, postBootstrap);
             } else {
                 this.discovery.pause();
             }
@@ -206,20 +206,20 @@ export class WTChannel {
             this.connections.set(data.id, data);
             this.events.emit('device_join', data.id);
 
-            peer.on('data', (chunk: Uint8Array) => {
-                this.onPeerData(data, chunk);
+            socket.events.on('data', (chunk: ArrayBuffer) => {
+                this.onPeerData(data, new Uint8Array(chunk));
             });
         }
 
         if (!this.discovery.isMaster) {
-            peer.once('data', (chunk: string) => {
+            socket.events.once('data', (chunk: string) => {
                 this.myId = parseInt(chunk);
                 postBootstrap();
             })
         }
 
 
-        peer.on('close', () => {
+        peer.events.on('close', () => {
             console.info("Peer closed");
             this.connections.delete(data.id);
             this.peers.delete(peerId);
@@ -228,7 +228,7 @@ export class WTChannel {
             this.discovery.resume();
         });
 
-        peer.on('error', (e: Error) => {
+        peer.events.on('error', (e: Error) => {
             console.error("Peer error", e);
         });
 
