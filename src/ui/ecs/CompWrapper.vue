@@ -5,18 +5,18 @@
         <div @click="visible = !visible"> {{ name }}</div>
         <div class="cwrapper_component-arrow" :class="{cwrapper_rotate: visible}" ></div>
         <div style="width: 100%"></div>
-        <button v-if="isMaster && component.clientVisible !== undefined" type="button" class="btn btn-secondary rounded-0" style="display: grid;"
+        <button v-if="isMaster && component.clientVisible !== undefined" type="button" class="btn btn-secondary btn-sm rounded-0" style="display: grid;"
                   :title="component.clientVisible ? 'Hide component' : 'Show component'"
                   @click="$emit('ecs-property-change', component.type, 'clientVisible', !component.clientVisible, component.multiId)">
           <div class="g11" v-show="component.clientVisible"><i class="fas fa-eye"/></div>
           <div class="g11" v-show="!component.clientVisible"><i class="fas fa-eye-slash"/></div>
         </button>
-        <button v-if="isMaster" class="btn btn-primary rounded-0" title="Fullscreen"
+        <button v-if="isMaster" class="btn btn-primary btn-sm rounded-0" title="Fullscreen"
                   v-show="isFullscreen !== undefined"
                   @click="isFullscreen = true">
           <i class="fas fa-expand"/>
         </button>
-        <button v-if="isMaster" class="btn btn-danger rounded-0" title="Delete" v-show="canDelete"
+        <button v-if="isMaster" class="btn btn-danger btn-sm rounded-0" title="Delete" v-show="canDelete"
                   @click="$emit('ecs-property-change', '$', 'removeComponent', component.type, component.multiId)">
           <i class="fas fa-trash"/>
         </button>
