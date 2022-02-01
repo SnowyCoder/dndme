@@ -77,8 +77,13 @@ export class BackgroundImageSystem implements System {
         }
 
         let image = this.bigStorage.requestUse<Uint8Array>(bkgImg.image)!!.data;
-        if ((image as any).image !== undefined || image.byteLength === 0) {
-            // old version of background, unsupported
+        if ((image as any).image !== undefined) {
+            // Rewrite old-format images
+            this.bigStorage.replace(bkgImg.image, (image as any).image, true);
+            image = (image as any).image;
+        }
+        if (image.byteLength === 0 || typeof image.byteLength !== 'number') {
+            // empty background (for some reason??)
             console.log("Removing empty/unsupported background " + bkgImg.entity);
             this.bigStorage.dropUse(bkgImg.entity, true);
             this.world.despawnEntity(bkgImg.entity);

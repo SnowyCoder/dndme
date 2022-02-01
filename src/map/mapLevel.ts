@@ -1,5 +1,10 @@
 import {SerializedWorld, World} from "../ecs/world";
 
+export interface SerializedMapLevel {
+    name?: string;
+    ecs?: SerializedWorld;
+}
+
 export class MapLevel {
     id: number;
     name?: string;
@@ -24,7 +29,7 @@ export class MapLevel {
         });
     }
 
-    serialize(): any {
+    serialize(): SerializedMapLevel {
         return {
             name: this.name,
             ecs: this.ecs

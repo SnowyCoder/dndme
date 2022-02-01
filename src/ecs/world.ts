@@ -231,7 +231,8 @@ export class World {
 
     addComponent(entity: number, cmp: Omit<Component, 'entity'>): void {
         if (!this.entities.has(entity)) {
-            throw new Error("Entity not present");
+            console.warn("Entity not present " + entity);
+            return;
         }
         let c = cmp as Component;
         c.entity = entity;
@@ -504,14 +505,10 @@ export class World {
             if (options.addShare) this.addComponent(realEnt, { type: SHARED_TYPE, entity: -1 } as SharedFlag);
         }
 
-        for (let type in data.storages) {
-            if (type === SERIALIZED_TYPE) continue;// Already added implicitly
-            let storage = this.storages.get(type);
-            if (storage === undefined) {
-                console.error("Cannot deserialize storage type: " + type + ", ignoring");
-                continue;
-            }
-            storage.deserialize(this, dsData, data.storages[type]);
+        for (let storage of this.storages.values()) {
+            if (storage.type === SERIALIZED_TYPE) continue;// Already added implicitly
+            if (!(storage.type in data.storages)) continue;
+            storage.deserialize(this, dsData, data.storages[storage.type]);
         }
 
         for (let entity of data.entities) {

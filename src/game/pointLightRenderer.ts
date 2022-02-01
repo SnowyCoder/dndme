@@ -108,8 +108,13 @@ export function createMesh(lightType: LightProgramType = 'normal'): PIXI.Mesh {
     return mesh;
 }
 
-export function updateMeshPolygons(mesh: PIXI.Mesh, pos: IPoint, poly: number[]): void {
+export function updateMeshPolygons(mesh: PIXI.Mesh, pos: IPoint, poly?: number[]): void {
     let buffer = mesh.geometry.getBuffer('aVertexPosition');
+
+    if (poly === undefined) {
+        mesh.visible = false;
+        return;
+    }
 
     let fBuffer = new Float32Array(poly.length + 4);
     fBuffer[0] = pos.x;

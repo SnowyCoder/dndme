@@ -22,8 +22,8 @@ export default defineComponent({
   },
   setup(props) {
     const { component } = toRefs(props);
-    const isMaster = inject<boolean>('isMaster');
-    const isFullscreen = inject<ShallowRef<boolean | undefined>>('isFullscreen');
+    const isMaster = inject<boolean>('isMaster')!;
+    const isFullscreen = inject<ShallowRef<boolean>>('isFullscreen')!;
     isFullscreen.value = false;
 
     return {

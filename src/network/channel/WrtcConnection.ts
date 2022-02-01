@@ -33,8 +33,8 @@ export class WebRTCError extends Error {
     }
 }
 
-function filterTrickle(sdp) {
-  return sdp.replace(/a=ice-options:trickle\s\n/g, '')
+function filterTrickle(sdp: string | undefined): string | undefined {
+    return sdp?.replace(/a=ice-options:trickle\s\n/g, '')
 }
 
 // TODO: Can we handle ICE restarts?

@@ -425,7 +425,7 @@ export class FlagEcsStorage implements EcsStorage<Component> {
             ecs.addComponent(dsData.entityMapping(entity), {
                 type: this.type,
                 entity: -1
-            });
+            } as Component);
         }
     }
 

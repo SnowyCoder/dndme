@@ -89,6 +89,7 @@ export class PinSystem implements System {
             world.events.on('populate', () => {
                 this.world.spawnEntity({
                     type: COMPONENT_INFO_PANEL_TYPE,
+                    entity: -1,
                     component: PIN_TYPE,
                     name: 'Pin',
                     panel: EcsPin,
@@ -234,7 +235,7 @@ export class CreatePinToolPart implements ToolPart {
         let display = this.sys.createElement();
         display.color = color;
         display.visib = VisibilityType.ALWAYS_VISIBLE;
-        display.scale = this.sys.res.defaultSize;
+        display.scale = this.sys.res.defaultSize * this.sys.gridSize;
 
         this.createPin = this.sys.world.spawnEntity(
             {

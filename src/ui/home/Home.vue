@@ -12,7 +12,7 @@
       <button class="btn btn-lg btn-info btn-entry" v-on:click="onEditMap">Edit Map</button>
     </div>
 
-    <Modal v-model="showModal" hide-footer title="Gimme the map" center-vertical>
+    <Modal v-model="showFileModal" hide-footer title="Gimme the map" center-vertical>
       <MapInput
           v-model="file"
           :state="Boolean(file)">
@@ -40,8 +40,7 @@ export default defineComponent({
   data() {
     return {
       file: undefined as File | undefined,
-      pendingOp: "",
-      showModal: false,
+      showFileModal: false,
     };
   },
   methods: {
@@ -50,13 +49,12 @@ export default defineComponent({
     },
 
     onEditMap() {
-      this.pendingOp = 'edit';
-      this.showModal = true;
+      this.showFileModal = true;
       this.uiEvents.emit("edit_map");
     },
 
     mapLoadCancel() {
-      this.showModal = false;
+      this.showFileModal = false;
     },
   },
   watch: {
@@ -64,7 +62,7 @@ export default defineComponent({
       if (val === undefined) return;
 
       console.log("File dropped, loading: " + this.pendingOp);
-      this.uiEvents.emit(this.pendingOp, this.file);
+      this.uiEvents.emit('edit', this.file);
       this.file = undefined;
       this.mapLoadCancel();
     },

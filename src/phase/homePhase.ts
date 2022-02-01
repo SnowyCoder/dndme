@@ -39,8 +39,8 @@ export class HomePhase extends Phase {
     }
 
     disable() {
-        this.uiEvents.on('edit', this.editMap, this);
-        this.uiEvents.on('create_map', this.createMap, this);
+        this.uiEvents.off('edit', this.editMap, this);
+        this.uiEvents.off('create_map', this.createMap, this);
         super.disable();
     }
 }

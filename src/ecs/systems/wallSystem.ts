@@ -76,6 +76,7 @@ export class WallSystem implements System {
             world.events.on('populate', () => {
                 this.world.spawnEntity({
                     type: COMPONENT_INFO_PANEL_TYPE,
+                    entity: -1,
                     component: WALL_TYPE,
                     name: 'Wall',
                     panel: EcsWall,

@@ -1,10 +1,16 @@
-import {MapLevel} from "./mapLevel";
+import {MapLevel, SerializedMapLevel} from "./mapLevel";
 
 import {decode, encode} from "@msgpack/msgpack";
-import * as JSZip from "jszip";
+import JSZip from "jszip";
+import { rewriteCompatibility } from "./backporting";
+
+export interface SerializedGameMap {
+    version: any;
+    levels: {[id: number]: SerializedMapLevel};
+}
 
 export class GameMap {
-    static SER_VERSION = '1.0';
+    static SER_VERSION = '1.1';
 
     levels = new Map<number, MapLevel>();
 
@@ -19,7 +25,7 @@ export class GameMap {
         let data = {
             version: GameMap.SER_VERSION,
             levels: levels,
-        };
+        } as SerializedGameMap;
         return encode(data);
     }
 
@@ -38,12 +44,12 @@ export class GameMap {
     static async loadFromFile(from: File): Promise<GameMap> {
         let zip = await JSZip.loadAsync(from);
         // TODO: better error management
+        // TODO: display loading percentage
         let file = await zip.file("data.msgpack")!.async('arraybuffer');
-        let data = await decode(file) as any;
+        let data = await decode(file) as SerializedGameMap;
 
-        if (data['version'] !== this.SER_VERSION) {
-            throw new Error('Version not supported');
-        }
+        // This also checks for data.version compatibility
+        rewriteCompatibility(data);
 
         let gameMap = new GameMap();
 

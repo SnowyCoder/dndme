@@ -367,7 +367,10 @@ export class PixiGraphicSystem implements System {
             if (comp._bitByBit) {
                 this.doOnBitByBit(comp, comp.display, (img) => {
                     let w = new PIXI.Container();
-                    this.pixiBoardSystem.renderer.render(w, img._renTex, true);
+                    this.pixiBoardSystem.renderer.render(w, {
+                        renderTexture: img._renTex,
+                        clear: true,
+                    });
                     img._visMapChanged = true;
                 })
 
@@ -573,7 +576,10 @@ export class PixiGraphicSystem implements System {
         let cnt = new PIXI.Container();
         cnt.addChild(mapSprite, lumSprite);
 
-        this.pixiBoardSystem.renderer.render(cnt, c._renTex, true);
+        this.pixiBoardSystem.renderer.render(cnt, {
+            renderTexture: c._renTex,
+            clear: true,
+        });
 
         lumSprite.destroy(DESTROY_ALL);
 
@@ -677,7 +683,10 @@ export class PixiGraphicSystem implements System {
             }
 
             // Render the players visibility meshes onto tex
-            renderer.render(localCnt, tex, true);
+            renderer.render(localCnt, {
+                renderTexture: tex,
+                clear: true,
+            });
             localCnt.removeChildren();
 
             for (let light of data.lights) {
@@ -691,7 +700,10 @@ export class PixiGraphicSystem implements System {
             // Render the lights onto tex2, then render tex as BLEND_MODE.SRC_IN to filter out where the lights were not
             // present.
             worldCnt.addChild(localCnt, playerSprite);
-            renderer.render(worldCnt, tex2, true);
+            renderer.render(worldCnt, {
+                renderTexture: tex2,
+                clear: true
+            });
             worldCnt.removeChildren();
             localCnt.removeChildren();
 
@@ -711,7 +723,10 @@ export class PixiGraphicSystem implements System {
         worldCnt.addChild(localCnt, origTex)
 
         // Render everything to bkg._renTex and then redraw the original only where is alpha=1.
-        this.pixiBoardSystem.renderer.render(worldCnt, img._renTex, false);
+        this.pixiBoardSystem.renderer.render(worldCnt, {
+            renderTexture: img._renTex,
+            clear: false
+        });
         img._visMapChanged = true;
 
         // Cleanup time (don't worry, I'm recycling and there's a garbage cleaner, we're eco friendly!)

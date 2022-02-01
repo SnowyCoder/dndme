@@ -1,4 +1,4 @@
-import {Component, POSITION_TYPE, PositionComponent} from "../component";
+import {Component, POSITION_TYPE, PositionComponent, SHARED_TYPE} from "../component";
 import {System} from "../system";
 import {World} from "../world";
 import {CUSTOM_BLEND_MODES, DESTROY_ALL} from "../../util/pixi";
@@ -195,7 +195,7 @@ export class LightSystem implements System {
         return mesh;
     }
 
-    updateVisMesh(mesh: PIXI.Mesh, pos: IPoint, poly: number[]) {
+    updateVisMesh(mesh: PIXI.Mesh, pos: IPoint, poly?: number[]) {
         mesh.visible = true;
         PointLightRender.updateMeshPolygons(mesh, pos, poly);
     }
@@ -213,14 +213,14 @@ export class LightSystem implements System {
         if (pos === undefined || target === undefined) return;
 
         const vis = this.world.getComponent(entity, VISIBILITY_TYPE, visId) as VisibilityComponent;
-            if (vis === undefined) {
-                this.disableVisMesh(target);
-                return;
-            }
+        if (vis === undefined) {
+            this.disableVisMesh(target);
+            return;
+        }
 
-            const visDet = this.world.getComponent(entity, VISIBILITY_DETAILS_TYPE) as VisibilityDetailsComponent;
+        const visDet = this.world.getComponent(entity, VISIBILITY_DETAILS_TYPE) as VisibilityDetailsComponent;
 
-        if (visDet.polygon === undefined) {
+        if (visDet?.polygon === undefined) {
             this.disableVisMesh(target);
         } else {
             let range = vis.range * this.gridSize;

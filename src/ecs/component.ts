@@ -73,6 +73,6 @@ export function registerCommonStorage(ecs: World) {
     ecs.addStorage(new MultiEcsStorage(NAME_TYPE));
     ecs.addStorage(new MultiEcsStorage(NOTE_TYPE));
     ecs.addStorage(new FlagEcsStorage(FOLLOW_MOUSE_TYPE, false, false));
-    ecs.addStorage(new FlagEcsStorage(SHARED_TYPE, false, false));
+    ecs.addStorage(new FlagEcsStorage(SHARED_TYPE, false, true));
     ecs.addStorage(new FlagEcsStorage(SERIALIZED_TYPE, false, false));
 }

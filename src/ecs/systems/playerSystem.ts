@@ -229,10 +229,11 @@ export class PlayerSystem implements System {
         let visRes = this.world.getComponent(player, VISIBILITY_DETAILS_TYPE) as VisibilityDetailsComponent;
 
         let playerVis = PointLightRender.createMesh('const');
-        PointLightRender.updateMeshPolygons(playerVis, pos, visRes.polygon!);
+        PointLightRender.updateMeshPolygons(playerVis, pos, visRes.polygon);
         let r = vis.range * this.gridSize;
         PointLightRender.updateMeshUniforms(playerVis, pos, r * r, 0xFFFFFF);
 
+        if (visRes.polygon === undefined) return;
 
         let playerData = {
             mesh: playerVis,
@@ -301,6 +302,8 @@ export class PlayerSystem implements System {
         let lightVis = this.world.getComponent(lightEntity, VISIBILITY_TYPE) as VisibilityComponent;
         let lightPos = posStorage.getComponent(lightEntity)!;
         let lightVisDet = visDetStorage.getComponent(lightEntity)!;
+        if (lightVisDet.polygon === undefined) return;
+
         let lightMesh = this.createVisMeshFrom(lightPos, lightVisDet, lightVis.range);
 
 
@@ -505,10 +508,8 @@ export class PlayerSystem implements System {
             let player = this.storage.getComponent(vis.entity);
             if (player !== undefined) {
                 if (vis.polygon !== undefined) {
-                    let pos = this.world.getComponent(comp.entity, POSITION_TYPE) as PositionComponent;
                     this.spreadPlayerVisibility(comp.entity, player.nightVision);
                 }
-                return;
             }
             let light = this.world.getComponent(vis.entity, LIGHT_TYPE);
             if (light !== undefined) {

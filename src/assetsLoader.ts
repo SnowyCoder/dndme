@@ -1,7 +1,7 @@
 import * as PIXI from "pixi.js";
 
 import PropsImage from "./assets/props.png";
-import PropsSpritesheet from "./assets/spritesheets/props.json";
+import * as PropsSpritesheet from "./assets/spritesheets/props.json";
 
 import BaseTexture = PIXI.BaseTexture;
 import ImageResource = PIXI.ImageResource;

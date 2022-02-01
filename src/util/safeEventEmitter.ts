@@ -25,11 +25,10 @@ export default class SafeEventEmitter {
 
         if (listeners === undefined || listeners.length === 0) return received;
 
-        let length = listeners.length;
-        for (let i = 0; i < length;) {
+        const length = listeners.length;
+        for (let i = 0; i < length; i++) {
             let listener = listeners[i];
             if (listener.priority === PRIORITY_DISABLED) {
-                i++;
                 continue;
             }
             try {
@@ -39,10 +38,7 @@ export default class SafeEventEmitter {
                 console.error(b)
             }
             if (listener.once) {
-                listeners.splice(i, 1);
-                length--;
-            } else {
-                i++;
+                this.off(event, listener.cb, listener.self, listener.once);
             }
         }
         return true;
@@ -61,7 +57,9 @@ export default class SafeEventEmitter {
             if (listeners[i].priority >= handler.priority) break;
         }
         // Add at position
-        listeners.splice(i, 0, handler)
+        const copy = listeners.slice();
+        copy.splice(i, 0, handler);
+        this.events[event] = copy;
     }
 
     /**
@@ -93,14 +91,16 @@ export default class SafeEventEmitter {
     /**
      * Remove the listeners of a given event.
      */
-    off(event: string, fn: ListenerFn, context?: any, once?: boolean): this {
+    off(event: string, fn: ListenerFn, context?: any, _once?: boolean): this {
         let listeners = this.events[event];
         if (listeners === undefined) throw new Error('Cannot find event ' + event);
-        let length = listeners.length;
+        const length = listeners.length;
         for (let i = 0; i < length; i++) {
             let listener = listeners[i];
             if (listener.cb === fn && listener.self === context) {
-                listeners.splice(i, 1);
+                const copy = listeners.slice();
+                copy.splice(i, 1);
+                this.events[event] = copy;
                 return this;
             }
         }
@@ -127,7 +127,7 @@ export default class SafeEventEmitter {
                 if (listener.priority < 0) listener.priority = defaultPriority;
             }
             // decrescent order
-            listeners.sort((a, b) => b.priority - a.priority);
+            this.events[name] = listeners.slice().sort((a, b) => b.priority - a.priority);
         }
     }
 

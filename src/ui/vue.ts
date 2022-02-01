@@ -1,4 +1,4 @@
-import Vue, { customRef, DefineComponent, defineComponent, getCurrentInstance, inject, onUnmounted, proxyRefs, reactive, ref, Ref, ShallowReactive, shallowReactive, shallowRef, ShallowRef, toRef, triggerRef, watch, watchEffect } from "vue";
+import { Component as VComponent, customRef, DefineComponent, getCurrentInstance, inject, onUnmounted, proxyRefs, reactive, ShallowReactive, shallowRef, ShallowRef, toRef, triggerRef, watch } from "vue";
 import { Component, MultiComponent } from "../ecs/component";
 import { Resource } from "../ecs/resource";
 import { World } from "../ecs/world";
@@ -9,7 +9,7 @@ import * as PIXI from "pixi.js";
 import { objectClone, randombytes } from "../util/jsobj";
 import { EcsStorage } from "../ecs/storage";
 
-export type VueComponent = Vue.Component | DefineComponent;
+export type VueComponent = VComponent | DefineComponent;
 
 
 export const networkStatus = reactive({

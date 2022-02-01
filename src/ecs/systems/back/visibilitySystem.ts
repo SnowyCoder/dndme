@@ -116,9 +116,6 @@ export class VisibilitySystem implements System {
     }
 
     updatePolygon(c: VisibilityDetailsComponent): void {
-        // Ignore if it's hidden.
-        if (!this.world.getComponent(c.entity, SHARED_TYPE)) return;
-
         let pos = this.world.getComponent(c.entity, POSITION_TYPE) as PositionComponent;
         if (pos === undefined) return;
 
@@ -191,8 +188,10 @@ export class VisibilitySystem implements System {
         let trackWalls = false;
 
         let isHidden = this.world.getComponent(entity, SHARED_TYPE) === undefined;
+        let needsRemoval = !isHidden;
         if (!isHidden) {
             for (let el of this.storage.getComponents(entity)) {
+                needsRemoval = false;
                 if (el.range > range) {
                     range = el.range;
                 }
@@ -201,10 +200,11 @@ export class VisibilitySystem implements System {
         }
 
         let oldDetails = this.detailsStorage.getComponent(entity);
-        if (range > 0) {
+        if (!needsRemoval) {
             let details;
             if (oldDetails !== undefined) {
                 details = oldDetails;
+                console.log("UPDATE: ", range);
                 this.world.editComponent(entity, oldDetails.type, {
                     range, trackWalls,
                 }, undefined, false);

@@ -1,6 +1,6 @@
 import {System} from "../../system";
-import PIXI from "../../../PIXI";
-import {IHitArea} from "pixi.js";
+import * as PIXI from "pixi.js";
+import {IHitArea, Container} from "pixi.js";
 import {World} from "../../world";
 import {Resource} from "../../resource";
 import {FOLLOW_MOUSE_TYPE, POSITION_TYPE} from "../../component";
@@ -99,7 +99,7 @@ export class PixiBoardSystem implements System {
     private resizeReqId?: number;
 
     root: Stage;
-    board: PIXI.Container;
+    board: Container;
     toolForegroundGroup: Group;
 
     private wheelListener: any;

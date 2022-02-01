@@ -27,9 +27,15 @@ export default defineComponent({
       // Always emit original event
       this.$emit('change', event)
 
-      if (dataTransfer!.items.length > 0) {
-        this.$emit('update:modelValue', this.modelValue);
+      if (!dataTransfer) return;
+
+      let file;
+      if (dataTransfer!.items) {
+        file = dataTransfer!.items[0].getAsFile();
+      } else {
+        file = dataTransfer!.files[0];
       }
+      this.$emit('update:modelValue', file);
     },
     onDragEnter(event: DragEvent) {
       this.dragging = true;
