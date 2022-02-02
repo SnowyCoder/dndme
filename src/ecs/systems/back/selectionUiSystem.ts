@@ -30,6 +30,11 @@ export interface ComponentInfoPanel extends Component {
     // Sidebar panel (props pased: component)
     panel: VueComponent;
     panelPriority?: number;
+    // (only used in single components)
+    // If true then it is open
+    isOpen?: boolean;
+    // if present will open the elements by default (for multi-elements)
+    isDefaultOpen?: boolean;
     // Is this component removable? (default: false)
     removable?: boolean;
     // If this field is not present there will not be an add entry (ex. you can't add a position component, but you can always add a note)
@@ -114,7 +119,8 @@ export class SelectionUiSystem implements System {
                     name: 'Name',
                     removable: true,
                     panel: EcsName,
-                    panelPriority: -100,
+                    panelPriority: 2000,
+                    isDefaultOpen: true,
                     addEntry: {
                         component: (entity: number) => {
                             return [{
@@ -135,6 +141,7 @@ export class SelectionUiSystem implements System {
                     removable: true,
                     panel: EcsNote,
                     panelPriority: -110,
+                    isDefaultOpen: false,
                     addEntry: {
                         component: (entity: number) => {
                             return [{
@@ -158,6 +165,7 @@ export class SelectionUiSystem implements System {
         if (c.type === COMPONENT_INFO_PANEL_TYPE) {
             const comp = c as ComponentInfoPanel;
             this.panelInfos.set(comp.component, comp);
+            comp.isOpen = comp.isDefaultOpen ?? true;
         }
     }
 
@@ -195,6 +203,8 @@ export class SelectionUiSystem implements System {
             _canDelete: !!info.removable,
             _panel: info.panel,
             _name: info.name,
+            _infoPanelId: info.entity,
+            _open: info.isOpen ?? info.isDefaultOpen,
         };
     }
 
@@ -288,6 +298,7 @@ export class SelectionUiSystem implements System {
     }
 
     setProperty(entities: number[], type: string, propertyName: string, propertyValue: any, multiId?: number): void {
+        //console.log("setProperty(" + entities + "," + type + "," + propertyName + "," + propertyValue + "," + multiId + ")");
         if (type === '$') {
             // Special management
             switch (propertyName) {

@@ -13,7 +13,7 @@ export class GameMap {
     static SER_VERSION = '1.1';
 
     levels = new Map<number, MapLevel>();
-
+    name?: string;
 
     private createDataJson(): Uint8Array {
         let levels: { [id: string]: any } = {};
@@ -59,6 +59,7 @@ export class GameMap {
             let res = await MapLevel.deserialize(parseInt(id), level);
             gameMap.levels.set(res.id, res);
         }
+        gameMap.name = from.name;
         return gameMap;
     }
 }

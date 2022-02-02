@@ -1,13 +1,17 @@
+import { Ticker } from "pixi.js";
+import PIXI from "../../../PIXI";
 import {System} from "../../system";
 import {World} from "../../world";
 import {Command} from "./command";
 import {COMMAND_TYPE, CommandResult, CommandSystem, EVENT_COMMAND_EMIT, LogHook} from "./commandSystem";
+import { ComponentEditCommand } from "./componentEdit";
 import {NoneCommand} from "./noneCommand";
 
 const HISTORY_LIMIT = 128;
 
 interface HistoryEntry {
     cmd: Command,
+    timestamp: number,
     // Manages dependencies and relations
     //pre: Command[],
     //post: Command[],
@@ -42,6 +46,14 @@ export class CommandHistorySystem implements System, LogHook {
         if (this.history.length !== this.index) {
             this.history.length = this.index;
         }
+
+        if (this.history.length !== 0) {
+            const lastCmd = this.history[this.history.length - 1];
+            if (this.tryMerge(lastCmd, cmd)) {
+                return;
+            }
+        }
+
         this.history.push(cmd);
         this.index++;
         if (this.index > HISTORY_LIMIT) {
@@ -75,6 +87,14 @@ export class CommandHistorySystem implements System, LogHook {
         return this.history[this.index];
     }
 
+    private tryMerge(a: HistoryEntry, b: HistoryEntry): boolean {
+        if (a.cmd.kind !== b.cmd.kind) return false;
+        if (Math.abs(b.timestamp - a.timestamp) > 5000) return false;
+        let kind = this.commandSys.getKind(a.cmd.kind)!;
+        // commands are inverted!
+        return kind.merge(b.cmd, a.cmd, true);
+    }
+
     notifyHistoryChange() {
         this.world.events.emit("command_history_change", this.canUndo(), this.canRedo());
     }
@@ -105,9 +125,10 @@ export class CommandHistorySystem implements System, LogHook {
         }
 
         let kind = this.commandSys.getKind(cmd.kind)!;
-        kind.merge(cmd, lastCmd.cmd);
+        kind.merge(cmd, lastCmd.cmd, false);
         this.historyReplacePrev({
             cmd,
+            timestamp: PIXI.Ticker.shared.lastTime,
         });
 
         return true;
@@ -123,7 +144,7 @@ export class CommandHistorySystem implements System, LogHook {
 
 
     logCommit(cmd: Command | undefined, partial: boolean): void {
-        //console.log("LOG", JSON.stringify(cmd));
+        // console.log("LOG", JSON.stringify(cmd));
         if (cmd === undefined) {
             if (!partial) {
                 this.closePartial();
@@ -134,7 +155,10 @@ export class CommandHistorySystem implements System, LogHook {
         if (this.processPartial(cmd, partial)) {
             return;
         }
-        this.historyPush({ cmd });
+        this.historyPush({
+            cmd,
+            timestamp: PIXI.Ticker.shared.lastTime,
+        });
         this.notifyHistoryChange();
     }
 
@@ -152,7 +176,10 @@ export class CommandHistorySystem implements System, LogHook {
             return;
         }
 
-        this.historyUndo({ cmd: this.executeEmit(cmd.cmd)});
+        this.historyUndo({
+            cmd: this.executeEmit(cmd.cmd),
+            timestamp: Ticker.shared.lastTime,
+        });
         this.notifyHistoryChange();
     }
 
@@ -163,7 +190,10 @@ export class CommandHistorySystem implements System, LogHook {
             return;
         }
 
-        this.historyRedo({ cmd: this.executeEmit(cmd.cmd) });
+        this.historyRedo({
+            cmd: this.executeEmit(cmd.cmd),
+            timestamp: Ticker.shared.lastTime,
+        });
         this.notifyHistoryChange();
     }
 

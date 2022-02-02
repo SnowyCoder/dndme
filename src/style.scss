@@ -1,6 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Merienda+One&display=swap');
 
-@import "../node_modules/bootstrap/scss/bootstrap";
+
+@import './bootstrap_custom.scss';
+
 
 :root {
     --topbar-height: 40px;
@@ -70,6 +72,10 @@ div.under-navbar {
 
 .rotate {
     animation: rotation 1s infinite linear;
+}
+
+.list-group-item.bg-dark {
+    border: none;
 }
 
 /** ANIMATIONS **/

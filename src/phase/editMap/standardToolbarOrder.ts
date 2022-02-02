@@ -8,4 +8,5 @@ export enum StandardToolbarOrder {
     LIGHT_EDIT,
     MEASURE,
     MOUSE_TRAIL,
+    BATTLE,
 }

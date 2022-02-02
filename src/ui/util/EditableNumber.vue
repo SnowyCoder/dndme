@@ -1,5 +1,5 @@
 <template>
-  <editable-text :modelValue="String(modelValue)" :modelModifiers="modelModifiers"
+  <editable-text :modelValue="strValue" :modelModifiers="modelModifiers"
                  :readonly="readonly" :placeholder="placeholder" :size="digits" :filter="filter"
                  @update:modelValue="onUpdate"/>
 </template>
@@ -17,6 +17,7 @@ export default defineComponent({
     readonly: { type: Boolean, default: false },
     placeholder: { type: String, default: '' },
     canBeNegative: { type: Boolean, default: true },
+    nullable: { type: Boolean, default: false },
     digits: { type: Number },
   },
   emits: ['update:modelValue'],
@@ -28,6 +29,7 @@ export default defineComponent({
   },
   methods: {
     filter(s: string) {
+      s = s.trim();
       let neg = false;
       if (s[0] === '-') {
         neg = this.canBeNegative;
@@ -39,14 +41,15 @@ export default defineComponent({
           .join('.');
     },
     onUpdate(x: string) {
+      x = x.trim();
+      if (x === '' && this.nullable) {
+        this.$emit('update:modelValue', undefined);
+        return;
+      }
       const parsed = parseFloat(x);
       if (isNaN(parsed)) return;
       this.$emit('update:modelValue', parsed);
     },
   }
 });
-
 </script>
-
-<style>
-</style>

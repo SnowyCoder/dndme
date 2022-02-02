@@ -11,6 +11,8 @@ import { EcsStorage } from "../ecs/storage";
 
 export type VueComponent = VComponent | DefineComponent;
 
+export const isNull = Symbol('isNull');
+
 
 export const networkStatus = reactive({
     isOnline: navigator.onLine,
@@ -24,7 +26,7 @@ export function uniqueId(category: string | undefined) {
     return randombytes(16).toString('hex') + (category ? '-' + category : '');
 }
 
-function stupidRef<T>(v: T): ShallowRef<T> {
+export function stupidRef<T>(v: T): ShallowRef<T> {
     let value = v;
     return customRef((track, trigger) => {
         return {
@@ -58,7 +60,7 @@ export function useResource<T extends Resource>(world: World, name: string): Sha
     return res as ShallowRef<T>;
 }
 
-export function useResourceReactive<T extends {[key: string]: any}>(world: World, resName: string, properties: T): ShallowReactive<T> {
+export function useResourceReactive<T extends {[key: string]: any}>(world: World, resName: string, properties: T): ShallowReactive<T & {[isNull]: boolean}> {
     // This, my friends, is how we create abstraction.
     // This is how we teach stones to think, processors to have multiple programs and javascript to do useful shit
     // Ok, enough with that, how does this do?
@@ -68,7 +70,7 @@ export function useResourceReactive<T extends {[key: string]: any}>(world: World
     // Also another nice property is that we get to have default values for when a resource is missing (altough I don't quite recommend it)
     const res = shallowRef(world.getResource(resName));
     
-    const obj = {} as {[key: string]: ShallowRef<any>};
+    const obj = {} as {[key in string | typeof isNull]: ShallowRef<any>};
     for (let name in properties) {
         obj[name] = customRef((track, _trigger) => {
             return {
@@ -92,11 +94,22 @@ export function useResourceReactive<T extends {[key: string]: any}>(world: World
             }
         })
     }
+    obj[isNull] = customRef((track, _trigger) => {
+        return {
+            get() {
+                track();
+                return res.value === undefined;
+            },
+            set() {
+            }
+        }
+    })
     const reactiveRes = proxyRefs(obj);
 
     useEvent(world, 'resource_add', (r: Resource) => {
         if (r.type === resName) {
             res.value = r;
+            triggerRef(obj[isNull]);
             for (let x in obj) {
                 triggerRef(obj[x]);
             }
@@ -115,6 +128,7 @@ export function useResourceReactive<T extends {[key: string]: any}>(world: World
     useEvent(world, 'resource_removed', (r: Resource, changed: any) => {
         if (r.type === resName) {
             res.value = undefined;
+            triggerRef(obj[isNull]);
             for (let x in obj) {
                 triggerRef(obj[x]);
             }
@@ -132,6 +146,34 @@ export function useResourcePiece<T>(name: string, attrName: string, defValue: T)
     const res = useResourceReactive(world, name, properties)
 
     return toRef(res, attrName);
+}
+
+
+export function useComponentReactive<T>(component: ShallowRef<Component>,  properties: T):  ShallowReactive<T> {
+    const { emit } = getCurrentInstance()!;
+
+    const obj = {} as {[key: string]: ShallowRef<any>};
+    for (let name in properties) {
+        obj[name] = customRef((track, _trigger) => {
+            return {
+                get() {
+                    track();
+                    const v = component.value;
+                    const prop = (v as any)[name];
+                    return prop ?? properties[name];
+                },
+                set(newVal) {
+                    emit('ecs-property-change', component.value.type, name, newVal, (component.value as MultiComponent).multiId);
+                },
+            }
+        })
+    }
+    watch(component, () => {
+        for (let x in obj) {
+            triggerRef(obj[x]);
+        }
+    });
+    return proxyRefs(obj) as ShallowReactive<T>;
 }
 
 export function useComponentPiece<T>(component: ShallowRef<Component>, name: string, defValue: T):  ShallowRef<T> {

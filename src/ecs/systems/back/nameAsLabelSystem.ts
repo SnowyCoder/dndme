@@ -125,7 +125,7 @@ export class NameAsLabelSystem implements System {
                 tag: 'name',
                 ignore: false,
                 priority: 0,
-                color: 0,
+                color: 0xffffff,
                 visib: VisibilityType.NORMAL,
                 text: '',
                 anchor: { x: 0.5, y: 1 },

@@ -21,7 +21,7 @@ export interface CommandKind {
 
     stripClient(command: Command): Command[];
 
-    merge(to: Command, from: Command): boolean;
+    merge(to: Command, from: Command, strict: boolean): boolean;
 
     isNull(command: Command): boolean;
 }

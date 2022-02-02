@@ -204,7 +204,6 @@ export class VisibilitySystem implements System {
             let details;
             if (oldDetails !== undefined) {
                 details = oldDetails;
-                console.log("UPDATE: ", range);
                 this.world.editComponent(entity, oldDetails.type, {
                     range, trackWalls,
                 }, undefined, false);

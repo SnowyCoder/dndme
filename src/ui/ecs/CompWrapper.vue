@@ -31,8 +31,10 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, inject, PropType, provide, shallowRef, toRefs } from "vue";
+import { defineComponent, inject, PropType, provide, ShallowRef, shallowRef, toRefs, watch } from "vue";
 import { Component, HideableComponent, MultiComponent } from "../../ecs/component";
+import { COMPONENT_INFO_PANEL_TYPE } from "../../ecs/systems/back/selectionUiSystem";
+import { World } from "../../ecs/world";
 import Collapse from "../util/Collapse.vue";
 
 //TODO: make this dynamic
@@ -41,12 +43,26 @@ export default defineComponent({
   props: {
     component: { type: Object as PropType<Component & Partial<HideableComponent & MultiComponent>>, required: true },
   },
-  setup(props) {
+  setup(props, context) {
     const { component } = toRefs(props);
+    const world = inject<ShallowRef<World>>("world")!.value;
     const isMaster = inject<boolean>("isMaster");
 
     const isFullscreen = shallowRef<boolean | undefined>(undefined);
     provide('isFullscreen', isFullscreen);
+
+    const onEcsPropertyChange = (...args: any[]) => {
+      context.emit("ecs-property-change", ...args);
+    };
+
+    const visible = shallowRef((component.value as any)._open ?? true);
+    watch(visible, (newVisible) => {
+      if (component.value.multiId !== undefined) return;
+
+        world.editComponent((component.value as any)._infoPanelId, COMPONENT_INFO_PANEL_TYPE, {
+          isOpen: newVisible,
+        });
+    });
 
     const c = component.value as any;
     const name = c._name;
@@ -54,20 +70,11 @@ export default defineComponent({
     const canDelete = c._canDelete;
 
     return {
-      isMaster, name, panel, canDelete, isFullscreen
+      isMaster, name, panel, canDelete, isFullscreen,
+      onEcsPropertyChange, visible,
     };
   },
-  data() {
-    return {
-      visible: true,
-    };
-  },
-  methods: {
-    onEcsPropertyChange(...args: any[]) {
-      this.$emit("ecs-property-change", ...args);
-    },
-  },
-})
+});
 </script>
 
 <style>

@@ -178,8 +178,20 @@ export class ComponentEditCommandKind implements CommandKind {
         return res;
     }
 
-    merge(to: ComponentEditCommand, from: ComponentEditCommand): boolean {
+    merge(to: ComponentEditCommand, from: ComponentEditCommand, strict: boolean): boolean {
         if (to.multi !== from.multi) return false;
+        if (strict) {
+            if (to.add?.length + to.remove?.length + from.add?.length + from.remove?.length +
+                Object.keys(to.pedit ?? {}).length + Object.keys(from.pedit ?? {}).length  ||
+                from.edit === undefined || to.edit === undefined || from.edit.length !== to.edit.length) {
+                return false;
+            }
+            for (let x of from.edit) {
+                if (to.edit.find(y => x.entity === y.entity && x.type === y.type && x.multiId === y.multiId) === undefined) {
+                    return false;
+                }
+            }
+        }
 
         // TODO: from should remove entities added in to.
         //       handle entities edited in to but removed in from

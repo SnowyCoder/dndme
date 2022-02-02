@@ -15,6 +15,7 @@ import {
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {BIG_STORAGE_TYPE, BigStorageIndex, BigStorageSystem, BigEntryFlags} from "./back/bigStorageSystem";
 import { NameAsLabelComponent, NameAsLabelSystem, NAME_AS_LABEL_TYPE } from "./back/nameAsLabelSystem";
+import PIXI from "../../PIXI";
 
 export type BACKGROUND_TYPE = 'background_image';
 export const BACKGROUND_IMAGE_TYPE = 'background_image';

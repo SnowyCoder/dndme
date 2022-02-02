@@ -139,6 +139,7 @@ export class PixiGraphicSystem implements System {
     renderTexturePool = new RenderTexturePool();
 
     masterVisibility: boolean = false;
+    gridSize: number = STANDARD_GRID_OPTIONS.size;
 
 
     constructor(world: World) {
@@ -308,19 +309,22 @@ export class PixiGraphicSystem implements System {
                 throw new Error('Unknown vision type');
             }
         } else if (res.type === GRID_TYPE) {
-            if (!('width' in changes)) return;
+            if (!('size' in changes)) return;
             // You are literally satan, I hate you.
 
             let posSto = this.world.storages.get(POSITION_TYPE) as SingleEcsStorage<PositionComponent>;
             let tranSto = this.world.storages.get(TRANSFORM_TYPE) as SingleEcsStorage<TransformComponent>;
+            this.gridSize = (res as GridResource).size;
 
             for (let c of this.storage.allComponents()) {
                 this.forEachEl(c, c.display,e => {
-                    if (e.type === ElementType.IMAGE && (e as ImageElement).scale === ImageScaleMode.GRID) {
+                    if ((e.type === ElementType.IMAGE && (e as ImageElement).scale === ImageScaleMode.GRID) || e.type === ElementType.TEXT) {
                         let pos = posSto.getComponent(c.entity)!;
                         let tran = tranSto.getComponent(c.entity)!;
                         this.updateElement(c, e, pos, tran, false);
-                        this.world.editComponent(c.entity, INTERACTION_TYPE, { shape: this.createShape(e, pos, tran)});
+                        if (e.type !== ElementType.TEXT) {
+                            this.world.editComponent(c.entity, INTERACTION_TYPE, { shape: this.createShape(e, pos, tran)});
+                        }
                     }
                 });
             }
@@ -831,7 +835,11 @@ export class PixiGraphicSystem implements System {
                 res = new PIXI.Graphics();
                 break;
             case ElementType.TEXT:
-                res = new PIXI.Text("");
+                const style = new PIXI.TextStyle({
+                    fill: 'white',
+                    strokeThickness: 2,
+                })
+                res = new PIXI.Text("", style);
                 res.parentLayer = this.textSystem.textLayer;
                 defLayer = false;
                 break;
@@ -988,10 +996,9 @@ export class PixiGraphicSystem implements System {
                 let sy = sx;
                 if (el.scale === ImageScaleMode.GRID) {
                     this.textureUpdateGridSize(dim.texture);
-                    let grid = this.world.getResource(GRID_TYPE) as GridResource;
                     let gsize = (dim.texture as CustomTexture).gridSize!!;
-                    sx = gsize.x * grid.size * sx;
-                    sy = gsize.y * grid.size * sy;
+                    sx = gsize.x * this.gridSize * sx;
+                    sy = gsize.y * this.gridSize * sy;
                 }
                 dim.rotation = trans?.rotation || 0;
                 dim.scale.set(sx, sy);
@@ -1052,7 +1059,8 @@ export class PixiGraphicSystem implements System {
                 let g = (d as PIXI.Text);
                 g.text = el.text;
                 g.anchor.copyFrom(el.anchor);
-                g.tint = el.color;
+                g.style.fontSize = Math.round(26 * this.gridSize / STANDARD_GRID_OPTIONS.size);
+                g.style.fill = el.color;
                 g.style.align = el.lineAlign;
                 break;
             }
@@ -1069,6 +1077,7 @@ export class PixiGraphicSystem implements System {
     enable(): void {
         this.playerSystem = this.world.systems.get(PLAYER_TYPE) as PlayerSystem;
         this.masterVisibility = (this.world.systems.get(LIGHT_TYPE) as LightSystem).localLightSettings.visionType === 'dm';
+        this.gridSize = (this.world.getResource(GRID_TYPE) as GridResource).size;
     }
 
     destroy(): void {

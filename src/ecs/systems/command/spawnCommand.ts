@@ -60,7 +60,8 @@ export class SpawnCommandKind implements CommandKind {
         } as SpawnCommand];
     }
 
-    merge(to: SpawnCommand, from: SpawnCommand): boolean {
+    merge(to: SpawnCommand, from: SpawnCommand, strict: boolean): boolean {
+        if (strict) return false;
         to.data.entities.push(...from.data.entities);
         for (let storageName in from.data.storages) {
             const fromStorage = from.data.storages[storageName];

@@ -19,7 +19,6 @@ import {POINT_RADIUS} from "./back/pixiGraphicSystem";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {TOOL_TYPE, ToolSystem, ToolPart} from "./back/toolSystem";
 import {PointerEvents, PointerUpEvent} from "./back/pixiBoardSystem";
-import {SELECTION_TYPE, SelectionSystem} from "./back/selectionSystem";
 import {ToolType} from "../tools/toolType";
 import {SpawnCommandKind} from "./command/spawnCommand";
 import {executeAndLogCommand} from "./command/command";
@@ -31,7 +30,7 @@ import { GRID_TYPE } from "./gridSystem";
 import { STANDARD_GRID_OPTIONS } from "../../game/grid";
 
 import { StandardToolbarOrder } from "@/phase/editMap/standardToolbarOrder";
-import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE } from "./back/selectionUiSystem";
+import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE, SELECTION_UI_TYPE } from "./back/selectionUiSystem";
 
 
 import PinCreationOptions from "@/ui/edit/PinCreationOptions.vue";
@@ -58,10 +57,9 @@ export interface PinResource extends Resource {
 
 export class PinSystem implements System {
     readonly name = PIN_TYPE;
-    readonly dependencies = [TOOL_TYPE, GRAPHIC_TYPE, SELECTION_TYPE, NAME_AS_LABEL_TYPE];
+    readonly dependencies = [TOOL_TYPE, GRAPHIC_TYPE, SELECTION_UI_TYPE, NAME_AS_LABEL_TYPE];
 
     readonly world: World;
-    readonly selectionSys: SelectionSystem;
 
     readonly storage = new SingleEcsStorage<PinComponent>(PIN_TYPE, true, true);
 
@@ -70,8 +68,6 @@ export class PinSystem implements System {
 
     constructor(world: World) {
         this.world = world;
-
-        this.selectionSys = this.world.systems.get(SELECTION_TYPE) as SelectionSystem;
 
         if (world.isMaster) {
             let toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;

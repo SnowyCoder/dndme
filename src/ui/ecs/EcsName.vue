@@ -1,5 +1,5 @@
 <template>
-  <editable-text v-model="component.name" :readonly="!isMaster" placeholder="Entity name"/>
+  <editable-text v-model="name" :readonly="!isMaster" placeholder="Entity name"/>
 </template>
 
 <script lang="ts">

@@ -116,7 +116,7 @@ export class HostEditMapPhase extends EditMapPhase {
     async exportMap() {
         this.currentLevel.saveFrom(this.world);
         let blob = await this.map.saveToFile();
-        this.saveBlob(blob, "map.dndm");
+        this.saveBlob(blob, this.map.name ?? "map.dndm");
     }
 
     saveBlob(blob: Blob, fileName: string) {

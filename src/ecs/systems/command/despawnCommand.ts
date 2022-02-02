@@ -40,7 +40,8 @@ export class DeSpawnCommandKind implements CommandKind {
         } as DeSpawnCommand];
     }
 
-    merge(to: DeSpawnCommand, from: DeSpawnCommand): boolean {
+    merge(to: DeSpawnCommand, from: DeSpawnCommand, strict: boolean): boolean {
+        if (strict) return false;
         to.entities.push(...from.entities);
         return true;
     }

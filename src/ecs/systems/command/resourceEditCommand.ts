@@ -66,7 +66,21 @@ export class ResourceEditCommandKind implements CommandKind {
         } as ResourceEditCommand]
     }
 
-    merge(to: ResourceEditCommand, from: ResourceEditCommand): boolean {
+    merge(to: ResourceEditCommand, from: ResourceEditCommand, strict: boolean): boolean {
+        if (strict) {
+            if (to.add.length + to.remove.length + from.add.length + from.remove.length) {
+                return false;
+            }
+            for (let k in from.edit) {
+                if (!(k in to.edit)) return false;
+            }
+            for (let k in to.edit) {
+                if (!(k in to.edit)) return false;
+                const fromKeys = Object.keys(from.edit[k]);
+                const toKeys = Object.keys(to.edit[k]);
+                if (fromKeys.length !== toKeys.length || !fromKeys.every(x => toKeys.includes(x))) return false;
+            }
+        }
         to.add.push(...from.add)
         to.remove.push(...from.remove)
         for (let type in from.edit) {
@@ -82,7 +96,7 @@ export class ResourceEditCommandKind implements CommandKind {
     isNull(command: ResourceEditCommand): boolean {
         if (command.add.length + command.remove.length !== 0) return false;
         for (let type in command.edit) {
-            for (let change in command.edit[type]) {
+            for (let _change in command.edit[type]) {
                 return false;
             }
         }

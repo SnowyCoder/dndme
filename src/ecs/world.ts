@@ -153,7 +153,7 @@ export class World {
         this.isMaster = isMaster;
     }
 
-    getStorage(name: string): EcsStorage<Component> {
+    getStorage<T extends Component>(name: string): EcsStorage<T> {
         let s = this.storages.get(name);
         if (s === undefined) {
             throw new Error("Cannot find storage " + name);
@@ -263,8 +263,8 @@ export class World {
         this.storageList.push(storage);
     }
 
-    getComponent(entity: number, type: string, multiId?: number): Component | undefined {
-        let storage = this.getStorage(type);
+    getComponent<T extends Component>(entity: number, type: string, multiId?: number): T | undefined {
+        let storage = this.getStorage<T>(type);
         return storage.getFirstComponent(entity, multiId);
     }
 

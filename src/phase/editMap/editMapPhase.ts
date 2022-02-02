@@ -34,6 +34,7 @@ import { WTChannel } from "../../network/webtorrent/WTChannel";
 import { PlayerLocatorSystem } from "../../ecs/systems/playerLocator";
 import { App, createApp, shallowRef } from "vue";
 import { ToolbarSystem } from "@/ecs/systems/toolbarSystem";
+import { BattleSystem } from "../../ecs/systems/battleSystem";
 
 
 export class EditMapPhase extends EcsPhase {
@@ -92,6 +93,9 @@ export class EditMapPhase extends EcsPhase {
         w.addSystem(new PlayerSystem(w));
         w.addSystem(new PlayerLocatorSystem(w));
         w.addSystem(new LightSystem(w));
+        if (w.isMaster) {
+            w.addSystem(new BattleSystem(w));
+        }
     }
 
     setupNetworkManager() {
