@@ -1,11 +1,9 @@
 import { Ticker } from "pixi.js";
-import PIXI from "../../../PIXI";
 import {System} from "../../system";
 import {World} from "../../world";
+import { GameClockResource, GAME_CLOCK_TYPE } from "../back/pixiBoardSystem";
 import {Command} from "./command";
 import {COMMAND_TYPE, CommandResult, CommandSystem, EVENT_COMMAND_EMIT, LogHook} from "./commandSystem";
-import { ComponentEditCommand } from "./componentEdit";
-import {NoneCommand} from "./noneCommand";
 
 const HISTORY_LIMIT = 128;
 
@@ -128,7 +126,7 @@ export class CommandHistorySystem implements System, LogHook {
         kind.merge(cmd, lastCmd.cmd, false);
         this.historyReplacePrev({
             cmd,
-            timestamp: PIXI.Ticker.shared.lastTime,
+            timestamp: (this.world.getResource(GAME_CLOCK_TYPE) as GameClockResource)?.timestampMs,
         });
 
         return true;
@@ -157,7 +155,7 @@ export class CommandHistorySystem implements System, LogHook {
         }
         this.historyPush({
             cmd,
-            timestamp: PIXI.Ticker.shared.lastTime,
+            timestamp: (this.world.getResource(GAME_CLOCK_TYPE) as GameClockResource)?.timestampMs,
         });
         this.notifyHistoryChange();
     }
@@ -175,12 +173,18 @@ export class CommandHistorySystem implements System, LogHook {
             console.log("Nothing to undo");
             return;
         }
+        const initialTs = cmd.timestamp;
 
-        this.historyUndo({
-            cmd: this.executeEmit(cmd.cmd),
-            timestamp: Ticker.shared.lastTime,
-        });
-        this.notifyHistoryChange();
+        while (true) {
+            this.historyUndo({
+                cmd: this.executeEmit(cmd.cmd),
+                timestamp: cmd.timestamp,
+            });
+            this.notifyHistoryChange();
+            cmd = this.historyPeekPrev();
+            console.log(initialTs, cmd?.timestamp);
+            if (cmd === undefined || initialTs !== cmd.timestamp) break;
+        }
     }
 
     private onRedo() {
@@ -189,12 +193,18 @@ export class CommandHistorySystem implements System, LogHook {
             console.log("Nothing to redo");
             return;
         }
+        const initialTs = cmd.timestamp;
 
-        this.historyRedo({
-            cmd: this.executeEmit(cmd.cmd),
-            timestamp: Ticker.shared.lastTime,
-        });
-        this.notifyHistoryChange();
+        while (true) {
+            this.historyRedo({
+                cmd: this.executeEmit(cmd.cmd),
+                timestamp: cmd.timestamp,
+            });
+            this.notifyHistoryChange();
+
+            cmd = this.historyPeekNext();
+            if (cmd === undefined || initialTs !== cmd.timestamp) break;
+        }
     }
 
     canRedo(): boolean {

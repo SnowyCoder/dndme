@@ -86,6 +86,17 @@ export interface BoardSizeResource extends Resource {
     height: number;
 }
 
+export const GAME_CLOCK_TYPE = 'game_clock';
+export type GAME_CLOCK_TYPE = typeof GAME_CLOCK_TYPE;
+export interface GameClockResource extends Resource {
+    type: GAME_CLOCK_TYPE;
+    _save: false;
+    _sync: false;
+
+    frame: number;
+    timestampMs: number;
+}
+
 export type PIXI_BOARD_TYPE = 'pixi_board';
 export const PIXI_BOARD_TYPE = 'pixi_board';
 export class PixiBoardSystem implements System {
@@ -96,6 +107,7 @@ export class PixiBoardSystem implements System {
 
     renderer: PIXI.Renderer;
     ticker: PIXI.Ticker;
+    clock: GameClockResource;
     private resizeReqId?: number;
 
     root: Stage;
@@ -126,6 +138,15 @@ export class PixiBoardSystem implements System {
             scaleX: 1,
             scaleY: 1,
         } as BoardTransformResource);
+
+        this.clock = {
+            type: GAME_CLOCK_TYPE,
+            frame: 0,
+            timestampMs: 0,
+            _save: false,
+            _sync: false,
+        } as GameClockResource;
+        this.world.addResource(this.clock);
 
         this.world.addResource({
             type: BOARD_SIZE_TYPE,
@@ -163,6 +184,10 @@ export class PixiBoardSystem implements System {
         } as IHitArea;
 
         this.ticker.add(() => {
+            this.world.editResource(GAME_CLOCK_TYPE, {
+                frame: this.clock.frame + 1,
+                timestampMs: Date.now(),
+            })
             this.renderer.render(this.root);
         }, PIXI.UPDATE_PRIORITY.LOW);
 
