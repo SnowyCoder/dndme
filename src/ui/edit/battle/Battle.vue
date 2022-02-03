@@ -33,7 +33,7 @@
       <th scope="col" class="col-1"></th>
     </thead>
     <tbody>
-      <BattleDmgEntry class="battle-aaah-lol" v-for="x in attacks" :key="x.entity" :name="x.name" v-model:dmg="x.dmg" />
+      <BattleDmgEntry v-for="x in attacks" :key="x.entity" :name="x.name" v-model:dmg="x.dmg" />
     </tbody>
   </table>
 

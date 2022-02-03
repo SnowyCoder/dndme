@@ -37,7 +37,7 @@ export default defineComponent({
       elem.classList.add('battle-outcome');
       elem.addEventListener('animationend', () => {
         elem.classList.remove('battle-outcome');
-      })
+      }, { once: true, })
       context.emit('update:dmg', computedDmg);
     };
 
@@ -55,13 +55,13 @@ export default defineComponent({
 
 @keyframes battle-pop {
   0% {
-    scale: 1;
+    transform: scale(1);
   }
   50% {
-    scale: 0;
+    transform: scale(0);
   }
   100% {
-    scale: 1;
+    transform: scale(1);
   }
 }
 </style>
