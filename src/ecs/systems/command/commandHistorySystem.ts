@@ -1,9 +1,8 @@
-import { Ticker } from "pixi.js";
 import {System} from "../../system";
 import {World} from "../../world";
 import { GameClockResource, GAME_CLOCK_TYPE } from "../back/pixiBoardSystem";
 import {Command} from "./command";
-import {COMMAND_TYPE, CommandResult, CommandSystem, EVENT_COMMAND_EMIT, LogHook} from "./commandSystem";
+import {COMMAND_TYPE, CommandResult, CommandSystem, EVENT_COMMAND_EMIT, EVENT_COMMAND_HISTORY_LOG} from "./commandSystem";
 
 const HISTORY_LIMIT = 128;
 
@@ -17,7 +16,7 @@ interface HistoryEntry {
 
 export const COMMAND_HISTORY_TYPE = 'command_history';
 export type COMMAND_HISTORY_TYPE = typeof COMMAND_HISTORY_TYPE;
-export class CommandHistorySystem implements System, LogHook {
+export class CommandHistorySystem implements System {
     readonly world: World;
     readonly name = COMMAND_HISTORY_TYPE;
     readonly dependencies = [COMMAND_TYPE];
@@ -34,10 +33,10 @@ export class CommandHistorySystem implements System, LogHook {
         this.history = new Array<HistoryEntry>();
 
         this.commandSys = this.world.systems.get(COMMAND_TYPE) as CommandSystem;
-        this.commandSys.logger = this;
 
         this.world.events.on("command_undo", this.onUndo, this);
         this.world.events.on("command_redo", this.onRedo, this);
+        this.world.events.on(EVENT_COMMAND_HISTORY_LOG, this.logCommit, this);
     }
 
     private historyPush(cmd: HistoryEntry) {
@@ -132,15 +131,6 @@ export class CommandHistorySystem implements System, LogHook {
         return true;
     }
 
-    logPrepare(partial: boolean): void {
-        // TODO
-        /*this.prepared = {
-            cmd: { kind: 'none'} as NoneCommand,
-            post: [], pre: [],
-        };*/
-    }
-
-
     logCommit(cmd: Command | undefined, partial: boolean): void {
         // console.log("LOG", JSON.stringify(cmd));
         if (cmd === undefined) {
@@ -182,7 +172,6 @@ export class CommandHistorySystem implements System, LogHook {
             });
             this.notifyHistoryChange();
             cmd = this.historyPeekPrev();
-            console.log(initialTs, cmd?.timestamp);
             if (cmd === undefined || initialTs !== cmd.timestamp) break;
         }
     }

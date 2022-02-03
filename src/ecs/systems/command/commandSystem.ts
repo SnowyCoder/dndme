@@ -15,16 +15,10 @@ export interface CommandResult {
 
 export const EVENT_COMMAND_EMIT = 'command_emit';
 export const EVENT_COMMAND_LOG = 'command_log';
+export const EVENT_COMMAND_HISTORY_LOG = 'command_hisyory_log';
 export const EVENT_COMMAND_PARTIAL_END = 'command_partial_end';
 export const EVENT_COMMAND_ADD_PRE_CONSEQUENCE = 'command_add_precons';
 export const EVENT_COMMAND_ADD_POST_CONSEQUENCE = 'command_add_poscons';
-
-export interface LogHook {
-    logPrepare(partial: boolean): void;
-
-    logCommit(cmd: Command | undefined, partial: boolean): void;
-}
-
 
 export const COMMAND_TYPE = 'command';
 export type COMMAND_TYPE = typeof COMMAND_TYPE;
@@ -33,8 +27,6 @@ export class CommandSystem implements System {
     readonly name = COMMAND_TYPE;
     readonly dependencies = [];
     readonly optionalDependencies = [NETWORK_TYPE]
-
-    logger?: LogHook;
 
     private commands = new Map<string, CommandKind>();
     private networkSys: NetworkSystem | undefined;
@@ -92,6 +84,10 @@ export class CommandSystem implements System {
         this.world.events.emit('command_post_execute', inv);
     }
 
+    private logCommit(cmd: Command, partial: boolean) {
+        this.world.events.emit(EVENT_COMMAND_HISTORY_LOG, cmd, partial);
+    }
+
     private onLog(command: Command, res?: CommandResult, partial: boolean = false) {
         let result = res || {};
         this.onEmit(command, result, true);
@@ -104,15 +100,15 @@ export class CommandSystem implements System {
                 return;
             }
             if (!kind.isNull(inv)) {
-                this.logger?.logCommit(result.inverted, partial);
+                this.logCommit(result.inverted, partial);
             } else {
-                this.logger?.logCommit(undefined, partial);
+                this.logCommit(undefined, partial);
             }
         }
     }
 
     private onPartialEnd() {
-        this.logger?.logCommit(undefined, false);
+        this.logCommit(undefined, false);
     }
 
     getKind(kind: string): CommandKind | undefined {

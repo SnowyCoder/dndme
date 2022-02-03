@@ -89,12 +89,14 @@ const DEFAULT_SERIALIZE_OPTIONS = {
 
 export interface DeserializeOptions {
     remap: boolean,
+    remapListener: (entities: number[]) => void,
     thenSelect: boolean,
     addShare: boolean,
 }
 
 const DEFAULT_DESERIALIZE_OPTIONS = {
     remap: false,
+    remapListener: () => {},
     thenSelect: false,
     addShare: false,
 } as DeserializeOptions;
@@ -471,6 +473,7 @@ export class World {
                 remapsUndup.add(id);
                 remaps.push(id);
             }
+            options.remapListener(remaps);
             mapping = (x: number) => remaps[x - 1];
         }
 

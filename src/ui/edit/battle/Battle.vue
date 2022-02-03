@@ -33,14 +33,7 @@
       <th scope="col" class="col-1"></th>
     </thead>
     <tbody>
-      <tr v-for="(x, i) in attacks" :key="x.entity">
-        <th scope="row">{{x.name}}</th>
-        <td><EditableText style="margin: 0;" nullable :model-modifiers="{ lazy: true }"
-                          :model-value="x.dmgExpr" @update:model-value="computeDmgExpr(i, $event)"/></td>
-        <td class="p-0" @click="computeDmgExpr(i)">
-          {{isNaN(x.dmg) ? '' : (x.dmg == -Infinity ? 'Err' : x.dmg)}}
-        </td>
-      </tr>
+      <BattleDmgEntry class="battle-aaah-lol" v-for="x in attacks" :key="x.entity" :name="x.name" v-model:dmg="x.dmg" />
     </tbody>
   </table>
 
@@ -58,14 +51,15 @@ import AttackIcon from "../../icons/AttackIcon.vue";
 import EditableText from "../../util/EditableText.vue";
 import EditableNumber from "../../util/EditableNumber.vue";
 import { PLAYER_TYPE } from "../../../ecs/systems/playerSystem";
-import { diceComputeExpr } from "../../../util/diceCalc";
 import { ComponentEditCommand } from "@/ecs/systems/command/componentEdit";
-import { EditType } from "../../../ecs/systems/command/componentEdit";
-import { emitCommand } from "@/ecs/systems/command/command";
+import { componentEditCommand, EditType } from "../../../ecs/systems/command/componentEdit";
+import { executeAndLogCommand } from "@/ecs/systems/command/command";
 import { ResourceEditCommand } from "@/ecs/systems/command/resourceEditCommand";
+import BattleDmgEntry from "./BattleDmgEntry.vue";
+import Collapse from "../../util/Collapse.vue";
 
 export default defineComponent({
-    components: { AttackIcon, EditableText, EditableNumber },
+    components: { AttackIcon, EditableText, EditableNumber, BattleDmgEntry, Collapse },
     props: {
         selectedEntities: {
             type: Array as PropType<Array<{
@@ -110,7 +104,11 @@ export default defineComponent({
             })
         });
         const updateInitiative = (entity: number, initiative: number | undefined) => {
-          world.editComponent(entity, BATTLE_TYPE, { initiative });
+          executeAndLogCommand(world, componentEditCommand(undefined, [{
+            type: BATTLE_TYPE,
+            entity,
+            changes: { initiative },
+          }]));
         };
         const endBattle = () => {
           world.events.emit('battle_end');
@@ -118,29 +116,15 @@ export default defineComponent({
         const attacks = ref([] as Array<{
           entity: number;
           name: string;
-          dmgExpr: string;
           dmg: number;
         }>);
 
         const addAttack = (entity: number, name: string) => {
           if (attacks.value.findIndex(x => x.entity === entity) !== -1) return;
-          if (entity === battleRes.value.turnOf || (battleRes.value.turnOf === undefined && comps.value[0].entity === entity)) return;
           attacks.value.push({
             entity, name,
-            dmgExpr: '',
             dmg: NaN,
           });
-          triggerRef(attacks);
-        };
-        const computeDmgExpr = (index: number, expr?: string) => {
-          if (expr !== undefined) {
-            attacks.value[index].dmgExpr = expr;
-          }
-          let computedDmg = -Infinity;// -Infinity = error
-          try {
-            computedDmg = diceComputeExpr(attacks.value[index].dmgExpr);
-          } catch(_) {}
-          attacks.value[index].dmg = computedDmg;
           triggerRef(attacks);
         };
         const nextTurn = () => {
@@ -163,7 +147,7 @@ export default defineComponent({
               kind: 'cedit',
               edit,
             } as ComponentEditCommand;
-            emitCommand(world, cedit, true);
+            executeAndLogCommand(world, cedit, true);
 
             attacks.value.length = 0;
             triggerRef(attacks);
@@ -185,11 +169,11 @@ export default defineComponent({
             add: [], remove: [],
             edit: editRes,
           } as ResourceEditCommand;
-          emitCommand(world, redit, true);
+          executeAndLogCommand(world, redit, true);
         };
         return {
             comps, updateInitiative, endBattle,
-            attacks, addAttack, nextTurn, computeDmgExpr,
+            attacks, addAttack, nextTurn,
         };
     },
 });

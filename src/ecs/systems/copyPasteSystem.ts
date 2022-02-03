@@ -9,6 +9,7 @@ import { POSITION_TYPE } from "../component";
 import { SingleEcsStorageSerialzed } from "../storage";
 import { Aabb } from "../../geometry/aabb";
 import { BoardSizeResource, BoardTransformResource, BOARD_SIZE_TYPE, BOARD_TRANSFORM_TYPE } from "./back/pixiBoardSystem";
+import { EVENT_COMMAND_HISTORY_LOG } from "./command/commandSystem";
 
 const CLIPBOARD_DATA = 'dndme-clip';
 
@@ -88,10 +89,16 @@ export class CopyPasteSystem implements System {
             );
         }
 
+        let entities = [];
         this.world.deserialize(parsed.data, {
             remap: true,
+            remapListener: e => { entities = e; },
             thenSelect: true,
         });
+        this.world.events.emit(EVENT_COMMAND_HISTORY_LOG, {
+            kind: 'despawn',
+            entities,
+        } as DeSpawnCommand, false);
     }
 
     copyOrCut(del: boolean): string {

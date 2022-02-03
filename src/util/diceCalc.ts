@@ -118,5 +118,6 @@ function parseExpr(x: Context): number {
 }
 
 export function diceComputeExpr(x: string): number {
+    if (x.trim() === '') return 0;
     return parseExpr(new Context(x, 0));
 }

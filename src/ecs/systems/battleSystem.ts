@@ -12,6 +12,9 @@ import { SingleEcsStorage } from "../storage";
 import { SelectionSystem, SELECTION_TYPE } from "./back/selectionSystem";
 import { PIN_TYPE } from "./pinSystem";
 import EcsStatsVue from "../../ui/ecs/EcsStats.vue";
+import { executeAndLogCommand } from "./command/command";
+import { ComponentEditCommand } from "./command/componentEdit";
+import { ResourceEditCommand } from "./command/resourceEditCommand";
 
 
 export const STATS_TYPE = 'stats';
@@ -45,7 +48,7 @@ export class BattleSystem implements System {
 
     private readonly selectionSys: SelectionSystem;
 
-    statsStorage = new SingleEcsStorage<StatsComponent>(STATS_TYPE, false, true);
+    statsStorage = new SingleEcsStorage<StatsComponent>(STATS_TYPE, true, true);
     battleStorage = new SingleEcsStorage<BattleComponent>(BATTLE_TYPE, false, true);
 
     constructor(world: World) {
@@ -95,6 +98,7 @@ export class BattleSystem implements System {
     }
 
     private onBattleBegin() {
+        let add = [];
         for (let entity of this.selectionSys.selectedEntities) {
             if (this.world.getComponent(entity, PIN_TYPE) === undefined) continue;
             if (this.battleStorage.getComponent(entity) !== undefined) continue;
@@ -104,22 +108,51 @@ export class BattleSystem implements System {
             if (stats !== undefined && stats.initiativeModifier !== undefined) {
                 initiative = 1 + Math.floor(Math.random() * 20) + stats.initiativeModifier;
             }
-            this.world.addComponent(entity, {
+            add.push({
                 type: BATTLE_TYPE,
+                entity,
                 initiative,
             } as BattleComponent);
         }
-        this.world.addResource({
-            type: BATTLE_TYPE,
-            _save: true,
-            _sync: false,
-        } as BattleResource, 'ignore')
+        if (add.length > 0) {
+            const cmd = {
+                kind: 'cedit',
+                add,
+            } as ComponentEditCommand;
+            executeAndLogCommand(this.world, cmd);
+
+            if (this.world.getResource(BATTLE_TYPE) === undefined) {
+                const resCmd = {
+                    kind: 'redit',
+                    add: [{
+                        type: BATTLE_TYPE,
+                        _save: true,
+                        _sync: false,
+                    } as BattleResource],
+                    edit: {},
+                    remove: [],
+                } as ResourceEditCommand;
+                executeAndLogCommand(this.world, resCmd);
+            }
+        }
     }
 
     private onBattleEnd() {
-        this.world.removeResource(BATTLE_TYPE, false);
-        for (let x of [...this.battleStorage.allComponents()]) {
-            this.world.removeComponent(x);
+        if (this.world.getResource(BATTLE_TYPE) !== undefined) {
+            const resCmd = {
+                kind: 'redit',
+                add: [],
+                edit: {},
+                remove: [BATTLE_TYPE],
+            } as ResourceEditCommand;
+            executeAndLogCommand(this.world, resCmd);
+        }
+        let remove = [...this.battleStorage.allComponents()];
+        if (remove.length > 0) {
+            executeAndLogCommand(this.world, {
+                kind: 'cedit',
+                remove
+            } as ComponentEditCommand);
         }
     }
 
