@@ -84,7 +84,7 @@ export class CommandSystem implements System {
         this.world.events.emit('command_post_execute', inv);
     }
 
-    private logCommit(cmd: Command, partial: boolean) {
+    private logCommit(cmd: Command | undefined, partial: boolean) {
         this.world.events.emit(EVENT_COMMAND_HISTORY_LOG, cmd, partial);
     }
 

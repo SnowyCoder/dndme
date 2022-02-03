@@ -22,7 +22,7 @@ export default defineComponent({
   },
   setup(props, context) {
     const dmgExpr = ref("");
-    const outcome = ref<HTMLElement>(null);
+    const outcome = ref<HTMLElement | undefined>(undefined);
 
     const computeDmgExpr = (expr?: string) => {
       if (expr !== undefined) {
@@ -33,9 +33,10 @@ export default defineComponent({
         computedDmg = diceComputeExpr(dmgExpr.value);
       } catch(_) {}
 
-      outcome.value.classList.add('battle-outcome');
-      outcome.value.addEventListener('animationend', () => {
-        outcome.value.classList.remove('battle-outcome');
+      const elem = outcome.value!;
+      elem.classList.add('battle-outcome');
+      elem.addEventListener('animationend', () => {
+        elem.classList.remove('battle-outcome');
       })
       context.emit('update:dmg', computedDmg);
     };

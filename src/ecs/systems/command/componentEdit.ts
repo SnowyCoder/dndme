@@ -181,8 +181,8 @@ export class ComponentEditCommandKind implements CommandKind {
     merge(to: ComponentEditCommand, from: ComponentEditCommand, strict: boolean): boolean {
         if (to.multi !== from.multi) return false;
         if (strict) {
-            if (to.add?.length + to.remove?.length + from.add?.length + from.remove?.length +
-                Object.keys(to.pedit ?? {}).length + Object.keys(from.pedit ?? {}).length  ||
+            if ((to.add?.length ?? 0) + (to.remove?.length  ?? 0) + (from.add?.length  ?? 0) + (from.remove?.length  ?? 0) +
+                    Object.keys(to.pedit ?? {}).length + Object.keys(from.pedit ?? {}).length  ||
                 from.edit === undefined || to.edit === undefined || from.edit.length !== to.edit.length) {
                 return false;
             }

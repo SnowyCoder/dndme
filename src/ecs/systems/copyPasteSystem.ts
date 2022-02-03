@@ -89,7 +89,7 @@ export class CopyPasteSystem implements System {
             );
         }
 
-        let entities = [];
+        let entities = [] as number[];
         this.world.deserialize(parsed.data, {
             remap: true,
             remapListener: e => { entities = e; },

@@ -61,7 +61,7 @@ export default defineComponent({
     file(val: File) {
       if (val === undefined) return;
 
-      console.log("File dropped, loading: " + this.pendingOp);
+      console.log("File dropped, loading...");
       this.uiEvents.emit('edit', this.file);
       this.file = undefined;
       this.mapLoadCancel();

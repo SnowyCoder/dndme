@@ -1,12 +1,12 @@
 <template>
   <div class="px-3 d-flex flex-column">
-    <template v-if="battleRes[isNull]">
+    <template v-if="(battleRes as any)[isNull]">
       <ul class="list-group">
         <li class="list-group-item bg-dark text-light" v-for="x in entities">
           {{ x.name ?? x.id }}
         </li>
       </ul>
-      
+
       <button class="btn btn-primary btn-xl" @click="startBattle">Start Battle</button>
     </template>
     <template v-else>
@@ -37,7 +37,7 @@ export default defineComponent({
     useEvent(world, 'selection_update', () => {
       selectedEntities.value = sys.selectedEntities;
     });
-  
+
     const entities = computed(() => {
       return [...selectedEntities.value]
         .filter(x => world.getComponent(x, PIN_TYPE) !== undefined)
@@ -56,7 +56,7 @@ export default defineComponent({
     const startBattle = () => {
       world.events.emit('battle_begin');
     };
-    
+
     return {
       entities, battleRes, isNull, startBattle
     }

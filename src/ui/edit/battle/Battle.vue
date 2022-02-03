@@ -147,7 +147,7 @@ export default defineComponent({
               kind: 'cedit',
               edit,
             } as ComponentEditCommand;
-            executeAndLogCommand(world, cedit, true);
+            executeAndLogCommand(world, cedit);
 
             attacks.value.length = 0;
             triggerRef(attacks);
@@ -169,7 +169,7 @@ export default defineComponent({
             add: [], remove: [],
             edit: editRes,
           } as ResourceEditCommand;
-          executeAndLogCommand(world, redit, true);
+          executeAndLogCommand(world, redit);
         };
         return {
             comps, updateInitiative, endBattle,

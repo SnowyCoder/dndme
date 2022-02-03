@@ -12,7 +12,7 @@ import EditableText from "./EditableText.vue";
 export default defineComponent({
   components: { EditableText },
   props: {
-    modelValue: { type: Number, required: true },
+    modelValue: { type: Number },
     modelModifiers: { type: Object, default: () => {} },
     readonly: { type: Boolean, default: false },
     placeholder: { type: String, default: '' },

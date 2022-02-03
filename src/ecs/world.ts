@@ -399,7 +399,7 @@ export class World {
         let shouldIgnore = (x: number) => serializedFlag.getFirstComponent(x) === undefined;
         if (options.stripClient && !options.ignoreShared) {
             const shared = this.getStorage(SHARED_TYPE);
-            
+
             const oldShouldIgnore = shouldIgnore;// Just to be sure
             shouldIgnore = (x: number) => oldShouldIgnore(x) || shared.getFirstComponent(x) === undefined;
         }
@@ -458,10 +458,10 @@ export class World {
     }
 
     deserialize(data: SerializedWorld, options: Partial<DeserializeOptions>) {
-        options = Object.assign({}, DEFAULT_DESERIALIZE_OPTIONS, options) as DeserializeOptions;
+        const opts = Object.assign({}, DEFAULT_DESERIALIZE_OPTIONS, options) as DeserializeOptions;
 
         let mapping = (x: number) => x;
-        if (options.remap) {
+        if (opts.remap) {
             let remapsUndup = new Set<number>();
             let remaps = new Array<number>();
             for (let i = 0; i < data.entities.length; i++) {
@@ -473,12 +473,12 @@ export class World {
                 remapsUndup.add(id);
                 remaps.push(id);
             }
-            options.remapListener(remaps);
+            opts.remapListener(remaps);
             mapping = (x: number) => remaps[x - 1];
         }
 
         let dsData = {
-            options,
+            options: opts,
             data,
             entityMapping: mapping,
         } as DeserializeData;
@@ -505,7 +505,7 @@ export class World {
         for (let entity of data.entities) {
             let realEnt = mapping(entity);
             this.addComponent(realEnt, { type: SERIALIZED_TYPE, entity: -1 } as SerializedFlag);
-            if (options.addShare) this.addComponent(realEnt, { type: SHARED_TYPE, entity: -1 } as SharedFlag);
+            if (opts.addShare) this.addComponent(realEnt, { type: SHARED_TYPE, entity: -1 } as SharedFlag);
         }
 
         for (let storage of this.storages.values()) {
