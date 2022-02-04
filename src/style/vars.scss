@@ -1,0 +1,23 @@
+@import "bootstrap/scss/functions";
+@import "bootstrap/scss/variables";
+
+//$danger: #e74c3c;
+
+$table-bg-scale: +50%;
+
+$table-variants: (
+  "primary":    shift-color($primary, $table-bg-scale),
+  "secondary":  shift-color($secondary, $table-bg-scale),
+  "success":    shift-color($success, $table-bg-scale),
+  "info":       shift-color($info, $table-bg-scale),
+  "warning":    shift-color($warning, $table-bg-scale),
+  "danger":     shift-color($danger, $table-bg-scale),
+  "light":      $light,
+  "dark":       $dark,
+);
+
+$list-group-color: white;
+$list-group-bg: shift-color($dark, +0%);
+$list-group-border-color: rgba($white, .125);
+$list-group-item-bg-scale: +50%;
+$list-group-item-color-scale: -20%;

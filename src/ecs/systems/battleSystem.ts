@@ -99,10 +99,17 @@ export class BattleSystem implements System {
 
     private onBattleBegin() {
         let add = [];
+        let remove = [];
+        // Command used to make players enter-leave the battle
         for (let entity of this.selectionSys.selectedEntities) {
+            const bc = this.battleStorage.getComponent(entity);
+            if (bc !== undefined) {
+                remove.push(bc);// Toggle off
+                continue;
+            }
             const stats = this.statsStorage.getComponent(entity);
             if (stats === undefined) continue;
-            if (this.battleStorage.getComponent(entity) !== undefined) continue;
+
 
             let initiative = undefined;
             if (stats.initiativeModifier !== undefined) {
@@ -114,10 +121,11 @@ export class BattleSystem implements System {
                 initiative,
             } as BattleComponent);
         }
-        if (add.length > 0) {
+        if (add.length + remove.length > 0) {
             const cmd = {
                 kind: 'cedit',
                 add,
+                remove,
             } as ComponentEditCommand;
             executeAndLogCommand(this.world, cmd);
 

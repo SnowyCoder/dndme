@@ -8,9 +8,10 @@
       <th scope="col">IN</th>
     </thead>
     <tbody>
-      <tr v-for="x of comps" :key="x.entity" :class="x.rowClass">
+      <tr v-for="x, i of comps" :key="x.entity" :class="x.rowClass">
         <th scope="row" class="battle-name">{{x.name}}</th>
-        <td>{{x.hitPoints}}</td>
+        <td><EditableNumber style="margin: 0; width: 3em;" nullable :model-modifiers="{ lazy: true }"
+                            :model-value="x.hitPoints" @update:model-value="updateHP(i, $event)"/></td>
         <td>{{x.armorClass}}</td>
         <td>{{x.speed}}</td>
         <td><EditableNumber style="margin: 0; width: 2em;" nullable :model-modifiers="{ lazy: true }"
@@ -37,8 +38,15 @@
     </tbody>
   </table>
 
-  <button class="btn btn-success btn-xl" @click="nextTurn">Next turn</button>
-  <button class="btn btn-danger btn-xl" @click="endBattle">End Battle</button>
+  <div class="battle-btn-group">
+    <div class="row g-0">
+      <button class="col btn btn-success btn-xl" @click="nextTurn">Next turn</button>
+    </div>
+    <div class="row g-0">
+      <button class="col btn btn-secondary btn-xl" @click="$emit('partecipants')">Add/Remove</button>
+      <button class="col btn btn-danger btn-xl" @click="endBattle">End Battle</button>
+    </div>
+  </div>
 </template>
 
 <script lang="ts">
@@ -60,14 +68,8 @@ import Collapse from "../../util/Collapse.vue";
 
 export default defineComponent({
     components: { AttackIcon, EditableText, EditableNumber, BattleDmgEntry, Collapse },
+    emits: ['partecipants'],
     props: {
-        selectedEntities: {
-            type: Array as PropType<Array<{
-                id: number;
-                name?: string;
-            }>>,
-            required: true,
-        },
         battleRes: {
             type: Object as PropType<ShallowReactive<BattleResource>>,
             required: true,
@@ -95,7 +97,7 @@ export default defineComponent({
                 return {
                   entity: x.entity,
                   name: world.getComponent<NameComponent>(x.entity, NAME_TYPE)?.name ?? String(x.entity).substring(0, 5),
-                  hitPoints: stats.hitPoints ?? '',
+                  hitPoints: stats.hitPoints ?? 0,
                   armorClass: stats.armorClass ?? '',
                   speed: stats.speed ?? '',
                   init: x.initiative,
@@ -109,6 +111,15 @@ export default defineComponent({
             entity,
             changes: { initiative },
           }]));
+        };
+        const updateHP = (index: number, hitPoints: number) => {
+          executeAndLogCommand(world, componentEditCommand(undefined, [{
+            type: STATS_TYPE,
+            entity: comps.value[index].entity,
+            changes: { hitPoints },
+          }]));
+          comps.value[index].hitPoints = hitPoints;
+          triggerRef(comps);
         };
         const endBattle = () => {
           world.events.emit('battle_end');
@@ -172,29 +183,54 @@ export default defineComponent({
           executeAndLogCommand(world, redit);
         };
         return {
-            comps, updateInitiative, endBattle,
+            comps, updateInitiative, updateHP, endBattle,
             attacks, addAttack, nextTurn,
         };
     },
 });
 </script>
 
-<style>
+<style lang="scss">
+@import "@/style/vars";
+
 .battle-name {
   transition: color 0.4s;
-}
-.battle-name::after {
-  content: '';
-  width: 0px;
-  height: 2px;
-  display: block;
-  background: var(--bs-primary);
-  transition: 0.3s;
+  &::after {
+    content: '';
+    width: 0px;
+    height: 2px;
+    display: block;
+    background: var(--bs-primary);
+    transition: 0.3s;
+  }
 }
 .battle-active .battle-name {
   color: var(--bs-primary);
+  &::after {
+    width: 100%;
+  }
 }
-.battle-active .battle-name::after {
-  width: 100%;
+
+.battle-btn-group {
+  .btn {
+    border-radius: 0;
+  }
+  & > :first-child .btn {
+    &:first-child {
+      border-top-left-radius: $border-radius;
+    }
+    &:last-child {
+      border-top-right-radius: 0.25rem;
+    }
+  }
+  & > :last-child .btn {
+    &:first-child {
+      border-bottom-left-radius: $border-radius;
+    }
+    &:last-child {
+      border-bottom-right-radius: 0.25rem;
+    }
+  }
+
 }
 </style>

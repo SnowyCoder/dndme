@@ -4,12 +4,13 @@
   <td><EditableText style="margin: 0;" nullable :model-modifiers="{ lazy: true }"
                     :model-value="dmgExpr" @update:model-value="computeDmgExpr($event)"/></td>
   <td class="p-0" style="background: transparent;" @click="computeDmgExpr()" ref="outcome">
-    {{isNaN(dmg) ? '' : (dmg == -Infinity ? 'Err' : dmg)}}
+    {{rdmg}}
   </td>
 </tr>
 </template>
 
-<script lang="ts">import { defineComponent, ref } from "vue";
+<script lang="ts">
+import { defineComponent, ref, toRefs, watch } from "vue";
 import { diceComputeExpr } from "../../../util/diceCalc";
 import EditableText from "../../util/EditableText.vue";
 
@@ -21,6 +22,7 @@ export default defineComponent({
     name: { type: String, required: true },
   },
   setup(props, context) {
+    const { dmg } = toRefs(props);
     const dmgExpr = ref("");
     const outcome = ref<HTMLElement | undefined>(undefined);
 
@@ -33,16 +35,34 @@ export default defineComponent({
         computedDmg = diceComputeExpr(dmgExpr.value);
       } catch(_) {}
 
+      context.emit('update:dmg', computedDmg);
+    };
+
+    const toStr = (x) => isNaN(x) ? '0' : (x == -Infinity ? 'Err' : String(x));
+
+    let pending = null;
+    const rdmg = ref(toStr(dmg.value));
+    watch(dmg, (newValue) => {
+      if (pending != null) {
+        pending = newValue;
+        return;
+      }
+      pending = newValue;
+
+      setTimeout(() => {
+        rdmg.value = toStr(pending);
+        pending = null;
+      }, 150);
+
       const elem = outcome.value!;
       elem.classList.add('battle-outcome');
       elem.addEventListener('animationend', () => {
         elem.classList.remove('battle-outcome');
-      }, { once: true, })
-      context.emit('update:dmg', computedDmg);
-    };
+      }, { once: true, });
+    });
 
     return {
-      dmgExpr, computeDmgExpr, outcome,
+      dmgExpr, computeDmgExpr, outcome, rdmg
     };
   },
 });

@@ -7,23 +7,7 @@
 
 // scss-docs-start import-stack
 // Configuration
-@import "bootstrap/scss/functions";
-@import "bootstrap/scss/variables";
-
-//$danger: #e74c3c;
-
-$table-bg-scale: +50%;
-
-$table-variants: (
-  "primary":    shift-color($primary, $table-bg-scale),
-  "secondary":  shift-color($secondary, $table-bg-scale),
-  "success":    shift-color($success, $table-bg-scale),
-  "info":       shift-color($info, $table-bg-scale),
-  "warning":    shift-color($warning, $table-bg-scale),
-  "danger":     shift-color($danger, $table-bg-scale),
-  "light":      $light,
-  "dark":       $dark,
-);
+@import "./vars.scss";
 
 @import "bootstrap/scss/mixins";
 @import "bootstrap/scss/utilities";
