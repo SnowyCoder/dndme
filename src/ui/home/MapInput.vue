@@ -27,13 +27,18 @@ export default defineComponent({
       // Always emit original event
       this.$emit('change', event)
 
-      if (!dataTransfer) return;
-
       let file;
-      if (dataTransfer!.items) {
-        file = dataTransfer!.items[0].getAsFile();
+      if (!dataTransfer) {
+        const input = event.target as HTMLInputElement;
+        if (input.files.length > 0) {
+          file = input.files[0];
+        } else {
+          return;
+        }
+      } else if (dataTransfer.items) {
+        file = dataTransfer.items[0].getAsFile();
       } else {
-        file = dataTransfer!.files[0];
+        file = dataTransfer.files[0];
       }
       this.$emit('update:modelValue', file);
     },
