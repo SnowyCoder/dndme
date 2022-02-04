@@ -22,7 +22,7 @@ import { SelectionSystem, SELECTION_TYPE } from "../../../ecs/systems/back/selec
 import { stupidRef, useEvent, useResourceReactive, isNull } from "../../vue";
 import { NameComponent, NAME_TYPE } from "../../../ecs/component";
 import { PIN_TYPE } from "../../../ecs/systems/pinSystem";
-import { BATTLE_TYPE } from "../../../ecs/systems/battleSystem";
+import { BATTLE_TYPE, STATS_TYPE } from "../../../ecs/systems/battleSystem";
 
 import Battle from "./Battle.vue";
 
@@ -40,7 +40,7 @@ export default defineComponent({
 
     const entities = computed(() => {
       return [...selectedEntities.value]
-        .filter(x => world.getComponent(x, PIN_TYPE) !== undefined)
+        .filter(x => world.getComponent(x, STATS_TYPE) !== undefined)
         .map(x => {
           return {
             id: x,

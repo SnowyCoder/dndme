@@ -95,9 +95,9 @@ export default defineComponent({
                 return {
                   entity: x.entity,
                   name: world.getComponent<NameComponent>(x.entity, NAME_TYPE)?.name ?? String(x.entity).substring(0, 5),
-                  hitPoints: stats?.hitPoints ?? '',
-                  armorClass: stats?.armorClass ?? '',
-                  speed: stats?.speed ?? '',
+                  hitPoints: stats.hitPoints ?? '',
+                  armorClass: stats.armorClass ?? '',
+                  speed: stats.speed ?? '',
                   init: x.initiative,
                   rowClass,
                 };

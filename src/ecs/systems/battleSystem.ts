@@ -100,12 +100,12 @@ export class BattleSystem implements System {
     private onBattleBegin() {
         let add = [];
         for (let entity of this.selectionSys.selectedEntities) {
-            if (this.world.getComponent(entity, PIN_TYPE) === undefined) continue;
+            const stats = this.statsStorage.getComponent(entity);
+            if (stats === undefined) continue;
             if (this.battleStorage.getComponent(entity) !== undefined) continue;
 
-            const stats = this.statsStorage.getComponent(entity);
             let initiative = undefined;
-            if (stats !== undefined && stats.initiativeModifier !== undefined) {
+            if (stats.initiativeModifier !== undefined) {
                 initiative = 1 + Math.floor(Math.random() * 20) + stats.initiativeModifier;
             }
             add.push({
