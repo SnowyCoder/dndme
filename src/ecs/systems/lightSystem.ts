@@ -200,8 +200,8 @@ export class LightSystem implements System {
         PointLightRender.updateMeshPolygons(mesh, pos, poly);
     }
 
-    updateVisUniforms(mesh: PIXI.Mesh, center: IPoint, rangeSquared: number, color: number) {
-        PointLightRender.updateMeshUniforms(mesh, center, rangeSquared, color);
+    updateVisUniforms(mesh: PIXI.Mesh, center: IPoint, range: number, color: number) {
+        PointLightRender.updateMeshUniforms(mesh, center, range, color);
     }
 
     disableVisMesh(mesh: PIXI.Mesh) {
@@ -225,7 +225,7 @@ export class LightSystem implements System {
         } else {
             let range = vis.range * this.gridSize;
             this.updateVisMesh(target, pos, visDet.polygon);
-            this.updateVisUniforms(target, pos, range * range, color);
+            this.updateVisUniforms(target, pos, range, color);
         }
     }
 
@@ -273,7 +273,7 @@ export class LightSystem implements System {
                 let visDet = this.world.getComponent(c.entity, VISIBILITY_DETAILS_TYPE, c._visIndex) as VisibilityDetailsComponent;
                 if (visDet.polygon !== undefined) {
                     let range = vis.range * this.gridSize;
-                    this.updateVisUniforms(c._lightDisplay!, pos, range * range, c.color);
+                    this.updateVisUniforms(c._lightDisplay!, pos, range, c.color);
                 }
             }
         } else if (comp.type === VISIBILITY_DETAILS_TYPE) {

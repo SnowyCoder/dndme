@@ -96,7 +96,7 @@ export class PlayerSystem implements System {
         this.world.events.on('component_edited', this.onComponentEdited, this);
         this.world.events.on('component_remove', this.onComponentRemove, this);
         this.world.events.on('resource_edited', this.onResourceEdited, this);
-        
+
         if (world.isMaster) {
             world.events.on('populate', () => {
                 this.world.spawnEntity({
@@ -214,7 +214,7 @@ export class PlayerSystem implements System {
         let mesh = PointLightRender.createMesh('const');
         PointLightRender.updateMeshPolygons(mesh, pos, vis.polygon!);
         let r = range * this.gridSize;
-        PointLightRender.updateMeshUniforms(mesh, pos, r*r, 0xFFFFFF);
+        PointLightRender.updateMeshUniforms(mesh, pos, r, 0xFFFFFF);
         return mesh;
     }
 
@@ -231,7 +231,7 @@ export class PlayerSystem implements System {
         let playerVis = PointLightRender.createMesh('const');
         PointLightRender.updateMeshPolygons(playerVis, pos, visRes.polygon);
         let r = vis.range * this.gridSize;
-        PointLightRender.updateMeshUniforms(playerVis, pos, r * r, 0xFFFFFF);
+        PointLightRender.updateMeshUniforms(playerVis, pos, r, 0xFFFFFF);
 
         if (visRes.polygon === undefined) return;
 

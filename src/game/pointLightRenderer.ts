@@ -6,7 +6,7 @@ import hex2rgb = PIXI.utils.hex2rgb;
 const LIGHT_VERTEX_SHADER = `
     precision mediump float;
     attribute vec2 aVertexPosition;
-    
+
     varying vec2 vecPos;
 
     uniform mat3 translationMatrix;
@@ -19,52 +19,50 @@ const LIGHT_VERTEX_SHADER = `
 `;
 
 const LIGHT_FRAGMENT_SHADER = `
-    precision mediump float;
+    precision lowp float;
 
     varying vec2 vecPos;
-    
+
     uniform vec2 center;
-    uniform float radSquared;
+    uniform float radius;
     uniform vec3 color;
 
     void main() {
-        vec2 diff = center - vecPos;
-        float distSq = diff.x * diff.x + diff.y * diff.y;
-        float intensity = 1.0 - clamp(distSq / radSquared, 0., 1.);
+        float dist = length(center - vecPos);
+        float invInt = dist / radius;
+        float intensity = 1.0 - clamp(invInt * invInt, 0., 1.);
         gl_FragColor = vec4(color, 1) * (intensity * intensity);// Pre multiplied alpha
     }
 `;
 
 const CONST_LIGHT_FRAGMENT_SHADER = `
-    precision mediump float;
+    precision lowp float;
 
     varying vec2 vecPos;
-    
+
     uniform vec2 center;
-    uniform float radSquared;
+    uniform float radius;
     uniform vec3 color;
 
     void main() {
-        vec2 diff = center - vecPos;
-        float distSq = diff.x * diff.x + diff.y * diff.y;
-        float intensity = float(distSq <= radSquared);
+        float dist = length(center - vecPos);
+        float intensity = float(dist <= radius);
         gl_FragColor = vec4(color, 1) * intensity;// Pre multiplied alpha
     }
 `;
 
 const PLAYER_VIS_FRAGMENT_SHADER = `
-    precision mediump float;
+    precision lowp float;
 
     varying vec2 vecPos;
-    
+
     uniform vec2 center;
-    uniform float radSquared;
+    uniform float radius;
     uniform vec3 color;
 
     void main() {
-        vec2 diff = center - vecPos;
-        float distSq = diff.x * diff.x + diff.y * diff.y;
-        float intensity = 1.0 - smoothstep(0.9, 1.0, clamp(distSq / radSquared, 0., 1.));
+        float dist = length(center - vecPos);
+        float intensity = 1.0 - smoothstep(0.9, 1.0, clamp(dist / radius, 0., 1.));
         gl_FragColor = vec4(color, 1) * intensity;// Pre multiplied alpha
     }
 `;
@@ -77,9 +75,9 @@ type LightProgramType = 'normal' | 'const' | 'player';
 
 export function setup() {
     if (lightProgram === undefined) {
-        lightProgram = PIXI.Program.from(LIGHT_VERTEX_SHADER, LIGHT_FRAGMENT_SHADER);
-        constLightProgram = PIXI.Program.from(LIGHT_VERTEX_SHADER, CONST_LIGHT_FRAGMENT_SHADER);
-        playerVisProgram = PIXI.Program.from(LIGHT_VERTEX_SHADER, PLAYER_VIS_FRAGMENT_SHADER);
+        lightProgram = PIXI.Program.from(LIGHT_VERTEX_SHADER, LIGHT_FRAGMENT_SHADER, 'light');
+        constLightProgram = PIXI.Program.from(LIGHT_VERTEX_SHADER, CONST_LIGHT_FRAGMENT_SHADER, 'const_light');
+        playerVisProgram = PIXI.Program.from(LIGHT_VERTEX_SHADER, PLAYER_VIS_FRAGMENT_SHADER, 'player_vis');
     }
 }
 
@@ -97,7 +95,7 @@ export function createMesh(lightType: LightProgramType = 'normal'): PIXI.Mesh {
     // We'll change them all, in due time
     let shaders = new PIXI.Shader(program!, {
         'center': new Float32Array([0.5, 0.5]),
-        'radSquared': 10,
+        'radius': 10,
         'color': new Float32Array([0, 0, 0]),
     });
 
@@ -125,11 +123,11 @@ export function updateMeshPolygons(mesh: PIXI.Mesh, pos: IPoint, poly?: number[]
     buffer.update(fBuffer);
 }
 
-export function updateMeshUniforms(mesh: PIXI.Mesh, center: IPoint, rangeSquared: number, color: number) {
+export function updateMeshUniforms(mesh: PIXI.Mesh, center: IPoint, radius: number, color: number) {
     let uni = mesh.shader.uniforms;
     let c = uni.center;
     c[0] = center.x;
     c[1] = center.y;
-    uni.radSquared = rangeSquared;
+    uni.radius = radius;
     hex2rgb(color, uni.color);
 }

@@ -81,7 +81,7 @@ export class WrtcConnection {
             }
         };
         this.handle.createDataChannel('unused', {
-            negotiated: false,
+            negotiated: true,
             id: 0,
         })
         if (this.isInitiator) {
@@ -115,7 +115,7 @@ export class WrtcConnection {
         }
     }
 
-    
+
     createDataChannel(label: string, config: RTCDataChannelInit) {
         const channel = this.handle.createDataChannel(label, config);
         return new WrtcChannel(channel);
