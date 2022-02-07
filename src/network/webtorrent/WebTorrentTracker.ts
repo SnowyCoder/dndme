@@ -55,7 +55,7 @@ export interface TrackerConfig {
 }
 
 const RECONNECT_MINIMUM = 5 * 1000;
-const RECONNECT_MAXIMUM = 60 * 1000;
+const RECONNECT_MAXIMUM = 10 * 60 * 1000;
 const RECONNECT_VARIANCE = 10 * 1000;
 const OFFER_TIMEOUT = 30 * 1000;
 
@@ -440,7 +440,12 @@ export class WebTorrentTracker {
 
     private openSocket(): void {
         this.destroyed = false;
-        this.socket = new WebSocket(this.announceUrl);
+        try {
+            this.socket = new WebSocket(this.announceUrl);
+        } catch (e) {
+            this.onSocketError(e);
+            return;
+        }
         this.socket.binaryType = 'arraybuffer';
         this.socket.onopen = this.onSocketConnect.bind(this);
         this.socket.onmessage = this.onSocketData.bind(this);

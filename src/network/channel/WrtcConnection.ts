@@ -1,4 +1,3 @@
-import { off } from "process";
 import SafeEventEmitter from "../../util/safeEventEmitter";
 import { WrtcChannel } from "./WrtcChannel";
 

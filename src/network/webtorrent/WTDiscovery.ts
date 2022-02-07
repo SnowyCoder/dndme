@@ -135,7 +135,11 @@ export class WTDiscovery {
 
         for (let trackerName in this.trackers) {
             const tracker = this.trackers[trackerName];
-            this.resumeTracker(tracker);
+            try {
+                this.resumeTracker(tracker);
+            } catch (err) {
+                console.error("Error on resumeTracker", err);
+            }
         }
     }
 
