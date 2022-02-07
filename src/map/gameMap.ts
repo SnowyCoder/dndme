@@ -1,12 +1,13 @@
-import {MapLevel, SerializedMapLevel} from "./mapLevel";
+import { MapLevel, SerializedMapLevel } from "./mapLevel";
 
-import {decode, encode} from "@msgpack/msgpack";
+import { decode, encode } from "@msgpack/msgpack";
 import JSZip from "jszip";
 import { rewriteCompatibility } from "./backporting";
+import { deflate } from "zlib";
 
 export interface SerializedGameMap {
     version: any;
-    levels: {[id: number]: SerializedMapLevel};
+    levels: { [id: number]: SerializedMapLevel };
 }
 
 export class GameMap {
@@ -29,7 +30,7 @@ export class GameMap {
         return encode(data);
     }
 
-    saveToFile(): Promise<Blob> {
+    saveToFile(progress: (prog: number) => void): Promise<Blob> {
         let data = this.createDataJson();
         let zip = new JSZip();
         zip.file("data.msgpack", data);
@@ -38,14 +39,16 @@ export class GameMap {
             compression: 'DEFLATE',
             // Prevent the browser from renaming the extension
             mimeType: 'application/octet-stream',
+            streamFiles: true,
+        }, meta => {
+            progress(meta.percent);
         })
     }
 
-    static async loadFromFile(from: File): Promise<GameMap> {
+    static async loadFromFile(from: File, progress: (prog: number) => void): Promise<GameMap> {
         let zip = await JSZip.loadAsync(from);
         // TODO: better error management
-        // TODO: display loading percentage
-        let file = await zip.file("data.msgpack")!.async('arraybuffer');
+        let file = await zip.file("data.msgpack")!.async('arraybuffer', meta => progress(meta.percent));
         let data = await decode(file) as SerializedGameMap;
 
         // This also checks for data.version compatibility

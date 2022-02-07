@@ -24,8 +24,11 @@ export class HostEditMapPhase extends EditMapPhase {
         }
         this.currentLevel = this.map.levels.values().next().value;
 
-        this.world.events.on('export_map', () => {
-            void this.exportMap();
+        this.world.events.on('export_map', (progress: (prog: number) => void, onDone: () => void) => {
+            void this.exportMap(progress, onDone);
+        });
+        this.world.events.on('blob_save', (blob, filename) => {
+            this.saveBlob(blob, filename);
         });
     }
 
@@ -113,9 +116,10 @@ export class HostEditMapPhase extends EditMapPhase {
     }
 
 
-    async exportMap() {
+    async exportMap(progress: (prog: number) => void, onDone: () => void) {
         this.currentLevel.saveFrom(this.world);
-        let blob = await this.map.saveToFile();
+        let blob = await this.map.saveToFile(progress);
+        onDone();
         this.saveBlob(blob, this.map.name ?? "map.dndm");
     }
 

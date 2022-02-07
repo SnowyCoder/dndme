@@ -15,6 +15,7 @@ import GridEditComponent from "@/ui/edit/GridEdit.vue";
 import { VueComponent } from "@/ui/vue";
 import { Group, Layer } from "@pixi/layers";
 import { StandardToolbarOrder } from "@/phase/editMap/standardToolbarOrder";
+import { RenderTexture } from "pixi.js";
 
 
 const SQRT3 = Math.sqrt(3);
@@ -62,6 +63,7 @@ export class GridSystem implements System {
 
         world.events.on('resource_edited', this.onResourceEdited, this);
         world.events.on('resource_remove', this.onResourceRemove, this);
+        world.events.on('grid_export', this.onGridExport, this);
 
         this.gridRes = Object.assign({
             type: GRID_TYPE,
@@ -100,6 +102,30 @@ export class GridSystem implements System {
     onResize(width: number, height: number) {
         this.sprite.width = width;
         this.sprite.height = height;
+    }
+
+    onGridExport(width: number, height: number) {
+        const sprite = new PIXI.TilingSprite(PIXI.Texture.EMPTY, width, height);
+        sprite.texture = this.sprite.texture;
+        sprite.tilePosition.copyFrom(this.sprite.tilePosition);
+        sprite.tileScale.copyFrom(this.sprite.tileScale);
+
+        const r = this.boardSys.renderer;
+
+        const renderTexture = RenderTexture.create({
+            width, height,
+            format: PIXI.FORMATS.RGBA,
+        });
+
+        r.render(sprite, {
+            renderTexture,
+            clear: true,
+        });
+        const canvas = (r.plugins.extract as PIXI.Extract).canvas(renderTexture);
+        canvas.toBlob(blob => {
+            console.log("Saving exported image!");
+            this.world.events.emit('blob_save', blob, "grid.png");
+        }, "image/png");
     }
 
     private updateTex() {

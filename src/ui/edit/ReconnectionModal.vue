@@ -3,9 +3,8 @@
   <Modal
     backdrop="static"
     :keyboard="false"
-    header-class="border-bottom-0 bg-dark text-light"
-    body-class="bg-dark text-light"
-    footer-class="border-top-0 bg-dark text-light"
+    header-class="border-bottom-0"
+    footer-class="border-top-0"
 
       v-model="shouldBeShown" title="Connecting...">
     <template #header>

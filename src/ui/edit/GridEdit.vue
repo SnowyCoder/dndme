@@ -48,7 +48,21 @@
         Thickness
         <editable-range v-model="grid.thick" :min="0" :max="200"></editable-range>
       </div>
+
+      <button class="btn btn-primary" title="Export" @click="isExporting = true">
+        Export
+      </button>
     </div>
+
+    <modal v-model="isExporting" >
+      <div class="d-flex align-items-center">
+        <editable-number v-model="exportSize.width" />x<editable-number v-model="exportSize.height"/>
+      </div>
+      <template #footer>
+        <button type="button" class="btn btn-primary" @click="onExport()">Export</button>
+        <button type="button" class="btn btn-secondary" @click="isExporting = false">Close</button>
+      </template>
+    </Modal>
   </div>
 </template>
 
@@ -62,9 +76,11 @@ import { GridResource, Resource } from "../../ecs/resource";
 import { World } from "../../ecs/world";
 
 import { ResourceEditCommand } from "../../ecs/systems/command/resourceEditCommand";
-import { defineComponent, inject, ShallowRef } from "vue";
+import { defineComponent, inject, ref, shallowRef, ShallowRef, watch } from "vue";
 import EditableRange from "../util/EditableRange.vue";
 import EditableColor from "../util/EditableColor.vue";
+import EditableNumber from "../util/EditableNumber.vue";
+import Modal from "../util/Modal.vue";
 
 type RenderGridOpts = {
   type: string;
@@ -77,12 +93,33 @@ type RenderGridOpts = {
   thick: number;
 }
 
+const DEFAULT_GRID_SIZE = {
+  width: 2480,
+  height: 3508,
+}
+
 export default defineComponent({
-  components: { HexagonIcon, EditableText, EditableRange, EditableColor },
+  components: { HexagonIcon, EditableText, EditableRange, EditableColor, EditableNumber, Modal },
   setup() {
     const world = inject('world') as ShallowRef<World>;
 
-    return { world };
+    const isExporting = shallowRef(false);
+    const exportSize = ref(Object.assign({}, DEFAULT_GRID_SIZE));
+
+    const onExport = () => {
+      world.value.events.emit('grid_export', exportSize.value.width, exportSize.value.height);
+      isExporting.value = false;
+    };
+    watch(isExporting, newVal => {
+      if (newVal) {
+        Object.assign(exportSize.value, DEFAULT_GRID_SIZE);
+      }
+    });
+
+    return {
+      world,
+      isExporting, exportSize, onExport
+    };
   },
   data() {
     return {

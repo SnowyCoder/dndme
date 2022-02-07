@@ -70,6 +70,10 @@ div.under-navbar {
     flex-grow: 1;
 }
 
+.progress-bar-fast {
+    transition: width .1s linear;
+}
+
 .rotate {
     animation: rotation 1s infinite linear;
 }

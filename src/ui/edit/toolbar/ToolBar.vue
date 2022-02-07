@@ -12,14 +12,11 @@
 
     <div class="btn-group" role="group" aria-label="tools">
       <component v-bind:is="entry.icon" v-bind="entry.iconProps" v-for="entry in entries" :key="entry.entity"></component>
-      <button class="btn btn-success rounded-0" title="Export map"
-              v-on:click="world.events.emit('export_map')" v-if="world.isMaster">
-        <i class="fas fa-download"/>
-      </button>
+      <ExportMap v-if="world.isMaster"/>
     </div>
 
     <div style="flex: 1 1 0;"/> <!-- Spacing -->
-    
+
     <button title="Toggle sidebar" class="btn btn-warning" @click="toggleSidebar">
       <i class="fas fa-angle-double-right"/>
     </button>
@@ -36,9 +33,10 @@ import MouseTrailIcon from "../../icons/MouseTrailIcon.vue";
 import WallIcon from "../../icons/WallIcon.vue";
 import { computed, defineComponent, inject, provide, reactive, ShallowRef } from "vue";
 import { SidebarResource, SIDEBAR_TYPE, ToolbarItemComponent, TOOLBAR_ITEM_TYPE } from "../../../ecs/systems/toolbarSystem";
+import ExportMap from "./ExportMap.vue";
 
 export default defineComponent({
-  components: { MouseTrailIcon, WallIcon },
+  components: { MouseTrailIcon, WallIcon, ExportMap },
   setup() {
     const world = inject('world') as ShallowRef<World>;
 

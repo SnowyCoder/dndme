@@ -30,7 +30,7 @@ export default defineComponent({
       let file;
       if (!dataTransfer) {
         const input = event.target as HTMLInputElement;
-        if (input.files.length > 0) {
+        if (input.files && input.files.length > 0) {
           file = input.files[0];
         } else {
           return;

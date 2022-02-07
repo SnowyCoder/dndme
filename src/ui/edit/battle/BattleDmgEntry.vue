@@ -38,9 +38,9 @@ export default defineComponent({
       context.emit('update:dmg', computedDmg);
     };
 
-    const toStr = (x) => isNaN(x) ? '0' : (x == -Infinity ? 'Err' : String(x));
+    const toStr = (x: number) => isNaN(x) ? '0' : (x == -Infinity ? 'Err' : String(x));
 
-    let pending = null;
+    let pending = null as number | null;
     const rdmg = ref(toStr(dmg.value));
     watch(dmg, (newValue) => {
       if (pending != null) {
@@ -50,7 +50,7 @@ export default defineComponent({
       pending = newValue;
 
       setTimeout(() => {
-        rdmg.value = toStr(pending);
+        rdmg.value = toStr(pending!);
         pending = null;
       }, 150);
 

@@ -26,8 +26,8 @@ export class HomePhase extends Phase {
         stage.setPhase(new HostEditMapPhase(map));
     }
 
-    async editMap(file: File) {
-        let map = await GameMap.loadFromFile(file);
+    async editMap(file: File, progress: (prog: number) => void) {
+        let map = await GameMap.loadFromFile(file, progress);
         stage.setPhase(new HostEditMapPhase(map));
     }
 

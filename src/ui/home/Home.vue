@@ -9,7 +9,7 @@
       <button class="btn btn-lg btn-warning btn-entry" v-on:click="onCreateMap">Create Map</button>
     </div>
     <div>
-      <button class="btn btn-lg btn-info btn-entry" v-on:click="onEditMap">Edit Map</button>
+      <button class="btn btn-lg btn-info btn-entry" v-on:click="showFileModal= true">Edit Map</button>
     </div>
 
     <Modal v-model="showFileModal" hide-footer title="Gimme the map" center-vertical>
@@ -19,12 +19,27 @@
       </MapInput>
     </Modal>
 
+    <Modal
+        backdrop="static"
+        :keyboard="false"
+        header-class="border-bottom-0"
+        hide-footer
+        :model-value="loadingProgress !== undefined" title="Loading...">
+      <template #header>
+        <h5 class="modal-title">Loading...</h5>
+      </template>
+
+      <div class="progress">
+        <div class="progress-bar progress-bar-fast" role="progressbar" :style="`width: ${loadingProgress ?? 0}%;`" :aria-valuenow="loadingProgress" aria-valuemin="0" aria-valuemax="100"></div>
+      </div>
+    </Modal>
+
     <footer-component></footer-component>
   </div>
 </template>
 
 <script lang="ts">
-import { defineComponent, PropType, ref } from "vue";
+import { defineComponent, PropType, ref, shallowRef, watch } from "vue";
 import SafeEventEmitter from "../../util/safeEventEmitter";
 import FooterComponent from "../Footer.vue";
 import MapInput from "./MapInput.vue";
@@ -35,50 +50,43 @@ export default defineComponent({
   props: {
     uiEvents: { type: Object as PropType<SafeEventEmitter>, required: true },
   },
-  setup() {
-  },
-  data() {
-    return {
-      file: undefined as File | undefined,
-      showFileModal: false,
-    };
-  },
-  methods: {
-    onCreateMap() {
-      this.uiEvents.emit("create_map");
-    },
+  setup(props) {
+    const { uiEvents } = props;
 
-    onEditMap() {
-      this.showFileModal = true;
-      this.uiEvents.emit("edit_map");
-    },
+    const file = shallowRef<File | undefined>(undefined);
+    const showFileModal = shallowRef(false);
+    const loadingProgress = shallowRef<number | undefined>(undefined);
 
-    mapLoadCancel() {
-      this.showFileModal = false;
-    },
-  },
-  watch: {
-    file(val: File) {
+    /*setInterval(() => {
+      loadingProgress.value = (loadingProgress.value + 0.1) % 101;
+      console.log(loadingProgress.value)
+    }, 10);*/
+
+    watch(file, val => {
       if (val === undefined) return;
 
       console.log("File dropped, loading...");
-      this.uiEvents.emit('edit', this.file);
-      this.file = undefined;
-      this.mapLoadCancel();
-    },
-  }
+      loadingProgress.value = 0;
+      uiEvents.emit('edit', val, (x: number) => {
+        loadingProgress.value = x;
+      });
+      file.value = undefined;
+      showFileModal.value = false;
+    });
+
+    const onCreateMap = () => {
+      uiEvents.emit("create_map");
+    };
+
+    return {
+      file, showFileModal, loadingProgress,
+      onCreateMap,
+    }
+  },
 });
 </script>
 
 <style>
-.s-home-container {
-  color: white;
-}
-
-.s-home-text {
-  color: white;
-}
-
 .btn-entry {
   margin-bottom: 10px;
 }

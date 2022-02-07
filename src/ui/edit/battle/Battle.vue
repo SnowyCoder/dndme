@@ -87,7 +87,7 @@ export default defineComponent({
               if (b.initiative === undefined) return 1;
               return a.initiative - b.initiative;
             }).map((x, i) => {
-                const stats = world.getComponent<StatsComponent>(x.entity, STATS_TYPE);
+                const stats = world.getComponent<StatsComponent>(x.entity, STATS_TYPE)!;
                 const rowClass = [
                   world.getComponent(x.entity, PLAYER_TYPE) ? 'table-success' : 'table-danger',
                 ];

@@ -66,8 +66,22 @@ export default defineComponent({
         focus: props.focus,
       });
 
-      htmlModal.addEventListener('show.bs.modal', () => onShowHide(true));
-      htmlModal.addEventListener('hide.bs.modal', () => onShowHide(false));
+      htmlModal.addEventListener('show.bs.modal', () => {
+        onShowHide(true);
+      });
+      htmlModal.addEventListener('shown.bs.modal', () => {
+        if (!modelValue.value) {
+          modal.value.hide();
+        }
+      });
+      htmlModal.addEventListener('hide.bs.modal', () => {
+        onShowHide(false);
+      });
+      htmlModal.addEventListener('hidden.bs.modal', () => {
+        if (modelValue.value) {
+          modal.value.hide();
+        }
+      });
 
       if (modelValue.value) {
         modal.value.show();

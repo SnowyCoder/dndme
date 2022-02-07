@@ -38,7 +38,9 @@ export default defineComponent({
 
 </script>
 
-<style>
+<style lang="scss">
+@import "@/style/vars";
+
 .util_editable-text_div {
   position: relative;
   margin: 5px;
@@ -56,10 +58,16 @@ export default defineComponent({
   transition: width 0.2s, border 0s 0.2s;
 }
 
-.util_editable-text_input:focus ~ .util_editable-text_border {
-  border-color: #4285F4;
-  width: 100%;
-  transition: width 0.3s;
+.util_editable-text_input {
+  &:focus ~ .util_editable-text_border {
+    border-color: #4285F4;
+    width: 100%;
+    transition: width 0.3s;
+  }
+  &::placeholder {
+    color: $input-placeholder-color;
+    opacity: 1;
+  }
 }
 
 .hprior.util_editable-text_input {
