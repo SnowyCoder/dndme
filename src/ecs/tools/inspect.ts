@@ -122,6 +122,7 @@ export class SelectPart implements ToolPart {
     }
 
     private onPointerDown(event: PointerDownEvent): void {
+        this.endToolMove();
         if (event.consumed) return;
         this.isDown = true;
         this.lastDownEntities.length = 0;
@@ -183,7 +184,10 @@ export class SelectPart implements ToolPart {
         if (this.rectSelection.isActive) {
             this.rectSelection.done();
         }
+        this.endToolMove();
+    }
 
+    private endToolMove() {
         if (this.isMoving) {
             this.isMoving = false;
             this.world.events.emit('tool_move_end');
@@ -230,5 +234,6 @@ export class SelectPart implements ToolPart {
     onEnable(): void {
     }
     onDisable(): void {
+        this.endToolMove();
     }
 }
