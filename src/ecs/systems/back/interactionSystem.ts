@@ -350,6 +350,10 @@ export class InteractionSystem implements System {
     private registerSnapPoints(snaps: number[]): void {
         let slen = snaps.length;
         for (let i = 0; i < slen; i += 2) {
+            if (isNaN(snaps[i]) || isNaN(snaps[i+1])) {
+                console.error("Trying to put NaN in the point db!");
+                continue;
+            }
             this.snapDb.insert([snaps[i], snaps[i + 1]]);
         }
     }
@@ -357,6 +361,10 @@ export class InteractionSystem implements System {
     private unregisterSnapPoints(snaps: number[]): void {
         let slen = snaps.length;
         for (let i = 0; i < slen; i += 2) {
+            if (isNaN(snaps[i]) || isNaN(snaps[i+1])) {
+                console.error("Trying to remove NaN from the point db!");
+                continue;
+            }
             this.snapDb.remove([snaps[i], snaps[i + 1]]);
         }
     }

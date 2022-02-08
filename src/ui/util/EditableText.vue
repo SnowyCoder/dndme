@@ -21,10 +21,13 @@ export default defineComponent({
     size: { type: Number },
     filter: { type: Function, default: undefined},// (text: string) => String
   },
-  emits: ['update:modelValue'],
+  emits: ['update:modelValue', 'change'],
   methods: {
     onEvent(ev: string, event: InputEvent) {
       const et = event.target as HTMLInputElement;
+      if (ev === 'change') {
+        this.$emit('change');
+      }
       if ((ev === 'input') == !!this.modelModifiers?.lazy) {
         return;
       }

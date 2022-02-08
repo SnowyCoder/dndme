@@ -1,7 +1,7 @@
 import {System} from "../system";
 import {World} from "../world";
 import {loadTexture} from "../../util/pixi";
-import {Component} from "../component";
+import {Component, TransformComponent, TRANSFORM_TYPE} from "../component";
 import {SingleEcsStorage} from "../storage";
 import {
     ElementType,
@@ -14,8 +14,11 @@ import {
 } from "../../graphics";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {BIG_STORAGE_TYPE, BigStorageIndex, BigStorageSystem, BigEntryFlags} from "./back/bigStorageSystem";
-import { NameAsLabelComponent, NameAsLabelSystem, NAME_AS_LABEL_TYPE } from "./back/nameAsLabelSystem";
-import PIXI from "../../PIXI";
+import { NameAsLabelComponent, NAME_AS_LABEL_TYPE } from "./back/nameAsLabelSystem";
+import { Texture } from "pixi.js";
+import { Obb } from "../../geometry/obb";
+import { InteractionComponent, INTERACTION_TYPE, ObbShape } from "./back/interactionSystem";
+import { Aabb } from "../../geometry/aabb";
 
 export type BACKGROUND_TYPE = 'background_image';
 export const BACKGROUND_IMAGE_TYPE = 'background_image';
@@ -25,6 +28,7 @@ export interface BackgroundImageComponent extends Component {
     image: BigStorageIndex<Uint8Array>;
     visMap: BigStorageIndex<Uint8Array> | undefined;
     imageType: string;
+    _size: [number, number];
 }
 
 
@@ -44,6 +48,7 @@ export class BackgroundImageSystem implements System {
 
         this.world.addStorage(this.storage);
         this.world.events.on('component_add', this.onComponentAdd, this);
+        this.world.events.on('component_edited', this.onComponentEdited, this);
         this.world.events.on('component_remove', this.onComponentRemove, this);
         if (this.world.isMaster) {
             this.world.events.on(EVENT_REMEMBER_BIT_BY_BIY_MASK_UPDATE, this.onRememberBBBUpdate, this);
@@ -96,7 +101,7 @@ export class BackgroundImageSystem implements System {
             visMap = this.bigStorage.requestUse<Uint8Array>(bkgImg.visMap)?.data;
         }
 
-        let tex;
+        let tex: Texture;
         try {
             tex = await loadTexture(image, bkgImg.imageType);
         } catch (e) {
@@ -104,6 +109,7 @@ export class BackgroundImageSystem implements System {
             this.world.removeComponent(c);
             return;
         }
+        bkgImg._size = [tex.width, tex.height];
 
         this.world.addComponent(c.entity, {
             type: GRAPHIC_TYPE,
@@ -124,8 +130,27 @@ export class BackgroundImageSystem implements System {
 
         this.world.addComponent(c.entity, {
             type: NAME_AS_LABEL_TYPE,
-            initialOffset: { x: 0, y: -tex.height / 2}
+            initialOffset: { x: 0, y: this.computeLabelHeightOffset(c.entity) },
         } as NameAsLabelComponent);
+    }
+
+    private async onComponentEdited(comp: Component): Promise<void> {
+        if (comp.type !== TRANSFORM_TYPE) return;
+        const transform = comp as TransformComponent;
+        const background = this.storage.getComponent(comp.entity);
+        if (background === undefined) return;
+
+        this.world.editComponent(comp.entity, NAME_AS_LABEL_TYPE, {
+            initialOffset: { x: 0, y: this.computeLabelHeightOffset(comp.entity)},
+        } as NameAsLabelComponent);
+    }
+
+    private computeLabelHeightOffset(entity: number) {
+        const shape = this.world.getComponent<InteractionComponent>(entity, INTERACTION_TYPE)!.shape as ObbShape;
+        const aabb = Aabb.zero();
+        aabb.wrapPolygon(shape.data.rotVertex);
+
+        return -(aabb.maxY - aabb.minY) / 2;
     }
 
     private onComponentRemove(c: Component): void {

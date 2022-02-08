@@ -1,7 +1,7 @@
 <template>
-  <editable-text :modelValue="strValue" :modelModifiers="modelModifiers"
+  <editable-text :modelValue="strValue" :modelModifiers="modelModifiers" ref="child"
                  :readonly="readonly" :placeholder="placeholder" :size="digits" :filter="filter"
-                 @update:modelValue="onUpdate"/>
+                 @update:modelValue="onUpdate" @focusout="onFocusOut"/>
 </template>
 
 <script lang="ts">
@@ -17,10 +17,16 @@ export default defineComponent({
     readonly: { type: Boolean, default: false },
     placeholder: { type: String, default: '' },
     canBeNegative: { type: Boolean, default: true },
+    canBeZero: { type: Boolean, default: true },
     nullable: { type: Boolean, default: false },
     digits: { type: Number },
   },
   emits: ['update:modelValue'],
+  data() {
+    return {
+      isInvalid: false,
+    };
+  },
   computed: {
     strValue() {
       if (this.modelValue == null || isNaN(this.modelValue)) return "";
@@ -41,15 +47,26 @@ export default defineComponent({
           .join('.');
     },
     onUpdate(x: string) {
+      this.isInvalid = false;
       x = x.trim();
       if (x === '' && this.nullable) {
         this.$emit('update:modelValue', undefined);
         return;
       }
       const parsed = parseFloat(x);
-      if (isNaN(parsed)) return;
+      if (isNaN(parsed) || (parsed === 0 && !this.canBeZero)) {
+        this.isInvalid = true;
+        return;
+      }
       this.$emit('update:modelValue', parsed);
     },
+    onFocusOut() {
+      if (this.isInvalid) {
+        this.isInvalid = false;
+        // Rewrite textbox to put v-model value inside of it (if the previous value is invalid, ex: NaN or 0)
+        this.$refs.child.$forceUpdate();
+      }
+    }
   }
 });
 </script>
