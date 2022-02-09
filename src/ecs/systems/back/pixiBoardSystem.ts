@@ -538,6 +538,7 @@ export class PixiBoardSystem implements System {
         if (cnt === null) {
             throw new Error("Cannot find canvas container");
         }
+        cnt.replaceChildren(canvas)
         cnt.appendChild(canvas);
 
         // PIXI
@@ -567,6 +568,6 @@ export class PixiBoardSystem implements System {
         this.renderer.view.removeEventListener('wheel', this.wheelListener);
 
         let cnt = document.getElementById('canvas-container');
-        cnt?.removeChild(this.renderer.view);
+        cnt.removeChild(this.renderer.view);
     }
 }
