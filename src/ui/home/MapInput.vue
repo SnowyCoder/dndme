@@ -25,7 +25,7 @@ export default defineComponent({
       const { dataTransfer } = event;
 
       // Always emit original event
-      this.$emit('change', event)
+      this.$emit('change', event);
 
       let file;
       if (!dataTransfer) {

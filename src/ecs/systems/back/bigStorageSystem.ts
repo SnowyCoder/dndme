@@ -1,13 +1,13 @@
 import {System} from "../../system";
 import {MultiEcsStorage} from "../../storage";
-import {MultiComponent} from "../../component";
+import {MultiComponent, SharedFlag, SHARED_TYPE} from "../../component";
 import {World} from "../../world";
 import {Resource} from "../../resource";
 import {componentEditCommand} from "../command/componentEdit";
 import {ResourceEditCommand} from "../command/resourceEditCommand";
 import {emitCommand} from "../command/command";
 import { objectClone } from "../../../util/jsobj";
-import { SpawnCommand } from "../command/spawnCommand";
+import { SpawnCommand, SpawnCommandKind } from "../command/spawnCommand";
 import { generateRandomId } from "../../ecsUtil";
 
 export interface BigEntry<X> {
@@ -72,15 +72,13 @@ export class BigStorageSystem implements System {
         }
         if (this.res.entity <= 0) {
             console.log("Creating big storage");
-            let entity = this.world.allocateId();
-            emitCommand(this.world, {
-                kind: 'spawn',
-                data: {
-                    entities: [entity],
-                    storages: {},
-                }
-            } as SpawnCommand, true);
-            let cmd = {
+            const scmd = SpawnCommandKind.from(this.world, [{
+                type: SHARED_TYPE,
+            } as SharedFlag]);
+            const entity = scmd.data.entities[0];
+
+            emitCommand(this.world, scmd, true);
+            const cmd = {
                 kind: 'redit',
                 add: [],
                 edit: {},
@@ -150,6 +148,14 @@ export class BigStorageSystem implements System {
     }
 
     private onDeserialized() {
+        // Fix old stupid bug, of course big storage components should be shared!
+        if (this.res.entity >= 0 && this.world.getComponent(this.res.entity, SHARED_TYPE) === undefined) {
+            console.log("Fixing non-shared big-storage system");
+            this.world.addComponent(this.res.entity, {
+                type: SHARED_TYPE,
+            } as SharedFlag);
+        }
+
         let toRemove = [];
         for (let r of this.storage.getComponents(this.res.entity)) {
             if (r._users === undefined || r._users <= 0) {

@@ -63,7 +63,7 @@ export default defineComponent({
     }, 10);*/
 
     watch(file, val => {
-      if (val === undefined) return;
+      if (val === undefined || loadingProgress.value !== undefined) return;
 
       console.log("File dropped, loading...");
       loadingProgress.value = 0;
