@@ -38,19 +38,29 @@ import { StandardToolbarOrder } from "@/phase/editMap/standardToolbarOrder";
 export const MOUSE_TRAIL_TYPE = 'mouse_trail';
 export type MOUSE_TRAIL_TYPE = typeof MOUSE_TRAIL_TYPE;
 
-const ROPE_SIZE = 100;
-const HISTORY_SIZE = 20;
+const ROPE_SIZE = 500;
+const HISTORY_SIZE_MS = 500;
 const SEND_HISTORY_AFTER_MS = 100;
 
 // TODO: don't use ticker, use real world clock
 // TODO: better interpolation system, it should take time into account (right?)
 
+// How does this work?
+// We receive a packet containing coordinates and times between them.
+// (note. timings are local clocks for every PC, it should not be compared to any other local clock)
+// The received packets are replayed from the last received time, as-is
+// (following the received clock, but using deltas from our local clock)
+// The trail uses [local_clock - HISTORY_SIZE_MS, local_clock] as the path,
+// the rest is future data waiting to be drawn.
+// ATTACK RESISTANCE: This method presents possible OOM by allocating too many history entries
+//      (no restriction is placed on the received clock timestamps), TODO BUG
 export interface MouseTrailComponent extends Component {
     type: MOUSE_TRAIL_TYPE;
 
-    futurexy: number[],// interleaved [x1, y1, x2, y2]
     historyx: number[];
     historyy: number[];
+    historyt: number[];
+    local_clock: number;
     lastinput: number,// how many frames have passed since an input
     _g: PIXI.SimpleRope;
 }
@@ -77,9 +87,9 @@ export class MouseTrailSystem implements System {
     private toUpdate: number[] = [];
 
     // our "future" to send to others (yes it will have 100ms latency)
-    private selfFuture: number[] = [];
-    // last time we sent a future
-    private futureLastSend: number = 0;
+    private trailBuffer: number[] = [];
+    // Id of the timeout to send the current
+    private bufferFlushTimeout: any = undefined;
 
     constructor(world: World) {
         this.world = world;
@@ -116,27 +126,50 @@ export class MouseTrailSystem implements System {
 
     onSelfInput(x: number, y: number) {
         const netres = this.networkStatusResource!!;
-        this.onFuture(netres.myId, [x, y]);
+        const now = Date.now();
+        if (this.onFuture(netres.myId, [x, y, now], now)) {
+            this.onSelfPosition(x, y, now);
+        }
     }
 
-    onFuture(senderNetId: number, moves: number[]) {
+    onFuture(senderNetId: number, moves: number[], now: number) {
         const netres = this.networkStatusResource!!;
         const entityId = netres.entityIndex.get(senderNetId);
         if (entityId === undefined) {
             console.warn("Cannot find entity of network player " + senderNetId, netres.entityIndex);
-            return
+            return false
         }
         let data = this.storage.getComponent(entityId)!!;
 
-        if (moves.length % 2 !== 0) {
+        if (moves.length % 3 !== 0) {
             console.warn("Client " + senderNetId + " sent unaligned xy moves");
-            moves.length = moves.length - 1;
+            moves.length = moves.length - (moves.length % 3);
+        }
+        if (moves.length == 0) return false;
+
+        if (data.historyt.length == 0) {
+            data.local_clock = moves[2];
+        } else {
+            // Quick and stupid filter to align with the remote clock (fixed low gain)
+            data.local_clock += (moves[2] - data.local_clock) * 0.25;
         }
 
-        data.futurexy.push(...moves);
+        let added = 0;
+        for (let i = 0; i < moves.length; i += 3) {
+            if (data.historyt.length !== 0 &&
+                data.historyx[data.historyx.length - 1] == moves[i] &&
+                data.historyy[data.historyy.length - 1] == moves[i + 1]) continue;
+            added += 1;
+            data.historyx.push(moves[i + 0]);
+            data.historyy.push(moves[i + 1]);
+            data.historyt.push(moves[i + 2]);
+        }
+        //this.trimHistory(data, data.local_clock + (now - ticker.lastTime));
+
         if (this.toUpdate.indexOf(entityId) < 0) {
             this.toUpdate.push(entityId);
         }
+        return added != 0;
     }
 
     private createSimpleRope(): PIXI.SimpleRope {
@@ -153,18 +186,18 @@ export class MouseTrailSystem implements System {
         return rope;
     }
 
-     updateRope(c: MouseTrailComponent, netwEntity: NetworkEntityComponent | undefined = undefined) {
+    updateRope(c: MouseTrailComponent, netwEntity: NetworkEntityComponent | undefined = undefined) {
         const rope = c._g;
         const geom = rope.geometry as PIXI.RopeGeometry;
         const ropePoints = geom.points;
 
-        const historySize = c.historyx.length;
         const ropeSize = ropePoints.length;
         for (let i = 0; i < ropeSize; i++) {
-            const p = ropePoints[i];
+            const p = ropePoints[ropeSize - i - 1];
 
-            const x = cubicInterpolation(c.historyx, i / ropeSize * historySize) * this.boardScale;
-            const y = cubicInterpolation(c.historyy, i / ropeSize * historySize) * this.boardScale;
+            const t = c.local_clock - HISTORY_SIZE_MS + (i / ropeSize) * HISTORY_SIZE_MS;
+            const x = cubicInterpolation(c.historyx, c.historyt, t) * this.boardScale;
+            const y = cubicInterpolation(c.historyy, c.historyt, t) * this.boardScale;
 
             p.x = x;
             p.y = y;
@@ -176,25 +209,43 @@ export class MouseTrailSystem implements System {
             netwEntity = this.world.getComponent(c.entity, NETWORK_ENTITY_TYPE) as NetworkEntityComponent;
         }
         rope.tint = netwEntity.color;
+        rope.visible = true;
     }
 
 
-    private onSelfPosition(posx: number, posy: number) {
-        this.selfFuture.push(posx, posy);
-        const now = Date.now();
-        if (this.futureLastSend + SEND_HISTORY_AFTER_MS < now) {
-            const pkt = {
-                type: 'mtrail',
-                fut: this.selfFuture,
-            } as P.MouseTrailPacket;
-            this.networkSys.channel.broadcast(pkt);
-            this.selfFuture = [];
-            this.futureLastSend = now;
+    private onSelfPosition(posx: number, posy: number, post: number) {
+        this.trailBuffer.push(posx, posy, post);
+        if (this.bufferFlushTimeout === undefined) {
+            this.bufferFlushTimeout = setInterval(() => {
+                if (this.trailBuffer.length === 0) {
+                    clearInterval(this.bufferFlushTimeout);
+                    this.bufferFlushTimeout = undefined;
+                    return;
+                }
+                const pkt = {
+                    type: 'mtrail',
+                    fut: this.trailBuffer,
+                } as P.MouseTrailPacket;
+                this.networkSys.channel.broadcast(pkt);
+                this.trailBuffer = [];
+            }, SEND_HISTORY_AFTER_MS);
+        }
+    }
+
+    trimHistory(trail: MouseTrailComponent, local_clock: number) {
+        const last_useful_clock = local_clock - HISTORY_SIZE_MS;
+        let remove_count = 0;
+        for(; remove_count < trail.historyt.length && trail.historyt[remove_count] < last_useful_clock; remove_count++);
+        if (remove_count > 0) {
+            trail.historyt.splice(0, remove_count);
+            trail.historyx.splice(0, remove_count);
+            trail.historyy.splice(0, remove_count);
         }
     }
 
     private onTick() {
         if (this.toUpdate.length === 0) return;
+        const delta = this.pixiBoardSys.clock.elapsedMs;
 
         let netres = this.networkStatusResource!!;
         const myEntityId = netres.entityIndex.get(netres.myId);
@@ -202,39 +253,15 @@ export class MouseTrailSystem implements System {
             const entity = this.toUpdate[i];
             const trail = this.storage.getComponent(entity)!;
 
-            let prevx = trail.historyx[HISTORY_SIZE - 1];
-            let prevy = trail.historyy[HISTORY_SIZE - 1];
+            // different = Math.abs(nextx - prevx) + Math.abs(nexty - prevy) > Number.EPSILON;
+            trail.local_clock += delta;
+            // Only keep useful time:
+            this.trimHistory(trail, trail.local_clock);
 
-            let nextx = prevx;
-            let nexty = prevy;
-            let different = false;
-            if (trail.futurexy.length !== 0) {
-                nextx = trail.futurexy[0];
-                nexty = trail.futurexy[1];
-                trail.futurexy.splice(0, 2);
-                different = Math.abs(nextx - prevx) + Math.abs(nexty - prevy) > Number.EPSILON;
-            }
-            if (entity === myEntityId && trail.lastinput < HISTORY_SIZE) {
-                this.onSelfPosition(nextx, nexty);
-            }
-
-            trail.historyx.pop();
-            trail.historyy.pop();
-            trail.historyx.unshift(nextx);
-            trail.historyy.unshift(nexty);
-
-            if (different) {
-                trail.lastinput = 0;
-                trail._g.visible = true;
-            } else {
-                // If no update has been found in the last 20 frames remove the player from the update list
-                // it will be re-added if we get another change
-                trail.lastinput += 1;
-                if (trail.lastinput > HISTORY_SIZE) {
-                    this.toUpdate.splice(i, 1);
-                    trail._g.visible = false;
-                    continue
-                }
+            if (trail.historyt.length === 0) {
+                this.toUpdate.splice(i, 1);
+                trail._g.visible = false;
+                continue
             }
 
             this.updateRope(trail);
@@ -249,10 +276,11 @@ export class MouseTrailSystem implements System {
                 type: MOUSE_TRAIL_TYPE,
                 entity: -1,
                 color: 0xFFFFFF,
-                historyx: new Array(HISTORY_SIZE).fill(0),
-                historyy: new Array(HISTORY_SIZE).fill(0),
-                futurexy: [],
-                lastinput: HISTORY_SIZE,
+                historyx: [],
+                historyy: [],
+                historyt: [],
+                lastinput: 0,
+                local_clock: 0,
                 _g,
             } as MouseTrailComponent;
 
@@ -298,7 +326,7 @@ export class MouseTrailSystem implements System {
     }
 
     private onMouseTrailPacket(pkt: P.MouseTrailPacket, info: PacketInfo): void {
-        this.onFuture(info.senderId, pkt.fut);
+        this.onFuture(info.senderId, pkt.fut, Date.now());
     }
 
     enable(): void {
@@ -395,11 +423,22 @@ function getTangent(k: number, factor: number, array: number[]) {
     return factor * (clipInput(k + 1, array) - clipInput(k - 1, array)) / 2;
 }
 
-function cubicInterpolation(array: number[], t: number, tangentFactor: number = 1) {
-    const k = Math.floor(t);
-    const m = [getTangent(k, tangentFactor, array), getTangent(k + 1, tangentFactor, array)];
-    const p = [clipInput(k, array), clipInput(k + 1, array)];
-    t -= k;
+function cubicInterpolation(coords: number[], ctimes: number[], t: number, tangentFactor: number = 1) {
+    let ki = 0;
+    for (ki = 0; ki < ctimes.length - 1; ki++) {
+        if (t < ctimes[ki + 1]) break;
+    }
+    const k = ctimes[ki];
+    t = Math.min(Math.max(t - k, 0), 1);
+    const p = [clipInput(ki, coords), clipInput(ki + 1, coords)];
+    if (t == 1) {
+        return p[1];
+    }
+    return p[0];
+    // TODO: reuse the cubic interpolation
+    // for now we disabled it because it does not play nice with high sample rate.
+    // We might need to lower the sample rate and kick the interpolation back in.
+    const m = [getTangent(ki, tangentFactor, coords), getTangent(ki + 1, tangentFactor, coords)];
     const t2 = t * t;
     const t3 = t * t2;
     return (2 * t3 - 3 * t2 + 1) * p[0] + (t3 - 2 * t2 + t) * m[0] + (-2 * t3 + 3 * t2) * p[1] + (t3 - t2) * m[1];

@@ -95,6 +95,8 @@ export interface GameClockResource extends Resource {
 
     frame: number;
     timestampMs: number;
+    elapsedMs: number;
+    ticker: PIXI.Ticker,
 }
 
 export type PIXI_BOARD_TYPE = 'pixi_board';
@@ -139,10 +141,13 @@ export class PixiBoardSystem implements System {
             scaleY: 1,
         } as BoardTransformResource);
 
+        this.ticker = new PIXI.Ticker();
         this.clock = {
             type: GAME_CLOCK_TYPE,
             frame: 0,
             timestampMs: 0,
+            elapsedMs: 16.66,
+            ticker: this.ticker,
             _save: false,
             _sync: false,
         } as GameClockResource;
@@ -168,7 +173,6 @@ export class PixiBoardSystem implements System {
         this.renderer.view.addEventListener('contextmenu', (e) => {
             e.preventDefault();
         });
-        this.ticker = new PIXI.Ticker();
 
         this.root = new Stage();
         this.root.interactive = false;
@@ -187,6 +191,7 @@ export class PixiBoardSystem implements System {
             this.world.editResource(GAME_CLOCK_TYPE, {
                 frame: this.clock.frame + 1,
                 timestampMs: Date.now(),
+                elapsedMs: this.ticker.elapsedMS,
             })
             this.renderer.render(this.root);
         }, PIXI.UPDATE_PRIORITY.LOW);

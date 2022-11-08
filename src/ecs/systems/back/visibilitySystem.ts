@@ -19,6 +19,7 @@ import {STANDARD_GRID_OPTIONS} from "../../../game/grid";
 import {GRID_TYPE} from "../gridSystem";
 import {GridResource, Resource} from "../../resource";
 import * as PIXI from "pixi.js";
+import { GameClockResource, GAME_CLOCK_TYPE } from "./pixiBoardSystem";
 
 // This system uses a reuqest-response pattern
 // Where there are multiple "requests" for visibility but a single answer, let's make an example.
@@ -90,12 +91,14 @@ export class VisibilitySystem implements System {
 
     interactionSystem: InteractionSystem;
     gridSize: number;
+    clock: GameClockResource;
     aabbTree = new DynamicTree<VisibilityDetailsComponent>();
 
     constructor(world: World) {
         this.world = world;
         this.interactionSystem = this.world.systems.get(INTERACTION_TYPE) as InteractionSystem;
 
+        this.clock = this.world.getResource(GAME_CLOCK_TYPE) as GameClockResource;
         this.gridSize = (this.world.getResource(GRID_TYPE) as GridResource ?? STANDARD_GRID_OPTIONS).size;
 
         world.addStorage(this.storage);
@@ -316,7 +319,7 @@ export class VisibilitySystem implements System {
             this.gridSize = grid.size;
 
             // Update everything in the next tick so that everyone sees the changes first
-            PIXI.Ticker.shared.addOnce(() => {
+            this.clock.ticker.addOnce(() => {
                 for (let c of this.detailsStorage.allComponents()) {
                     this.updatePolygon(c);
                 }
