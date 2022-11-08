@@ -139,7 +139,11 @@ export class MouseTrailSystem implements System {
             console.warn("Cannot find entity of network player " + senderNetId, netres.entityIndex);
             return false
         }
-        let data = this.storage.getComponent(entityId)!!;
+        let data = this.storage.getComponent(entityId);
+        if (data === undefined) {
+            console.warn("Cannot find mouse trail for network player " + senderNetId);
+            return false;
+        }
 
         if (moves.length % 3 !== 0) {
             console.warn("Client " + senderNetId + " sent unaligned xy moves");
