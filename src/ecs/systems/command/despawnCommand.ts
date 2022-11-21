@@ -21,14 +21,18 @@ export class DeSpawnCommandKind implements CommandKind {
             only: new Set(cmd.entities),
             requireSave: true,
         });
-        for (let e of cmd.entities) {
-            this.world.despawnEntity(e);
-        }
+        this.apply(cmd);
 
         return  {
             kind: 'spawn',
             data,
         } as SpawnCommand
+    }
+
+    apply(cmd: DeSpawnCommand): void {
+        for (let e of cmd.entities) {
+            this.world.despawnEntity(e);
+        }
     }
 
     stripClient(command: DeSpawnCommand): Command[] {

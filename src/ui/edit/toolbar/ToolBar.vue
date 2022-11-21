@@ -1,6 +1,5 @@
 <template>
-  <div variant="info" class="btn-toolbar bg-dark justify-content-between" role="toolbar"
-       style="width: 100%; height: var(--topbar-height); z-index: 1000;" justify>
+  <div id="toolbar-container" class="btn-toolbar bg-dark justify-content-between" role="toolbar">
     <div v-if="world.isMaster" class="btn-group me-5" role="group">
       <button title="Undo" class="btn btn-secondary rounded-0 toolbar-btn plz-prioritize undo-redo-btn" :disabled="!historyState.canUndo" @click="undo()">
         <i class="fas fa-undo"></i>
@@ -78,10 +77,26 @@ export default defineComponent({
 });
 </script>
 
-<style>
+<style lang="scss">
+@import "@/style/vars";
+@import "bootstrap/scss/mixins";
+
 .plz-prioritize.undo-redo-btn.disabled, .plz-prioritize.undo-redo-btn:disabled {
   background-color: #343a40;
   border-color: #343a40;
   box-shadow: none;
+}
+
+#toolbar-container {
+  width: 100%;
+  height: var(--toolbar-height);
+  z-index: 1000;
+  position: fixed;
+  bottom: 0;
+  @include media-breakpoint-up(md) {
+    bottom: unset;
+    top: 0;
+    left: 0;
+  }
 }
 </style>

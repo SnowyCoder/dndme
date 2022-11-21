@@ -6,6 +6,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "vite",
+    "check": "vue-tsc --noEmit",
     "predeploy": "vite build --base=/dndme/",
     "deploy": "gh-pages -d dist"
   },

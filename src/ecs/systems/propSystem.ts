@@ -28,7 +28,7 @@ import {
     VisibilityType
 } from "../../graphics";
 import {TOOL_TYPE, ToolPart, ToolSystem} from "./back/toolSystem";
-import {PointerClickEvent, PointerEvents, PointerUpEvent} from "./back/pixiBoardSystem";
+import {PointerClickEvent, PointerEvents, PointerUpEvent} from "./back/pixi/pixiBoardSystem";
 import {SELECTION_TYPE, SelectionSystem} from "./back/selectionSystem";
 import {ToolType} from "../tools/toolType";
 import {SpawnCommandKind} from "./command/spawnCommand";
@@ -202,8 +202,10 @@ export class PropSystem implements System {
                 priority: DisplayPrecedence.PROP,
                 scale: ImageScaleMode.GRID,
                 visib: VisibilityType.REMEMBER,
-                texture: propType.texture,
-                sharedTexture: true,// DONT DELETE MY TEXTURE
+                texture: {
+                    type: 'raw',
+                    value: propType.texture,
+                },
                 anchor: { x: 0.5, y: 0.5 },
                 tint: 0xFFFFFF,
             } as ImageElement,
@@ -216,7 +218,7 @@ export class PropSystem implements System {
 
             let pType = this.getPropType(prop);
             let display = (this.world.getComponent(c.entity, GRAPHIC_TYPE) as GraphicComponent).display as ImageElement;
-            display.texture = pType.texture;
+            (display.texture as any).value = pType.texture;
             this.world.editComponent(c.entity, GRAPHIC_TYPE, { display }, undefined, false);
         }
     }
@@ -318,8 +320,10 @@ export class CreatePropToolPart implements ToolPart {
                     priority: DisplayPrecedence.PROP,
                     scale: ImageScaleMode.GRID,
                     visib: VisibilityType.ALWAYS_VISIBLE,
-                    texture: propType.texture,
-                    sharedTexture: true,// DONT DELETE MY TEXTURE
+                    texture: {
+                        type: 'raw',
+                        value: propType.texture,
+                    },
                     anchor: {x: 0.5, y: 0.5},
                     tint: 0xFFFFFF,
                 } as ImageElement,

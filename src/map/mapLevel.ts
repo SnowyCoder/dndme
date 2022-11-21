@@ -1,4 +1,5 @@
 import {SerializedWorld, World} from "../ecs/world";
+import { FileDb } from "./FileDb";
 
 export interface SerializedMapLevel {
     name?: string;
@@ -14,8 +15,9 @@ export class MapLevel {
         this.id = id;
     }
 
-    loadInto(ecs: World): void {
+    loadInto(ecs: World, files: FileDb): void {
         ecs.clear();
+        ecs.events.emit('hook_files', files);
         if (this.ecs !== undefined) {
             ecs.deserialize(this.ecs, {});
         }

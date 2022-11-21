@@ -12,13 +12,14 @@ import {
     SharedFlag,
     SHARED_TYPE,
     SERIALIZED_TYPE,
-    SerializedFlag
+    SerializedFlag,
+TRANSFORM_TYPE
 } from "../component";
-import {ElementType, GRAPHIC_TYPE, GraphicComponent, PointElement, VisibilityType} from "../../graphics";
-import {POINT_RADIUS} from "./back/pixiGraphicSystem";
+import {ElementType, GRAPHIC_TYPE, GraphicComponent, PointElement, VisibilityType, ImageElement, ContainerElement} from "../../graphics";
+import {POINT_RADIUS} from "./back/pixi/pixiGraphicSystem";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {TOOL_TYPE, ToolSystem, ToolPart} from "./back/toolSystem";
-import {PointerEvents, PointerUpEvent} from "./back/pixiBoardSystem";
+import {PointerEvents, PointerUpEvent} from "./back/pixi/pixiBoardSystem";
 import {ToolType} from "../tools/toolType";
 import {SpawnCommandKind} from "./command/spawnCommand";
 import {executeAndLogCommand} from "./command/command";
@@ -35,6 +36,9 @@ import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE, SELECTION_UI_TYPE } from
 
 import PinCreationOptions from "@/ui/edit/PinCreationOptions.vue";
 import EcsPin from "@/ui/ecs/EcsPin.vue";
+import { CircleShape, InteractionComponent, INTERACTION_TYPE } from "./back/interactionSystem";
+import { Container } from "pixi.js";
+import { FileIndex } from "@/map/FileDb";
 
 export const PIN_TYPE = 'pin';
 export type PIN_TYPE = typeof PIN_TYPE;
@@ -43,6 +47,8 @@ export interface PinComponent extends Component {
     type: PIN_TYPE;
     color: number;
     size?: number;
+    imageId?: FileIndex;
+    imageContours?: number;
 }
 
 export const DEFAULT_SIZE: number = 1;
@@ -90,6 +96,7 @@ export class PinSystem implements System {
                     name: 'Pin',
                     panel: EcsPin,
                     panelPriority: 100,
+                    hidePanels: [TRANSFORM_TYPE],// Controlled directly by us
                 } as ComponentInfoPanel);
             });
         }
@@ -102,7 +109,7 @@ export class PinSystem implements System {
             _save: true,
             _sync: true,
         } as PinResource, 'ignore');
-        this.res = world.getResource(PIN_TYPE)!! as PinResource;
+        this.res = world.getResource(PIN_TYPE)! as PinResource;
 
         world.addStorage(this.storage);
         world.events.on('component_add', this.onComponentAdd, this);
@@ -180,29 +187,62 @@ export class PinSystem implements System {
         }
     }
 
-    createElement(): PointElement {
+    createElement(): ContainerElement {
         return {
-            type: ElementType.POINT,
+            type: ElementType.CONTAINER,
             priority: DisplayPrecedence.PINS,
             visib: VisibilityType.NORMAL,
             ignore: false,
-            interactive: true,
-            color: 0xFFFFFF,
-            scale: 1,
-            children: [],
-        } as PointElement;
+            children: [
+                {
+                    type: ElementType.POINT,
+                    priority: DisplayPrecedence.PINS,
+                    visib: VisibilityType.NORMAL,
+                    ignore: false,
+                    color: 0xFFFFFF,
+                    scale: 1,
+                } as PointElement,
+            ],
+        } as ContainerElement;
     }
 
     private redrawComponent(pin: PinComponent): void {
         const gc = this.world.getComponent(pin.entity, GRAPHIC_TYPE) as GraphicComponent;
-        const display = gc.display as PointElement;
-        display.color = pin.color;
-        display.scale = (pin.size || this.res.defaultSize) * this.gridSize;
+        const scale = (pin.size || this.res.defaultSize) * this.gridSize;
+        const display = gc.display as ContainerElement;
+        if (pin.imageId !== undefined) {
+            let img;
+            if (display.children!.length < 2) {
+                img = {
+                    type: ElementType.IMAGE,
+                    texture: {
+                        type: 'external',
+                        value: pin.imageId!,
+                        priority: 100,
+                    },
+                    priority: DisplayPrecedence.PINS,
+                    visib: VisibilityType.NORMAL,
+                    ignore: false,
+                    scale: 1,
+                    anchor: { x: 0.5, y: 0.5 },
+                    tint: 0xFFFFFF,
+                    children: []
+                } as ImageElement;
+                display._childrenAdd = [];
+            }
+        }
+        const point = gc.display.children![0] as PointElement;
+        point.color = pin.color;
+        point.scale = scale;
+        const image = gc.display.children![1] as ImageElement | undefined;
+        if (image !== undefined) {
+            image.scale = scale;
+        }
 
-        this.world.editComponent(pin.entity, GRAPHIC_TYPE, { display }, undefined, false);
+        this.world.editComponent(pin.entity, GRAPHIC_TYPE, { display: gc.display }, undefined, false);
 
         this.world.editComponent(pin.entity, NAME_AS_LABEL_TYPE, {
-            initialOffset: {x: 0, y: -POINT_RADIUS * display.scale},
+            initialOffset: {x: 0, y: -POINT_RADIUS * scale},
         } as NameAsLabelComponent);
     }
 
@@ -226,12 +266,14 @@ export class CreatePinToolPart implements ToolPart {
 
     initCreation() {
         this.cancelCreation();
-        let color = Math.floor(Math.random() * 0xFFFFFF);
+        const color = Math.floor(Math.random() * 0xFFFFFF);
 
-        let display = this.sys.createElement();
-        display.color = color;
+        const display = this.sys.createElement();
         display.visib = VisibilityType.ALWAYS_VISIBLE;
-        display.scale = this.sys.res.defaultSize * this.sys.gridSize;
+        const point = display.children![0] as PointElement;
+        point.color = color;
+        point.visib = VisibilityType.ALWAYS_VISIBLE;
+        point.scale = this.sys.res.defaultSize * this.sys.gridSize;
 
         this.createPin = this.sys.world.spawnEntity(
             {
@@ -282,7 +324,7 @@ export class CreatePinToolPart implements ToolPart {
             } as PositionComponent,
             {
                 type: PIN_TYPE,
-                color: (g.display as PointElement).color,
+                color: (g.display.children![0] as PointElement).color,
             } as PinComponent,
             {
                 type: PARENT_LAYER_TYPE,

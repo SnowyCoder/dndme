@@ -43,6 +43,10 @@ export class ResourceEditCommandKind implements CommandKind {
         return inv;
     }
 
+    apply(cmd: ResourceEditCommand): void {
+        this.applyInvert(cmd);
+    }
+
     stripClient(cmd: ResourceEditCommand): Command[] {
         let add = cmd.add.filter(x => x._sync);
         let edit = {} as AnyMapType;

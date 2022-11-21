@@ -4,7 +4,7 @@
     <tool-bar>
     </tool-bar>
 
-    <div id="canvas-container" style="width: 100%; height: calc(100vh - var(--topbar-height));">
+    <div id="canvas-container" class="under-toolbar">
     </div>
 
     <side-bar>
@@ -42,8 +42,13 @@ export default defineComponent({
 });
 </script>
 
-<style>
+<style lang="scss">
 .edit-map_game {
   user-select: none;
+}
+
+#canvas-container {
+  width: 100%;
+  height: calc(100vh - var(--toolbar-height));
 }
 </style>

@@ -1,7 +1,7 @@
 import PIXI from "../../PIXI";
 import {QueryHitEvent} from "../interaction";
 import {World} from "../world";
-import {PIXI_BOARD_TYPE, PixiBoardSystem} from "../systems/back/pixiBoardSystem";
+import {PIXI_BOARD_TYPE, PixiBoardSystem} from "../systems/back/pixi/pixiBoardSystem";
 import {INTERACTION_TYPE, InteractionSystem} from "../systems/back/interactionSystem";
 import {WALL_TYPE, WallSystem} from "../systems/wallSystem";
 import { IPoint } from "@/geometry/point";

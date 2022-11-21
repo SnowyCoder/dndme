@@ -1,15 +1,15 @@
-import {System} from "../../system";
+import {System} from "@/ecs/system";
 import * as PIXI from "pixi.js";
 import {IHitArea, Container} from "pixi.js";
-import {World} from "../../world";
-import {Resource} from "../../resource";
-import {FOLLOW_MOUSE_TYPE, POSITION_TYPE} from "../../component";
-import {FlagEcsStorage} from "../../storage";
-import {findEntitiesAt, getBoardPosFromOrigin, getMapPointFromMouseInteraction, snapPoint} from "../../tools/utils";
-import {KEYBOARD_KEY_DOWN, KEYBOARD_TYPE, KeyboardResource} from "./keyboardSystem";
-import {addCustomBlendModes} from "../../../util/pixi";
-import {DEFAULT_BACKGROUND} from "../lightSystem";
-import {LayerOrder} from "../../../phase/editMap/layerOrder";
+import {World} from "@/ecs/world";
+import {Resource} from "@/ecs/resource";
+import {FOLLOW_MOUSE_TYPE, POSITION_TYPE} from "@/ecs/component";
+import {FlagEcsStorage} from "@/ecs/storage";
+import {findEntitiesAt, getBoardPosFromOrigin, snapPoint} from "@/ecs/tools/utils";
+import {KEYBOARD_KEY_DOWN, KEYBOARD_TYPE, KeyboardResource} from "../keyboardSystem";
+import {addCustomBlendModes} from "@/util/pixi";
+import {DEFAULT_BACKGROUND} from "@/ecs/systems/lightSystem";
+import {LayerOrder} from "@/phase/editMap/layerOrder";
 import { Group, Layer, Stage } from "@pixi/layers";
 import { IPoint } from "@/geometry/point";
 
@@ -96,7 +96,7 @@ export interface GameClockResource extends Resource {
     frame: number;
     timestampMs: number;
     elapsedMs: number;
-    ticker: PIXI.Ticker,
+    ticker: PIXI.Ticker;
 }
 
 export type PIXI_BOARD_TYPE = 'pixi_board';
@@ -146,7 +146,7 @@ export class PixiBoardSystem implements System {
             type: GAME_CLOCK_TYPE,
             frame: 0,
             timestampMs: 0,
-            elapsedMs: 16.66,
+            elapsedMs: this.ticker.elapsedMS,
             ticker: this.ticker,
             _save: false,
             _sync: false,
@@ -568,6 +568,6 @@ export class PixiBoardSystem implements System {
         this.renderer.view.removeEventListener('wheel', this.wheelListener);
 
         let cnt = document.getElementById('canvas-container');
-        cnt.removeChild(this.renderer.view);
+        cnt?.removeChild(this.renderer.view);
     }
 }

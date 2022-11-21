@@ -11,6 +11,9 @@ export class NoneCommandKind implements CommandKind {
         return cmd;
     }
 
+    apply(cmd: NoneCommand): void {
+    }
+
     stripClient(command: NoneCommand): Command[] {
         return [];
     }

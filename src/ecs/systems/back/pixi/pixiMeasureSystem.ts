@@ -1,10 +1,10 @@
-import {World} from "../../world";
+import {World} from "@/ecs/world";
 import {BOARD_TRANSFORM_TYPE, BoardTransformResource, PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
-import {System} from "../../system";
-import {GridResource, MEASURE_TYPE, MeasureResource, Resource} from "../../resource";
-import {distSquared2d} from "../../../util/geometry";
-import {STANDARD_GRID_OPTIONS} from "../../../game/grid";
-import {GRID_TYPE} from "../gridSystem";
+import {System} from "@/ecs/system";
+import {GridResource, MEASURE_TYPE, MeasureResource, Resource} from "@/ecs/resource";
+import {distSquared2d} from "@/util/geometry";
+import {STANDARD_GRID_OPTIONS} from "@/game/grid";
+import {GRID_TYPE} from "@/ecs/systems/gridSystem";
 import * as PIXI from "pixi.js";
 
 

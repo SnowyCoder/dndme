@@ -20,7 +20,7 @@ import {
     PointerMoveEvent,
     PointerRightDownEvent,
     PointerEvents
-} from "./back/pixiBoardSystem";
+} from "./back/pixi/pixiBoardSystem";
 import {SELECTION_TYPE, SelectionSystem} from "./back/selectionSystem";
 import {ToolType} from "../tools/toolType";
 import {executeAndLogCommand} from "./command/command";

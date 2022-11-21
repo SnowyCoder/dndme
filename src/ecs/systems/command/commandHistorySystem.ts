@@ -1,17 +1,17 @@
 import {System} from "../../system";
 import {World} from "../../world";
-import { GameClockResource, GAME_CLOCK_TYPE } from "../back/pixiBoardSystem";
+import { GAME_CLOCK_TYPE, GameClockResource } from "@/ecs/systems/back/pixi/pixiBoardSystem";
 import {Command} from "./command";
 import {COMMAND_TYPE, CommandResult, CommandSystem, EVENT_COMMAND_EMIT, EVENT_COMMAND_HISTORY_LOG} from "./commandSystem";
+import { BigStorageSystem, BIG_STORAGE_TYPE } from "../back/files/bigStorageSystem";
+import { FileDb, FileIndex } from "@/map/FileDb";
 
 const HISTORY_LIMIT = 128;
 
 interface HistoryEntry {
     cmd: Command,
     timestamp: number,
-    // Manages dependencies and relations
-    //pre: Command[],
-    //post: Command[],
+    files: string[],
 }
 
 export const COMMAND_HISTORY_TYPE = 'command_history';
@@ -19,13 +19,18 @@ export type COMMAND_HISTORY_TYPE = typeof COMMAND_HISTORY_TYPE;
 export class CommandHistorySystem implements System {
     readonly world: World;
     readonly name = COMMAND_HISTORY_TYPE;
-    readonly dependencies = [COMMAND_TYPE];
+    readonly dependencies = [COMMAND_TYPE, BIG_STORAGE_TYPE];
 
-    //private prepared?: HistoryEntry;
     commandSys: CommandSystem;
+    fileSys: BigStorageSystem;
+
     history: Array<HistoryEntry>;
     isLastPartial: boolean = false;
     index: number = 0;
+
+    registeredFiles: string[] | undefined;
+    fileKeeper: number = -1;// entity
+    forceFileLogging: boolean = false;
 
     constructor(world: World) {
         this.world = world;
@@ -33,16 +38,52 @@ export class CommandHistorySystem implements System {
         this.history = new Array<HistoryEntry>();
 
         this.commandSys = this.world.systems.get(COMMAND_TYPE) as CommandSystem;
+        this.fileSys = this.world.systems.get(BIG_STORAGE_TYPE) as BigStorageSystem;
 
         this.world.events.on("command_undo", this.onUndo, this);
         this.world.events.on("command_redo", this.onRedo, this);
+        this.world.events.on("command_pre_execute", this.onCommandPreExecute, this);
         this.world.events.on(EVENT_COMMAND_HISTORY_LOG, this.logCommit, this);
+        this.world.events.on("populate", this.onPopulate, this);
+        this.world.events.on("file_usage_dec", this.onFileDrop, this);
+    }
+
+    private onPopulate(): void {
+        this.fileKeeper = this.world.spawnEntity();
+    }
+
+    private onCommandPreExecute(isLogging: boolean): void {
+        if (this.registeredFiles !== undefined) {
+            console.error("unfinished command!");
+        }
+        this.registeredFiles = (isLogging || this.forceFileLogging) ? [] : undefined;
+    }
+
+    private onFileDrop(owner: number, file: FileIndex): void {
+        if (owner === this.fileKeeper) return;
+        if (this.registeredFiles && !this.registeredFiles.includes(file)) {
+            this.registeredFiles.push(file);
+            this.fileSys.newUse(this.fileKeeper, file);
+        }
+    }
+
+    private destroyEntry(entry: HistoryEntry): void {
+        setTimeout(() => {
+            for (const file of entry.files) {
+                this.fileSys.dropUse(this.fileKeeper, file);
+            }
+        }, 10);
+    }
+
+    private trimHistory(): void {
+        for (let i = this.index; i < this.history.length; i++) {
+            this.destroyEntry(this.history[i]);
+        }
+        this.history.length = this.index;
     }
 
     private historyPush(cmd: HistoryEntry) {
-        if (this.history.length !== this.index) {
-            this.history.length = this.index;
-        }
+        this.trimHistory();
 
         if (this.history.length !== 0) {
             const lastCmd = this.history[this.history.length - 1];
@@ -56,11 +97,12 @@ export class CommandHistorySystem implements System {
         if (this.index > HISTORY_LIMIT) {
             this.index--;
             // TODO: use some kind of random-access splice-able deque?
-            this.history.shift();
+            this.destroyEntry(this.history.shift()!);
         }
     }
 
     private historyReplacePrev(cmd: HistoryEntry) {
+        this.destroyEntry(this.history[this.index - 1]);
         this.history[this.index - 1] = cmd;
     }
 
@@ -126,6 +168,7 @@ export class CommandHistorySystem implements System {
         this.historyReplacePrev({
             cmd,
             timestamp: (this.world.getResource(GAME_CLOCK_TYPE) as GameClockResource)?.timestampMs,
+            files: [],
         });
 
         return true;
@@ -139,6 +182,12 @@ export class CommandHistorySystem implements System {
             }
             return;
         }
+        let files = new Array<FileIndex>();
+        if (this.registeredFiles !== undefined) {
+            // File registering enabled!
+            files = this.registeredFiles;
+            this.registeredFiles = undefined;
+        }
 
         if (this.processPartial(cmd, partial)) {
             return;
@@ -146,13 +195,19 @@ export class CommandHistorySystem implements System {
         this.historyPush({
             cmd,
             timestamp: (this.world.getResource(GAME_CLOCK_TYPE) as GameClockResource)?.timestampMs,
+            files,
         });
         this.notifyHistoryChange();
     }
 
-    private executeEmit(cmd: Command): Command {
+    private executeEmit(cmd: Command, logFiles: boolean): Command {
         let res = {} as CommandResult;
-        this.world.events.emit(EVENT_COMMAND_EMIT, cmd, res);
+        if (logFiles) {
+            if (this.forceFileLogging) console.warn("Reentrant command emit!");
+            this.forceFileLogging = true;
+        }
+        this.world.events.emit(EVENT_COMMAND_EMIT, cmd, (r: CommandResult) => res = r, true);
+        this.forceFileLogging = false;
         return res.inverted || { kind: 'none' };
     }
 
@@ -167,9 +222,11 @@ export class CommandHistorySystem implements System {
 
         while (true) {
             this.historyUndo({
-                cmd: this.executeEmit(cmd.cmd),
+                cmd: this.executeEmit(cmd.cmd, true),
                 timestamp: cmd.timestamp,
+                files: this.registeredFiles!,
             });
+            this.registeredFiles = undefined;
             this.notifyHistoryChange();
             cmd = this.historyPeekPrev();
             if (cmd === undefined || initialTs !== cmd.timestamp) break;
@@ -186,9 +243,11 @@ export class CommandHistorySystem implements System {
 
         while (true) {
             this.historyRedo({
-                cmd: this.executeEmit(cmd.cmd),
+                cmd: this.executeEmit(cmd.cmd, true),
                 timestamp: cmd.timestamp,
+                files: this.registeredFiles!,
             });
+            this.registeredFiles = undefined;
             this.notifyHistoryChange();
 
             cmd = this.historyPeekNext();

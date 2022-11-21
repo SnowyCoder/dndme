@@ -20,16 +20,18 @@ function validateImageMimeType(type: string): void {
     if (ALLOWED_IMAGETYPES.indexOf(type.substring('image/'.length)) < 0) throw new Error('Unsupported image type');
 }
 
-export function loadTexture(data: ArrayBuffer, dataType: string): Promise<PIXI.Texture> {
+export async function loadTexture(data: ArrayBuffer, dataType: string): Promise<PIXI.Texture> {
+    const image = await loadTextureHTML(data, dataType);
+    return new PIXI.Texture(new PIXI.BaseTexture(new PIXI.ImageResource(image)));
+}
+
+export function loadTextureHTML(data: ArrayBuffer, dataType: string): Promise<HTMLImageElement> {
     validateImageMimeType(dataType);
     let b64 = 'data:' + dataType + ';base64,' + Buffer.from(data).toString('base64');
 
-    return new Promise<PIXI.Texture>((resolve, reject) => {
+    return new Promise<HTMLImageElement>((resolve, reject) => {
         let image = new Image();
-        image.onload = () => {
-            const tex = new PIXI.Texture(new PIXI.BaseTexture(new PIXI.ImageResource(image)));
-            resolve(tex);
-        };
+        image.onload = () => resolve(image);
         image.onerror = reject;
         image.src = b64;
     });

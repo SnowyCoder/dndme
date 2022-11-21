@@ -27,6 +27,8 @@ interface PeerData {
     id: number;
     connection: WrtcConnection;
     socket: WrtcChannel;
+    // Extra channels
+    extras: {[key: symbol]: WrtcChannel}
     afterSendBounded: () => void;
     sending: boolean;
     packets: Uint8Array[];
@@ -40,6 +42,17 @@ interface PeerData {
         buffer?: Uint8Array;
         forwardTo?: number;
     },
+}
+
+export type ExtraChannelId = symbol;
+export interface ExtraChannelInit {
+    label: string;
+    options?: Omit<RTCDataChannelInit, 'id' | 'negotiated'>;
+}
+
+export interface ExtraChannel {
+    label: string;
+    options: RTCDataChannelInit;
 }
 
 export interface PacketInfo {
@@ -64,11 +77,34 @@ export class WTChannel {
     myId: number = -1;
     private peers = new Map<string, PeerData>();
 
+    private extraChannels: {[key: symbol]: ExtraChannel} = {};
+
     constructor() {
         this.connectedSecret = Buffer.from([]);
         this.discovery = new WTDiscovery();
         this.discovery.onPeerCallback = this.onPeer.bind(this);
         this.discovery.onTrackerConnectionCountEdit = (c: number) => this.events.emit('tracker_connections', c);
+    }
+
+    addExtraChannel(channel: ExtraChannelInit): symbol {
+        const c = {
+            label: channel.label,
+            options: channel.options ?? {}
+        } as ExtraChannel;
+        const id = Symbol();
+        this.extraChannels[id] = c;
+        if (this.connections.size > 0) {
+            console.error("Late extra channel added");
+        }
+        return id;
+    }
+
+    getExtraChannel(peerId: number, sym: symbol): WrtcChannel {
+        const peer = this.connections.get(peerId);
+        if (peer === undefined) throw Error("Peer not found");
+        const ch = peer.extras[sym];
+        if (ch === undefined) throw Error("Extra channel not found");
+        return ch;
     }
 
     startMaster(): void {
@@ -176,15 +212,22 @@ export class WTChannel {
     }
 
     private onPeer(peer: WrtcConnection, peerId: string): void {
+        const isMaster = this.discovery.isMaster;
         const socket = peer.createDataChannel('main', {
             negotiated: true,
             id: 1,
             ordered: true,
         });
+
+        this.events.emit('peer_setup', peer);
+        peer.handle.addEventListener('datachannel', ev => {
+            this.events.emit('datachannel', ev.channel);
+        })
         const data = {
             peerId,
-            id: this.discovery.isMaster ? this.nextId++ : 0,
+            id: isMaster ? this.nextId++ : 0,
             connection: peer,
+            extras: {},
             socket,
             packets: [],
             sending: false,
@@ -193,6 +236,23 @@ export class WTChannel {
         data.afterSendBounded = () => this.afterDataSend(data);
         this.peers.set(peerId, data);
 
+        if (isMaster) {
+            for (let id of Object.getOwnPropertySymbols(this.extraChannels)) {
+                const x = this.extraChannels[id];
+                data.extras[id] = peer.createDataChannel(x.label, x.options);
+            }
+        } else {
+            peer.events.on('datachannel', (ch: WrtcChannel) => {
+                let id = Object.getOwnPropertySymbols(this.extraChannels)
+                               .find(id => this.extraChannels[id].label === ch.handle.label);
+                if (id == null) {
+                    console.error("Received unknown extra channel: " + ch.handle.label);
+                } else {
+                    data.extras[id] = ch;
+                }
+            });
+        }
+
         if (socket.handle.readyState !== 'connecting') throw Error("Already connected");
         socket.events.once('open', () => {
             if (this.discovery.isMaster) {
@@ -200,7 +260,7 @@ export class WTChannel {
             } else {
                 this.discovery.pause();
             }
-        })
+        });
 
         const postBootstrap = () => {
             this.connections.set(data.id, data);

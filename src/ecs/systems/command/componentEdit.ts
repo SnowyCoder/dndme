@@ -96,6 +96,10 @@ export class ComponentEditCommandKind implements CommandKind {
         return inv;
     }
 
+    apply(cmd: ComponentEditCommand): void {
+        this.applyInvert(cmd);
+    }
+
     stripClient(cmd: ComponentEditCommand): Command[] {
         // Get all of the new entitites that have been shown
         let shared = cmd.add?.filter(x => x.type === SHARED_TYPE).map(x => x.entity) ?? [];

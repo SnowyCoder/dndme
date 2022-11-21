@@ -1,4 +1,4 @@
-import {System} from "../../system";
+import {System} from "@/ecs/system";
 import {PIXI_GRAPHIC_TYPE, PixiDisplayElement, PixiGraphicComponent, PixiGraphicSystem} from "./pixiGraphicSystem";
 import {
     BACKGROUND_LAYER_TYPE,
@@ -9,12 +9,12 @@ import {
     LayerSystem,
     PARENT_LAYER_TYPE,
     ParentLayerComponent
-} from "./layerSystem";
-import {World} from "../../world";
-import {Component} from "../../component";
+} from "../layerSystem";
+import {World} from "@/ecs/world";
+import {Component} from "@/ecs/component";
 import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
-import {Resource} from "../../resource";
-import {ElementType} from "../../../graphics";
+import {Resource} from "@/ecs/resource";
+import {ElementType} from "@/graphics";
 import { Group, Layer as PixiLayer } from "@pixi/layers";
 
 export type CustomLayer = Layer & {

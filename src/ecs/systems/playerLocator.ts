@@ -3,7 +3,7 @@ import { World } from "../world";
 import { SingleEcsStorage } from "../storage";
 import { Component, POSITION_TYPE, PositionComponent } from "../component";
 import { UnionFindSet } from "../../util/UnionFindSet";
-import { BoardSizeResource, BoardTransformResource, BOARD_SIZE_TYPE, BOARD_TRANSFORM_TYPE, PIXI_BOARD_TYPE } from "./back/pixiBoardSystem";
+import { BoardSizeResource, BoardTransformResource, BOARD_SIZE_TYPE, BOARD_TRANSFORM_TYPE, PIXI_BOARD_TYPE } from "./back/pixi/pixiBoardSystem";
 import { PlayerComponent, PLAYER_TYPE } from "./playerSystem";
 import { DynamicTree } from "../../geometry/dynamicTree";
 import { Aabb } from "../../geometry/aabb";

@@ -299,12 +299,12 @@ export class PlayerSystem implements System {
         let visDetStorage = this.world.storages.get(VISIBILITY_DETAILS_TYPE) as SingleEcsStorage<VisibilityDetailsComponent>;
         let posStorage = this.world.storages.get(POSITION_TYPE) as SingleEcsStorage<PositionComponent>;
 
-        let lightVis = this.world.getComponent(lightEntity, VISIBILITY_TYPE) as VisibilityComponent;
+        let lightCom = this.world.getComponent(lightEntity, LIGHT_TYPE) as LightComponent;
         let lightPos = posStorage.getComponent(lightEntity)!;
         let lightVisDet = visDetStorage.getComponent(lightEntity)!;
         if (lightVisDet.polygon === undefined) return;
 
-        let lightMesh = this.createVisMeshFrom(lightPos, lightVisDet, lightVis.range);
+        let lightMesh = this.createVisMeshFrom(lightPos, lightVisDet, lightCom.range);
 
 
         let lightData = [{

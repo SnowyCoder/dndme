@@ -18,8 +18,7 @@ import {
 import {STANDARD_GRID_OPTIONS} from "../../../game/grid";
 import {GRID_TYPE} from "../gridSystem";
 import {GridResource, Resource} from "../../resource";
-import * as PIXI from "pixi.js";
-import { GameClockResource, GAME_CLOCK_TYPE } from "./pixiBoardSystem";
+import { GameClockResource, GAME_CLOCK_TYPE } from "./pixi/pixiBoardSystem";
 
 // This system uses a reuqest-response pattern
 // Where there are multiple "requests" for visibility but a single answer, let's make an example.
@@ -171,13 +170,13 @@ export class VisibilitySystem implements System {
             }
         }
 
+        c._aabbTreeId = this.aabbTree.createProxy(viewport, c);
+
         this.world.editComponent(c.entity, c.type, {
             polygon,
             aabb: viewport,
             _blockersUsed: usedBlockers,
         });
-
-        c._aabbTreeId = this.aabbTree.createProxy(viewport, c);
     }
 
     private recomputeArea(aabb: Aabb) {
@@ -325,14 +324,6 @@ export class VisibilitySystem implements System {
                 }
             });
         }
-    }
-
-    private removeVisibility(c: VisibilityDetailsComponent) {
-        this.removeTreePolygon(c);
-        this.world.editComponent(c.entity, c.type, {
-            polygon: undefined,
-            aabb: undefined,
-        });
     }
 
     private removeVisibilityBlocker(c: VisibilityBlocker) {

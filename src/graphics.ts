@@ -2,8 +2,9 @@
 // NONE OF THIS SHOULD BE SERIALIZED! THIS IS ALL RUNTIME DEPENDANT! DETAILS WILL CHANGE BETWEEN MINOR VERSIONS!
 
 import {Component} from "./ecs/component";
-import { Texture } from "pixi.js";
 import { IPoint } from "./geometry/point";
+import { FileIndex } from "./map/FileDb";
+import PIXI from "./PIXI";
 
 export const EVENT_REMEMBER_BIT_BY_BIY_MASK_UPDATE = 'remember_bit_by_bit_vis_update';
 
@@ -82,13 +83,24 @@ export enum ImageScaleMode {
 export interface ImageElement extends DisplayElement, AnchorableElement {
     type: ElementType.IMAGE;
     scale: ImageScaleMode;
-    texture: Texture;
-    sharedTexture?: true;// If this field is present the texture won't be destroyed
+    texture: {// external
+        type: 'external';
+        value: FileIndex;
+        priority?: number;
+    } | {
+        type: 'raw';
+        value: PIXI.Texture;
+    };
     tint: number;
     // Output of the visible image, only available if visib=REMEMBER_BIT_BY_BIT and it's an image
     // updated when the entity is serialized, when it is EVENT_REMEMBER_BIT_BY_BIY_MASK_UPDATE is fired with a list
     // of updated entities.
-    visMap?: Uint8Array;
+    visMap?: FileIndex;
+}
+
+export interface ImageMeta {
+    dims: [number, number];
+    format: string;
 }
 
 export interface LineElement extends DisplayElement, ColorableElement {

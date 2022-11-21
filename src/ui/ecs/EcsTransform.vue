@@ -28,7 +28,7 @@ export default defineComponent({
 
     // Only update back after @update or when not focused (so that 3 doesn't magically transform in 3.000000... while we type)
     const rotRad = useComponentPiece(component, 'rotation', 0);
-    const angleDiv = ref<HTMLDivElement>(null);
+    const angleDiv = ref<HTMLDivElement>(null as any);
     let lazyRot = rotRad.value * RAD_TO_DEG;
     const rotation = computed({
       get() {

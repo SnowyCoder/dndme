@@ -1,6 +1,6 @@
 <template>
   <transition enter-active-class="slide" enter-to-class="show" leave-class="show" leave-active-class="slide">
-    <div v-if="open" id="sidebar-right" aria-label="Sidebar" class="bg-dark text-light shadow under-navbar">
+    <div v-if="open" id="sidebar-right" aria-label="Sidebar" class="bg-dark text-light shadow under-toolbar">
       <div class="sidebar-body">
       <component :is="sideBar.current" v-bind="sideBar.currentProps" v-if="sideBar.current !== undefined"></component>
       </div>
@@ -84,7 +84,7 @@ throw new Error("Function not implemented.");
   &.slide:not(.show) {
     transform: translateX(100%);
   }
-  
+
   .sidebar-body {
     flex-grow: 1;
     height: 100%;

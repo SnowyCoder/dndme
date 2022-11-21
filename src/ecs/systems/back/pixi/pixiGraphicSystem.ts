@@ -5,14 +5,13 @@ import {
     TRANSFORM_TYPE,
     TransformComponent,
     SHARED_TYPE
-} from "../../component";
-import {FlagEcsStorage, SingleEcsStorage} from "../../storage";
-import {ForgetData, SerializeData, World} from "../../world";
-import {System} from "../../system";
+} from "@/ecs/component";
+import {FlagEcsStorage, SingleEcsStorage} from "@/ecs/storage";
+import {ForgetData, World} from "@/ecs/world";
+import {System} from "@/ecs/system";
 import {
     DisplayElement,
     ElementType,
-    EVENT_REMEMBER_BIT_BY_BIY_MASK_UPDATE,
     GRAPHIC_TYPE,
     GraphicComponent,
     ImageElement,
@@ -21,43 +20,39 @@ import {
     PointElement,
     TextElement,
     VisibilityType
-} from "../../../graphics";
-import {GridResource, Resource} from "../../resource";
-import PIXI from "../../../PIXI";
-import {BLEND_MODES, Matrix, RenderTexture, RenderTexturePool, Texture} from "pixi.js";
-import {DESTROY_ALL, DESTROY_MIN} from "../../../util/pixi";
-import {STANDARD_GRID_OPTIONS} from "../../../game/grid";
+} from "@/graphics";
+import {GridResource, Resource} from "@/ecs/resource";
+import PIXI from "@/PIXI";
+import {DESTROY_MIN} from "@/util/pixi";
+import {STANDARD_GRID_OPTIONS} from "@/game/grid";
 import {
-    EVENT_VISIBILITY_SPREAD,
     PLAYER_TYPE,
     PLAYER_VISIBLE_TYPE,
     PlayerSystem,
     PlayerVisibleComponent,
-    VisibilitySpreadData
-} from "../playerSystem";
-import {LIGHT_TYPE, LightSystem, LocalLightSettings} from "../lightSystem";
+} from "../../playerSystem";
+import {LIGHT_TYPE, LightSystem, LocalLightSettings} from "../../lightSystem";
 import {
     INTERACTION_TYPE,
     InteractionComponent,
     InteractionSystem,
     Shape,
-    shapeAabb,
     shapeLine,
     shapeObb,
-    shapePoint,
-    shapeToAabb
-} from "./interactionSystem";
-import {BitSet} from "../../../util/bitSet";
-import {Aabb} from "../../../geometry/aabb";
-import {Obb} from "../../../geometry/obb";
-import {Line} from "../../../geometry/line";
-import {arrayRemoveElem} from "../../../util/array";
-import {GRID_TYPE} from "../gridSystem";
+    shapeCircle,
+    CircleShape
+} from "../interactionSystem";
+import {Aabb} from "@/geometry/aabb";
+import {Obb} from "@/geometry/obb";
+import {Line} from "@/geometry/line";
+import {arrayRemoveElem} from "@/util/array";
+import {GRID_TYPE} from "../../gridSystem";
 import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
-import {TEXT_TYPE, TextSystem} from "./textSystem";
-import { VisibilityAwareSystem, VISIBILITY_AWARE_TYPE } from "./visibilityAwareSystem";
+import {TEXT_TYPE, TextSystem} from "../textSystem";
+import { VisibilityAwareSystem, VISIBILITY_AWARE_TYPE } from "../visibilityAwareSystem";
 import { Group } from "@pixi/layers";
 import { IPoint } from "@/geometry/point";
+import { ImageRenderer, PixiImageElement } from "./ImageRenderer";
 
 export interface PixiGraphicComponent extends GraphicComponent {
     _selected: boolean;
@@ -69,22 +64,6 @@ export interface PixiGraphicComponent extends GraphicComponent {
 export interface PixiDisplayElement extends DisplayElement {
     _oldType?: ElementType;
     _pixi?: PIXI.DisplayObject;
-}
-
-interface PixiImageElement extends ImageElement, PixiDisplayElement {
-    type: ElementType.IMAGE;// interference between interfaces (good-old diamond problem?)
-    _oldTex?: Texture,
-    _renTex?: RenderTexture;
-    _visMapChanged?: boolean;
-    _pixi?: PIXI.Sprite;
-}
-
-interface CustomTexture extends PIXI.Texture {
-    gridSize?: {
-        x: number;
-        y: number;
-        updateId: number;
-    }
 }
 
 export const REMEMBER_TYPE = 'remember';
@@ -136,7 +115,8 @@ export class PixiGraphicSystem implements System {
     pixiBoardSystem: PixiBoardSystem;
     interactionSystem: InteractionSystem;
     playerSystem?: PlayerSystem;
-    renderTexturePool = new RenderTexturePool();
+
+    private renImage: ImageRenderer;
 
     masterVisibility: boolean = false;
     gridSize: number = STANDARD_GRID_OPTIONS.size;
@@ -157,9 +137,9 @@ export class PixiGraphicSystem implements System {
         world.events.on('resource_edited', this.onResourceEdited, this);
         world.events.on('selection_begin', this.onSelectionBegin, this);
         world.events.on('selection_end', this.onSelectionEnd, this);
-        world.events.on(EVENT_VISIBILITY_SPREAD, this.onBBBVisibilitySpread, this);
-        world.events.on('serialize', this.onSerialize, this);
         world.events.on('forget', this.onForget, this);
+
+        this.renImage = new ImageRenderer(this);
     }
 
     private onComponentAdd(c: Component): void {
@@ -170,8 +150,8 @@ export class PixiGraphicSystem implements System {
             com = c as PixiGraphicComponent;
             let pos = this.world.getComponent(c.entity, POSITION_TYPE) as PositionComponent;
             let trans = this.world.getComponent(c.entity, TRANSFORM_TYPE) as TransformComponent;
-            this.updateInteractive(com, pos, trans);
             this.updateElement(com, com.display, pos, trans, true);
+            this.updateInteractive(com, pos, trans);
             this.updateVisibilityListener(com);
 
             let pv = this.world.getComponent(c.entity, PLAYER_VISIBLE_TYPE) as PlayerVisibleComponent | undefined;
@@ -194,11 +174,14 @@ export class PixiGraphicSystem implements System {
             let com = this.storage.getComponent(c.entity);
             if (com === undefined || !com._bitByBit) return;
             // Now you're visible! say hello
-            this.updateBBBVisAround(com);
+            let pv = this.world.getComponent(c.entity, PLAYER_VISIBLE_TYPE) as PlayerVisibleComponent | undefined;
+            let remembered = this.world.getComponent(c.entity, REMEMBER_TYPE) !== undefined;
+            this.updateElementVisibility(com, com.display, true, !!pv?.visible, remembered);
+            this.renImage.updateBBBVisAround(com);
         }
 
         if (spreadVis && com !== undefined) {
-            this.updateBBBVisAround(com);
+            this.renImage.updateBBBVisAround(com);
         }
     }
 
@@ -218,10 +201,6 @@ export class PixiGraphicSystem implements System {
             this.updateElementVisibility(com, com.display, true, pv?.visible ?? true, remembered);
             com._bitByBit = this.needsBitByBit(com, com.display);
             spreadVis = com._bitByBit;
-
-            if ('interactive' in changes) {
-                this.updateInteractive(com, pos, trans);
-            }
         } else if (c.type === POSITION_TYPE) {
             com = this.storage.getComponent(c.entity);
             if (com === undefined) return;
@@ -258,19 +237,23 @@ export class PixiGraphicSystem implements System {
         }
 
         if (spreadVis && com !== undefined) {
-            this.updateBBBVisAround(com);
+            this.renImage.updateBBBVisAround(com);
         }
     }
 
     private onComponentRemoved(c: Component): void {
         if (c.type === GRAPHIC_TYPE) {
-            this.destroyElement((c as GraphicComponent).display, true);
+            this.destroyElement(c.entity, (c as GraphicComponent).display, true);
         } else if (c.type === TRANSFORM_TYPE) {
             let com = this.storage.getComponent(c.entity);
             if (com === undefined) return;
             let pos = this.world.getComponent(c.entity, POSITION_TYPE) as PositionComponent;
             this.updateElement(com, com.display, pos, (c as TransformComponent), true);
         } else if (c.type === SHARED_TYPE) {
+            const com = this.storage.getComponent(c.entity);
+            if (com !== undefined) {
+                this.updateElementVisibility(com, com.display, true, false, false);
+            }
             // TODO: here?
         } else if (c.type === REMEMBER_TYPE && !this.world.isDespawning.includes(c.entity)) {
             const comp = this.storage.getComponent(c.entity);
@@ -369,7 +352,7 @@ export class PixiGraphicSystem implements System {
             }
 
             if (comp._bitByBit) {
-                this.doOnBitByBit(comp, comp.display, (img) => {
+                this.renImage.doOnBitByBit(comp, comp.display, img => {
                     let w = new PIXI.Container();
                     this.pixiBoardSystem.renderer.render(w, {
                         renderTexture: img._renTex,
@@ -378,70 +361,52 @@ export class PixiGraphicSystem implements System {
                     img._visMapChanged = true;
                 })
 
-                this.updateBBBVisAround(comp);
+                this.renImage.updateBBBVisAround(comp);
             }
         }
     }
 
-    private onBBBVisibilitySpread(data: VisibilitySpreadData): void {
-        let iter = this.interactionSystem.query(shapeAabb(data.aabb), c => {
-            let com = this.storage.getComponent(c.entity);
-            return com !== undefined && com._bitByBit === true;
-        });
-        for (let c of iter) {
-            // If we are here then the component exists, we checked it in the iterator
-            let cmp = this.storage.getComponent(c.entity)!;
-            this.doOnBitByBit(cmp, cmp.display, (img) => this.updateBBBVisibility(data, cmp, img));
-        }
-    }
-
-    private onSerialize(data: SerializeData): void {
-        const changedList: number[] = [];
-
-        const processComp = (com: PixiGraphicComponent) => {
-            if (!com._bitByBit) return;
-            let changed = false;
-            this.doOnBitByBit(com, com.display, (img) => changed ||= this.extractVisibility(img));
-            if (changed) changedList.push(com.entity);
-        };
-
-        if (data.options.only !== undefined) {
-            for (let entity of data.options.only) {
-                const comp = this.storage.getComponent(entity);
-                if (comp === undefined) continue;
-                processComp(comp);
-            }
-        } else {
-            for (let com of this.storage.allComponents()) {
-                ;processComp(com);
-            }
-        }
-
-        if (changedList) {
-            this.world.events.emit(EVENT_REMEMBER_BIT_BY_BIY_MASK_UPDATE, changedList);
-        }
+    forceShapeUpdate(comp: PixiGraphicComponent) {
+        const pos = this.world.getComponent(comp.entity, POSITION_TYPE) as PositionComponent;
+        const trans = this.world.getComponent(comp.entity, TRANSFORM_TYPE) as TransformComponent | undefined;
+        this.updateInteractive(comp, pos, trans, true);
     }
     // -------------------------- LISTENERS DONE --------------------------
 
-    private updateInteractive(comp: PixiGraphicComponent, pos: IPoint, trans: TransformComponent | undefined) {
+    private updateInteractive(comp: PixiGraphicComponent, pos: IPoint, trans: TransformComponent | undefined, forceRecreate: boolean = false) {
         let interactiveCmp = this.world.getComponent(comp.entity, INTERACTION_TYPE) as InteractionComponent;
 
-        if (comp.interactive && interactiveCmp === undefined) {
-            this.world.addComponent(comp.entity, {
+        if (comp.interactive && (interactiveCmp === undefined || forceRecreate)) {
+            const newComp = {
                 type: INTERACTION_TYPE,
                 selectPriority: comp.display.priority,
                 snapEnabled: true,
                 shape: this.createShape(comp.display, pos, trans),
-            } as InteractionComponent);
+            } as InteractionComponent;
+            if (interactiveCmp !== undefined) {
+                this.world.editComponent(comp.entity, INTERACTION_TYPE, newComp);
+            } else {
+                this.world.addComponent(comp.entity, newComp);
+            }
         } else if (!comp.interactive && interactiveCmp !== undefined) {
             this.world.removeComponent(interactiveCmp);
         } else if (comp.interactive) {
+            const recFirst = (x: DisplayElement): DisplayElement => x.type === ElementType.CONTAINER ? recFirst(x.children![0]) : x;
+            const elem = recFirst(comp.display);
             // Check for component changes in interactor
-            if (comp.display.type === ElementType.IMAGE) {
+            if (elem.type === ElementType.IMAGE) {
                 // If the texture has changed we need to update the interactor.
-                let el = comp.display as PixiImageElement;
-                if (el.texture !== el._oldTex) {
+                let el = elem as PixiImageElement;
+                if (el.texture.value !== el._oldTex) {
                     this.world.editComponent(comp.entity, INTERACTION_TYPE, {shape: this.createShape(el, pos, trans)});
+                }
+            } else if (elem.type === ElementType.POINT) {
+                const shape = this.world.getComponent<InteractionComponent>(comp.entity, INTERACTION_TYPE)!.shape as CircleShape;
+                const el = elem as PointElement;
+                const newRad = el.scale * (trans?.scale ?? 1) * POINT_RADIUS;
+                if (Math.abs(shape.radius - newRad) > Number.EPSILON) {
+                    shape.radius = newRad;
+                    this.world.editComponent(comp.entity, INTERACTION_TYPE, { shape }, undefined, false);
                 }
             }
         }
@@ -450,31 +415,13 @@ export class PixiGraphicSystem implements System {
     private createShape(comp: PixiDisplayElement, pos: IPoint, trans: TransformComponent | undefined): Shape {
         switch (comp.type) {
             case ElementType.CONTAINER:
-                // Only the root element can be made interactive, the others are ignored
-                throw new Error('Cannot make interactive container');
+                // Only the first element can be made interactive, the others are ignored
+                return this.createShape(comp.children![0], pos, trans);
             case ElementType.TEXT:
                 throw new Error('Cannot make interactive text');
             case ElementType.IMAGE: {
-                let c = comp as ImageElement;
-                let w = c.texture.width;
-                let h = c.texture.height;
-                let aabb;
-
-                let sx = trans?.scale || 1;
-                let sy = trans?.scale || 1;
-
-                if (c.scale == ImageScaleMode.GRID) {
-                    this.textureUpdateGridSize(c.texture);
-                    let grid = this.world.getResource(GRID_TYPE) as GridResource;
-                    let gsize = (c.texture as CustomTexture).gridSize!!;
-                    sx = gsize.x * grid.size * sx;
-                    sy = gsize.y * grid.size * sy;
-                }
-
-                aabb = Aabb.fromPointAnchor(pos, {x: w, y: h}, c.anchor);
-                aabb.scale(sx, sy, aabb);
-                let obb = Obb.rotateAabb(aabb.copy(), trans?.rotation || 0);
-                return shapeObb(obb);
+                let c = comp as PixiImageElement;
+                return this.renImage.createShape(c, pos, trans);
             }
             case ElementType.LINE: {
                 let c = comp as LineElement;
@@ -483,111 +430,10 @@ export class PixiGraphicSystem implements System {
                 ));
             }
             case ElementType.POINT: {
-                return shapePoint(new PIXI.Point(pos.x, pos.y));
+                const c = comp as PointElement;
+                return shapeCircle(new PIXI.Point(pos.x, pos.y), c.scale * (trans?.scale ?? 1) * POINT_RADIUS);
             }
         }
-    }
-
-    /**
-     * Extracts visibility from the rendertexture of the image (must be VISBLE_BIT_BY_BIT).
-     *
-     * @param c the image from which the visibility map will be extracted.
-     * @return true only if the visibility map has been modified.
-     * @private
-     */
-    private extractVisibility(c: PixiImageElement): boolean {
-        if (c._visMapChanged !== true) return false;
-
-        c.visMap = undefined;
-
-        const renderer = this.pixiBoardSystem.renderer;
-        const tex = c._renTex;
-        if (tex === undefined) return false;
-
-        let frame = tex.frame;
-
-        renderer.renderTexture.bind(tex);
-        let webglPixels = new Uint8Array(tex.width * tex.height * 4);
-
-        const gl = renderer.gl;
-        gl.readPixels(
-            frame.x,
-            frame.y,
-            frame.width,
-            frame.height,
-            gl.RGBA,
-            gl.UNSIGNED_BYTE,
-            webglPixels
-        );
-
-        let fuckLen = webglPixels.length / 4;
-        let newLen = ((webglPixels.length / 4 - 1) >>> 5) + 1;
-        let target = new Uint32Array(newLen);
-        for (let i = 0; i < fuckLen; i++) {
-            let pixel = webglPixels[i * 4 + 3];
-
-            if ((pixel & 0x80) !== 0) {
-                target[i >>> 5] |= 1 << (i & 0b11111);
-            }
-        }
-        c.visMap = new Uint8Array(target.buffer);
-        c._visMapChanged = false;
-        return true;
-    }
-
-    private loadVisibility(c: PixiImageElement) {
-        const width = c.texture.width;
-        const height = c.texture.height;
-
-        if (c._renTex === undefined) {
-            c._renTex = PIXI.RenderTexture.create({
-                width, height,
-                scaleMode: c.texture.baseTexture.scaleMode,
-            });
-            let bt = c._renTex.baseTexture;
-            (bt as any).clearColor = [0.0, 0.0, 0.0, 0.0];
-        }
-
-        if (c.visMap === undefined) return;
-
-        let texOpts = {
-            width, height,
-            format: PIXI.FORMATS.RGBA,
-        };
-
-        let texData = new Uint32Array(c.texture.width * c.texture.height);
-
-        let visMap = c.visMap;
-        if ((c.visMap.byteOffset & (0x4 - 1)) !== 0) {
-            // Not aligned, realign
-            visMap = c.visMap.slice(0);
-        }
-        let set = new BitSet(new Uint32Array(visMap.buffer, visMap.byteOffset, visMap.byteLength / 4));
-        let len = texData.length;
-        for (let i = 0; i < len; i++) {
-            texData[i] = set.get(i) ? 0xFFFFFFFF : 0;
-        }
-
-        let byteData = new Uint8Array(texData.buffer);
-        let resource = new PIXI.BufferResource(byteData, { width, height });
-        let baseTexture = new PIXI.BaseTexture(resource, texOpts)
-
-        let tex = new PIXI.Texture(baseTexture);
-        let lumSprite = new PIXI.Sprite(tex);
-        lumSprite.blendMode = PIXI.BLEND_MODES.SRC_IN;
-
-        let mapSprite = new PIXI.Sprite(c.texture);
-        let cnt = new PIXI.Container();
-        cnt.addChild(mapSprite, lumSprite);
-
-        this.pixiBoardSystem.renderer.render(cnt, {
-            renderTexture: c._renTex,
-            clear: true,
-        });
-
-        lumSprite.destroy(DESTROY_ALL);
-
-        c._visMapChanged = false;
     }
 
     private forEachEl(com: PixiGraphicComponent, img: PixiDisplayElement, f: (img: PixiDisplayElement) => void): void {
@@ -595,17 +441,6 @@ export class PixiGraphicSystem implements System {
         if (img.children) {
             for (let c of img.children) {
                 this.forEachEl(com, c, f);
-            }
-        }
-    }
-
-    private doOnBitByBit(com: PixiGraphicComponent, img: PixiDisplayElement, f: (img: PixiImageElement) => void): void {
-        if (img.type == ElementType.IMAGE && (img as PixiImageElement).visib === VisibilityType.REMEMBER_BIT_BY_BIT) {
-            f(img as PixiImageElement);
-        }
-        if (img.children) {
-            for (let c of img.children) {
-                this.doOnBitByBit(com, c, f);
             }
         }
     }
@@ -620,128 +455,6 @@ export class PixiGraphicSystem implements System {
             }
         }
         return false;
-    }
-
-    private updateBBBVisAround(com: PixiGraphicComponent) {
-        let inter = this.world.getComponent(com.entity, INTERACTION_TYPE) as InteractionComponent;
-        let aabb = shapeToAabb(inter.shape);
-        this.playerSystem!.getSpreadDataForAabb(aabb, data => {
-            this.doOnBitByBit(com, com.display, (img) => this.updateBBBVisibility(data, com, img));
-        });
-    }
-
-    private updateBBBVisibility(data: VisibilitySpreadData, com: PixiGraphicComponent, img: PixiImageElement) {
-        //      Part 1. What?
-        // So, what does this spaghetti mess do? Good question!
-        // We have players and lights, some players can see without lights and others can't
-        // The task is to update the rendertexture of the background component adding the visible spots to it.
-        // The visible spots are: The meshes of the players with night vision enabled and the intersection of the
-        // union of the vision mesh of the normal players with the union of the vison meshes of the lights.
-        // Common case: 1 NV player 0 lights, 1 player multiple lights, multiple players 1 light
-        // Possible (but uncommon) cases: x NV players, y normal players, z lights (with x, y, z naturals).
-
-        //      Part 2. How?
-        // The initial idea is simple, render anything on the bkg._renTex and then render the original texture with
-        // blendMode = SRC_IN, any spot with alpha = 1 will then be replaced with the correct texture.
-        // The night vision players rendering is quite simple, just render the meshes before the final texture render
-        // The normal players will be a bit different since we need to intersect their meshes with the light mesh.
-        // To do that we can render all the players meshes in a framebuffer A, then render all of the lights in another
-        // frame buffer B, then render A onto B with blendMode = SRC_IN to create a sort of union of the two.
-        // Once that is done we can render B into the bkg._renTex and proceed normally.
-        // Another way to do this using only a single rendertexture is to use the stencil buffer, but it will double the
-        // mesh render calls (and since they are not buffered, it's a slow operation)
-        // I don't think that there is another way to perform this in the general case, please prove me wrong.
-        // TODO: maybe we can optimize this when only 1 player and 1 light is present (like, avoiding 1 of the 2 framebuffers).
-
-        // Skip EVERYTHING if this entity is hidden.
-        if (!this.world.getComponent(com.entity, SHARED_TYPE)) return;
-
-        //console.time('updateVisibility');
-
-        let renderer = this.pixiBoardSystem.renderer;
-
-        let localCnt = new PIXI.Container();
-        // Setup local transform
-        let m = new Matrix();
-        let pixi = img._pixi!;
-        m.translate(
-            -pixi.position.x,
-            -pixi.position.y
-        );
-        m.rotate(-pixi.rotation);
-        let invScale = 1/pixi.scale.x;
-        m.scale(invScale, invScale);
-        m.translate(img.texture.width / 2, img.texture.height / 2);
-        localCnt.transform.setFromMatrix(m);
-
-        let worldCnt = new PIXI.Container();
-
-        // If there are any players without night vision (and there are lights) render them (THIS IS SLOW!)
-        let tex, tex2, nightSprite;
-        if (data.players.length !== 0 && data.lights.length !== 0) {
-            tex = (this.renderTexturePool as any).getOptimalTexture(pixi.texture.width, pixi.texture.height);
-            tex2 = (this.renderTexturePool as any).getOptimalTexture(pixi.texture.width, pixi.texture.height);
-
-            for (let player of data.players) {
-                localCnt.addChild(player.mesh);
-            }
-
-            // Render the players visibility meshes onto tex
-            renderer.render(localCnt, {
-                renderTexture: tex,
-                clear: true,
-            });
-            localCnt.removeChildren();
-
-            for (let light of data.lights) {
-                light.mesh.blendMode = PIXI.BLEND_MODES.ADD;
-                localCnt.addChild(light.mesh);
-            }
-
-            let playerSprite = new PIXI.Sprite(tex);
-            playerSprite.blendMode = BLEND_MODES.SRC_IN;
-
-            // Render the lights onto tex2, then render tex as BLEND_MODE.SRC_IN to filter out where the lights were not
-            // present.
-            worldCnt.addChild(localCnt, playerSprite);
-            renderer.render(worldCnt, {
-                renderTexture: tex2,
-                clear: true
-            });
-            worldCnt.removeChildren();
-            localCnt.removeChildren();
-
-            // Add tex2 to the main phase
-            nightSprite = new PIXI.Sprite(tex2);
-            nightSprite.blendMode = PIXI.BLEND_MODES.ADD;
-            worldCnt.addChild(nightSprite);
-        }
-
-        for (let player of data.nightVisPlayers) {
-            localCnt.addChild(player.mesh);
-        }
-
-        let origTex = new PIXI.Sprite(img.texture);
-        origTex.blendMode = PIXI.BLEND_MODES.SRC_IN;
-
-        worldCnt.addChild(localCnt, origTex)
-
-        // Render everything to bkg._renTex and then redraw the original only where is alpha=1.
-        this.pixiBoardSystem.renderer.render(worldCnt, {
-            renderTexture: img._renTex,
-            clear: false
-        });
-        img._visMapChanged = true;
-
-        // Cleanup time (don't worry, I'm recycling and there's a garbage cleaner, we're eco friendly!)
-        worldCnt.destroy(DESTROY_MIN);
-        origTex.destroy(DESTROY_MIN);
-
-        if (tex !== undefined) this.renderTexturePool.returnTexture(tex);
-        if (tex2 !== undefined) this.renderTexturePool.returnTexture(tex2);
-        if (nightSprite !== undefined) nightSprite.destroy(DESTROY_MIN);
-
-        //console.timeEnd('updateVisibility');
     }
 
     private computeVisibilityListener(c: DisplayElement): VisibListenerLevel {
@@ -769,7 +482,7 @@ export class PixiGraphicSystem implements System {
         return level;
     }
 
-    private destroyElement(desc: PixiDisplayElement, recursive: boolean): void {
+    private destroyElement(owner: number, desc: PixiDisplayElement, recursive: boolean): void {
         let elem = desc._pixi;
 
         if (elem === undefined) return;
@@ -779,16 +492,7 @@ export class PixiGraphicSystem implements System {
             case ElementType.CONTAINER:
                 break;
             case ElementType.IMAGE: {
-                let im = desc as PixiImageElement;
-                let destroyTex = im.sharedTexture !== true;
-                (elem as PIXI.Sprite).destroy({
-                    children: false,
-                    texture: destroyTex,
-                    baseTexture: destroyTex,
-                });
-                if (im._renTex !== undefined) {
-                    im._renTex.destroy(true);
-                }
+                this.renImage.destroyElement(owner, desc as PixiImageElement);
                 break;
             }
             case ElementType.LINE:
@@ -811,16 +515,16 @@ export class PixiGraphicSystem implements System {
 
         if (recursive && desc.children) {
             for (let el of desc.children) {
-                this.destroyElement(el, true);
+                this.destroyElement(owner, el, true);
             }
         }
     }
 
     private createElement(cmp: PixiGraphicComponent, desc: PixiDisplayElement): void {
-        this.destroyElement(desc, false);
+        this.destroyElement(cmp.entity, desc, false);
 
         let defLayer = true;
-        let res;
+        let res: PIXI.DisplayObject;
         switch (desc.type) {
             case ElementType.CONTAINER:
                 res = new PIXI.Container();
@@ -856,22 +560,14 @@ export class PixiGraphicSystem implements System {
         this.pixiBoardSystem.board.sortChildren();
     }
 
-    private textureUpdateGridSize(tex: CustomTexture): void {
-        let texId = (tex as any)._updateID;
-        if (tex.gridSize !== undefined && tex.gridSize.updateId !== texId) return;
-
-        tex.gridSize = {
-            x: Math.ceil(tex.width / STANDARD_GRID_OPTIONS.size) / tex.width,
-            y: Math.ceil(tex.height / STANDARD_GRID_OPTIONS.size) / tex.height,
-            updateId: texId,
-        }
-    }
-
     private updateElementVisibility(par: PixiGraphicComponent, desc: PixiDisplayElement, recursive: boolean,
                                     currentlyVisible: boolean, remembered: boolean) {
+        const isShared = this.world.getComponent(par.entity, SHARED_TYPE) !== undefined;
         let isVisible;
         if (currentlyVisible || this.masterVisibility) {
             isVisible = true;
+        } else if(!isShared) {
+            isVisible = false;// Not shared (and not master visibility)
         } else {
             switch (desc.visib) {
                 case VisibilityType.NORMAL:
@@ -890,8 +586,7 @@ export class PixiGraphicSystem implements System {
         pixi.visible = isVisible;
 
         if (desc.visib === VisibilityType.REMEMBER_BIT_BY_BIT) {
-            let im = (desc as PixiImageElement);
-            im._pixi!.texture = this.masterVisibility ? im.texture : im._renTex!;
+            this.renImage.updateVisibility(desc as PixiImageElement);
         }
 
         if (recursive && desc.children) {
@@ -939,7 +634,7 @@ export class PixiGraphicSystem implements System {
         if (el._childrenReplace) {
             if (el.children) {
                 for (let c of el.children) {
-                    this.destroyElement(c, true);
+                    this.destroyElement(par.entity, c, true);
                 }
                 el.children.length = 0;
             }
@@ -954,7 +649,7 @@ export class PixiGraphicSystem implements System {
         if (el._childrenRemove) {
             if (el.children === undefined) return;
             for (let c of el._childrenRemove) {
-                this.destroyElement(c, true);
+                this.destroyElement(par.entity, c, true);
                 arrayRemoveElem(el.children, c);
             }
 
@@ -984,36 +679,7 @@ export class PixiGraphicSystem implements System {
             case ElementType.CONTAINER:
                 break;
             case ElementType.IMAGE: {
-                let dim = (d as PIXI.Sprite);
-                let el = (desc as PixiImageElement);
-                if (el.visib == VisibilityType.REMEMBER_BIT_BY_BIT) {
-                    dim.texture = this.masterVisibility ? el.texture : el._renTex!;
-                } else {
-                    dim.texture = el.texture;
-                }
-                dim.anchor.copyFrom(el.anchor);
-                let sx = trans?.scale || 1;
-                let sy = sx;
-                if (el.scale === ImageScaleMode.GRID) {
-                    this.textureUpdateGridSize(dim.texture);
-                    let gsize = (dim.texture as CustomTexture).gridSize!!;
-                    sx = gsize.x * this.gridSize * sx;
-                    sy = gsize.y * this.gridSize * sy;
-                }
-                dim.rotation = trans?.rotation || 0;
-                dim.scale.set(sx, sy);
-                dim.tint = par._selected ? 0x7986CB : 0xFFFFFF;
-
-                if (el.visib === VisibilityType.REMEMBER_BIT_BY_BIT) {
-                    if (el._oldTex !== el.texture) {
-                        this.loadVisibility(el);
-                    }
-                } else if (el._renTex !== undefined) {
-                    el._renTex.destroy(true);
-                    el._renTex = undefined;
-                }
-                el._oldTex = el.texture;
-
+                this.renImage.updateImage(par, desc as PixiImageElement, pos, trans);
                 break;
             }
             case ElementType.LINE: {
@@ -1082,7 +748,7 @@ export class PixiGraphicSystem implements System {
 
     destroy(): void {
         for (let elem of this.storage.allComponents()) {
-            this.destroyElement(elem.display, true);
+            this.destroyElement(elem.entity, elem.display, true);
         }
     }
 }

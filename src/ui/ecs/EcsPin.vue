@@ -24,7 +24,7 @@ import { PinComponent } from "../../ecs/systems/pinSystem";
 import EditableText from "../util/EditableText.vue";
 import EditableColor from "../util/EditableColor.vue";
 import EditableRange from "../util/EditableRange.vue";
-import { computed, defineComponent, inject, isProxy, isReactive, isReadonly, isRef, PropType, ref, shallowRef, ShallowRef, toRefs } from "vue";
+import { computed, defineComponent, inject, PropType, ShallowRef, toRefs } from "vue";
 import { useComponentPiece } from "../vue";
 
 export default defineComponent({

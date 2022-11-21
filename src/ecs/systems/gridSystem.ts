@@ -5,7 +5,7 @@ import {GridGraphicalOptions, GridType, STANDARD_GRID_OPTIONS} from "../../game/
 import {GridResource, Resource} from "../resource";
 import {World} from "../world";
 import {System} from "../system";
-import {BOARD_TRANSFORM_TYPE, BoardTransformResource, PIXI_BOARD_TYPE, PixiBoardSystem} from "./back/pixiBoardSystem";
+import {BOARD_TRANSFORM_TYPE, BoardTransformResource, PIXI_BOARD_TYPE, PixiBoardSystem} from "./back/pixi/pixiBoardSystem";
 import {TOOL_TYPE, ToolSystem} from "./back/toolSystem";
 import {SELECTION_TYPE} from "./back/selectionSystem";
 import {ToolType} from "../tools/toolType";

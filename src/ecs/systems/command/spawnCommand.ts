@@ -31,6 +31,10 @@ export class SpawnCommandKind implements CommandKind {
         } as DeSpawnCommand;
     }
 
+    apply(cmd: SpawnCommand): void {
+        this.applyInvert(cmd);
+    }
+
     stripClient(command: SpawnCommand): Command[] {
         const shared = command.data.storages[SHARED_TYPE] as FlagEcsStorageSerialzed;
 

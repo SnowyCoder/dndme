@@ -1,7 +1,7 @@
 import {System} from "../../system";
 import {
     PIXI_BOARD_TYPE, PointerDownEvent,
-} from "./pixiBoardSystem";
+} from "./pixi/pixiBoardSystem";
 import {World} from "../../world";
 import {SELECTION_TYPE} from "./selectionSystem";
 import {Resource} from "../../resource";

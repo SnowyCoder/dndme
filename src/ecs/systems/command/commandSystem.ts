@@ -10,7 +10,14 @@ import {NoneCommandKind} from "./noneCommand";
 import {NETWORK_TYPE, NetworkSystem} from "../back/networkSystem";
 
 export interface CommandResult {
-    inverted?: Command;
+    inverted: Command;
+}
+
+interface PendingCommand {
+    command: Command,
+    callback?: (res: CommandResult) => void,
+    share: boolean,
+    isLogging: boolean,
 }
 
 export const EVENT_COMMAND_EMIT = 'command_emit';
@@ -31,10 +38,13 @@ export class CommandSystem implements System {
     private commands = new Map<string, CommandKind>();
     private networkSys: NetworkSystem | undefined;
 
+    private isExecutingCommand: boolean = false;
+    private pending: Array<PendingCommand> = [];
+
     public constructor(world: World) {
         this.world = world;
         this.registerDefaultCommands();
-        this.world.events.on(EVENT_COMMAND_EMIT, this.onEmit, this);
+        this.world.events.on(EVENT_COMMAND_EMIT, (cmd, res, share) => this.onEmit(cmd, res, share));
         this.world.events.on(EVENT_COMMAND_LOG, this.onLog, this);
         this.world.events.on(EVENT_COMMAND_PARTIAL_END, this.onPartialEnd, this);
 
@@ -54,15 +64,46 @@ export class CommandSystem implements System {
         this.registerCommandKind(new NoneCommandKind());
     }
 
-    onEmit(command: Command, res?: CommandResult, share?: boolean) {
+    onEmit(command: Command, callback?: (res: CommandResult) => void, share?: boolean, isLogging: boolean=false) {
+        if (this.isExecutingCommand) {
+            this.pending.push({
+                command,
+                callback,
+                share: !!share,
+                isLogging
+            });
+            return;
+        }
+
+        this.isExecutingCommand = true;
+        const res = this.emit(command, share, isLogging);
+        this.isExecutingCommand = false;
+        if (callback) callback(res);
+
+        while (this.pending.length > 0) {
+            const cmd = this.pending.shift()!;
+            this.isExecutingCommand = true;
+            const res = this.emit(cmd.command, cmd.share, cmd.isLogging);
+            this.isExecutingCommand = false;
+            if (cmd.callback) cmd.callback(res);
+        }
+    }
+
+    private emit(command: Command, share: boolean=false, isLogging: boolean=false): CommandResult {
+        // console.log("EMIT", JSON.stringify(command));
+
         let kind = this.commands.get(command.kind);
         if (kind === undefined) {
             console.warn("Error executing command: unknown kind " + kind);
-            return undefined;
+            return {
+                inverted: command,
+            };
         }
-        if (kind.isNull(command)) return;
-
-        // console.log("EMIT", JSON.stringify(command));
+        if (kind.isNull(command)) {
+            return {
+                inverted: command,
+            };
+        }
 
         if (this.networkSys?.isOnline() === true && share) {
             let stripped = kind.stripClient(command);
@@ -70,29 +111,30 @@ export class CommandSystem implements System {
                 this.world.events.emit("command_share", stripped);
             }
         }
-        this.world.events.emit('command_pre_execute');
-        let inv;
+        this.world.events.emit('command_pre_execute', isLogging);
+        let inv = undefined;
         try {
-            inv = kind.applyInvert(command);
+            if (this.world.isMaster) {
+                inv = kind.applyInvert(command);
+            } else {
+                kind.apply(command);
+            }
         } catch (e) {
             console.warn("Cannot apply command", command, e);
             inv = undefined;
         }
-        if (res !== undefined) {
-            res.inverted = inv;
-        }
         this.world.events.emit('command_post_execute', inv);
+        return {
+            inverted: command,
+        };
     }
 
     private logCommit(cmd: Command | undefined, partial: boolean) {
         this.world.events.emit(EVENT_COMMAND_HISTORY_LOG, cmd, partial);
     }
 
-    private onLog(command: Command, res?: CommandResult, partial: boolean = false) {
-        let result = res || {};
-        this.onEmit(command, result, true);
-
-        if (result.inverted !== undefined) {
+    private onLog(command: Command, callback?: (res: CommandResult) => void, partial: boolean = false) {
+        const cb = (result: CommandResult) => {
             let inv = result.inverted;
             let kind = this.commands.get(inv.kind);
             if (kind === undefined) {
@@ -104,7 +146,10 @@ export class CommandSystem implements System {
             } else {
                 this.logCommit(undefined, partial);
             }
+            if (callback) callback(result);
         }
+
+        this.onEmit(command, cb, true, true);
     }
 
     private onPartialEnd() {

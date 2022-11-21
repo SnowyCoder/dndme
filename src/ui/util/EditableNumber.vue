@@ -64,7 +64,7 @@ export default defineComponent({
       if (this.isInvalid) {
         this.isInvalid = false;
         // Rewrite textbox to put v-model value inside of it (if the previous value is invalid, ex: NaN or 0)
-        this.$refs.child.$forceUpdate();
+        (this.$refs.child as any).$forceUpdate();
       }
     }
   }

@@ -10,7 +10,7 @@ import {VISIBILITY_TYPE, VisibilityComponent, VISIBILITY_DETAILS_TYPE, Visibilit
 import * as PointLightRender from "../../game/pointLightRenderer";
 import {PLAYER_TYPE, PlayerComponent} from "./playerSystem";
 import {BLEND_MODES, Mesh} from "pixi.js";
-import {PixiBoardSystem, PIXI_BOARD_TYPE} from "./back/pixiBoardSystem";
+import {PixiBoardSystem, PIXI_BOARD_TYPE} from "./back/pixi/pixiBoardSystem";
 import hex2rgb = PIXI.utils.hex2rgb;
 import {TOOL_TYPE, ToolSystem} from "./back/toolSystem";
 import {ToolType} from "../tools/toolType";

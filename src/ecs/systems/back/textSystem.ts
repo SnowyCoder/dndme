@@ -1,7 +1,7 @@
 import {System} from "../../system";
 import PIXI from "../../../PIXI";
 import {DESTROY_ALL} from "../../../util/pixi";
-import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
+import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixi/pixiBoardSystem";
 import {World} from "../../world";
 import {LayerOrder} from "../../../phase/editMap/layerOrder";
 import { Layer } from "@pixi/layers";

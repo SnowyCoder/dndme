@@ -29,13 +29,13 @@ import Modal from "../../util/Modal.vue";
 export default defineComponent({
     components: { Modal },
     setup() {
-        const world = inject<ShallowRef<World>>('world').value;
+        const world = inject<ShallowRef<World>>('world')!.value;
 
         const progress = shallowRef<number | undefined>(undefined);
 
         const doExport = () => {
             progress.value = 0;
-            world.events.emit('export_map', prog => progress.value = prog, () => {
+            world.events.emit('export_map', (prog: number) => progress.value = prog, () => {
                 progress.value = undefined;
                 console.log("Done")
             });

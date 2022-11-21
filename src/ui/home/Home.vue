@@ -56,15 +56,11 @@ export default defineComponent({
     const file = shallowRef<File | undefined>(undefined);
     const showFileModal = shallowRef(false);
     const loadingProgress = shallowRef<number | undefined>(undefined);
-
-    /*setInterval(() => {
-      loadingProgress.value = (loadingProgress.value + 0.1) % 101;
-      console.log(loadingProgress.value)
-    }, 10);*/
+    const isMapLoading = shallowRef(false);
 
     watch(file, val => {
-      if (val === undefined || loadingProgress.value !== undefined) return;
-
+      if (val === undefined || loadingProgress.value !== undefined || isMapLoading.value) return;
+      isMapLoading.value = true;
       console.log("File dropped, loading...");
       loadingProgress.value = 0;
       uiEvents.emit('edit', val, (x: number) => {

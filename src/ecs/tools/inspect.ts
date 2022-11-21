@@ -1,7 +1,7 @@
 import {World} from "../world";
 import PIXI from "../../PIXI";
 import {SELECTION_TYPE, SelectionSystem} from "../systems/back/selectionSystem";
-import {PointerClickEvent, PointerDownEvent, PointerEvents, PointerMoveEvent, PointerUpEvent} from "../systems/back/pixiBoardSystem";
+import {PointerClickEvent, PointerDownEvent, PointerEvents, PointerMoveEvent, PointerUpEvent} from "../systems/back/pixi/pixiBoardSystem";
 import {ToolPart} from "../systems/back/toolSystem";
 import {RectangularSelection} from "./rectangularSelection";
 import {LAYER_TYPE, LayerSystem} from "../systems/back/layerSystem";

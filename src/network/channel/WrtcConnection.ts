@@ -82,7 +82,8 @@ export class WrtcConnection {
         this.handle.createDataChannel('unused', {
             negotiated: true,
             id: 0,
-        })
+        });
+        this.handle.ondatachannel = ev => this.events.emit('datachannel', new WrtcChannel(ev.channel));
         if (this.isInitiator) {
             this.makeOffer();
         }

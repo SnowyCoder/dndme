@@ -8,7 +8,7 @@ import { executeAndLogCommand } from "./command/command";
 import { POSITION_TYPE } from "../component";
 import { SingleEcsStorageSerialzed } from "../storage";
 import { Aabb } from "../../geometry/aabb";
-import { BoardSizeResource, BoardTransformResource, BOARD_SIZE_TYPE, BOARD_TRANSFORM_TYPE } from "./back/pixiBoardSystem";
+import { BoardSizeResource, BoardTransformResource, BOARD_SIZE_TYPE, BOARD_TRANSFORM_TYPE } from "./back/pixi/pixiBoardSystem";
 import { EVENT_COMMAND_HISTORY_LOG } from "./command/commandSystem";
 
 const CLIPBOARD_DATA = 'dndme-clip';

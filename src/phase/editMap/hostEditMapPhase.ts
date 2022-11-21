@@ -3,11 +3,11 @@ import {NameComponent, NAME_TYPE, PositionComponent, POSITION_TYPE, SerializedFl
 import {BackgroundImageComponent, BACKGROUND_IMAGE_TYPE} from "../../ecs/systems/backgroundImageSystem";
 import {GameMap} from "../../map/gameMap";
 import {MapLevel} from "../../map/mapLevel";
-import {PIXI_BOARD_TYPE, PixiBoardSystem} from "../../ecs/systems/back/pixiBoardSystem";
+import {PIXI_BOARD_TYPE, PixiBoardSystem} from "../../ecs/systems/back/pixi/pixiBoardSystem";
 import {SpawnCommandKind} from "../../ecs/systems/command/spawnCommand";
 import {executeAndLogCommand} from "../../ecs/systems/command/command";
-import {BIG_STORAGE_TYPE, BigStorageSystem, BigEntryFlags} from "../../ecs/systems/back/bigStorageSystem";
-import * as PIXI from "pixi.js";
+import { ImageRenderer } from "@/ecs/systems/back/pixi/ImageRenderer";
+import PIXI from "@/PIXI";
 
 export class HostEditMapPhase extends EditMapPhase {
     map: GameMap;
@@ -75,12 +75,8 @@ export class HostEditMapPhase extends EditMapPhase {
 
         if (firstFile.type.startsWith("image/")) {
             let data = new Uint8Array(await firstFile.arrayBuffer());
-            let bigStorage = this.world.systems.get(BIG_STORAGE_TYPE) as BigStorageSystem;
-            let dataId = bigStorage.create(
-                data,
-                BigEntryFlags.READONLY | BigEntryFlags.SHARED,
-                false
-            ).multiId;
+            const dataId = await ImageRenderer.preloadTexture(this.world, data, firstFile.type);
+
             const cmd = SpawnCommandKind.from(this.world, [
                 {
                     type: SERIALIZED_TYPE,
@@ -107,7 +103,6 @@ export class HostEditMapPhase extends EditMapPhase {
                     type: BACKGROUND_IMAGE_TYPE,
                     entity: -1,
                     image: dataId,
-                    imageType: firstFile.type,
                 } as BackgroundImageComponent,
             ]);
             executeAndLogCommand(this.world, cmd);
@@ -145,7 +140,7 @@ export class HostEditMapPhase extends EditMapPhase {
         };
         window.addEventListener('beforeunload', this.beforeUnloadListener);
 
-        this.currentLevel.loadInto(this.world);
+        this.currentLevel.loadInto(this.world, this.map.filedb);
         //let ch = this.networkManager.channel.eventEmitter;
         //ch.on("_device_join", this.onDeviceJoin, this);
     }

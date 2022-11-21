@@ -21,13 +21,17 @@ export class EventCommandKind implements CommandKind {
     }
 
     applyInvert(cmd: EventCommand): EventCommand {
-        this.world.events.emit(cmd.do.name, ...cmd.do.args);
+        this.apply(cmd);
 
         return {
             kind: 'event',
             do: cmd.undo,
             undo: cmd.do,
         } as EventCommand;
+    }
+
+    apply(cmd: EventCommand): void {
+        this.world.events.emit(cmd.do.name, ...cmd.do.args);
     }
 
     stripClient(command: EventCommand): Command[] {

@@ -5,7 +5,7 @@
 
 
 :root {
-    --topbar-height: 40px;
+    --toolbar-height: 40px;
 }
 
 * {
@@ -29,16 +29,12 @@ body {
     }
 }
 
-.under-navbar {
-    margin-top: var(--topbar-height) !important;
-}
-
-div.under-navbar {
-    margin-top: var(--topbar-height) !important;
-}
-
-.b-sidebar.under-navbar {
-    height: calc(100vh - var(--topbar-height));
+.under-toolbar {
+    margin-bottom: var(--toolbar-height) !important;
+    @include media-breakpoint-up(md) {
+        margin-bottom: 0 !important;
+        margin-top: var(--toolbar-height) !important;
+    }
 }
 
 .footer, .game-footer {

@@ -233,7 +233,7 @@ export class World {
 
     addComponent(entity: number, cmp: Omit<Component, 'entity'>): void {
         if (!this.entities.has(entity)) {
-            console.warn("Entity not present " + entity);
+            console.error("Entity not present " + entity);
             return;
         }
         let c = cmp as Component;

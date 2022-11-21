@@ -12,20 +12,20 @@ import {PlayerSystem} from "../../ecs/systems/playerSystem";
 import {VisibilityAwareSystem} from "../../ecs/systems/back/visibilityAwareSystem";
 import {DoorSystem} from "../../ecs/systems/doorSystem";
 import {PropSystem} from "../../ecs/systems/propSystem";
-import {PixiGraphicSystem} from "../../ecs/systems/back/pixiGraphicSystem";
+import {PixiGraphicSystem} from "../../ecs/systems/back/pixi/pixiGraphicSystem";
 import {ToolSystem} from "../../ecs/systems/back/toolSystem";
 import {GridSystem} from "../../ecs/systems/gridSystem";
 import {EcsPhase} from "../ecsPhase";
-import {PixiBoardSystem} from "../../ecs/systems/back/pixiBoardSystem";
+import {PixiBoardSystem} from "../../ecs/systems/back/pixi/pixiBoardSystem";
 import {CommandSystem} from "../../ecs/systems/command/commandSystem";
 import {CommandHistorySystem} from "../../ecs/systems/command/commandHistorySystem";
 import {LayerSystem} from "../../ecs/systems/back/layerSystem";
-import {PixiRectSelectionSystem} from "../../ecs/systems/back/pixiRectSelectionSystem";
+import {PixiRectSelectionSystem} from "../../ecs/systems/back/pixi/pixiRectSelectionSystem";
 import {WebKeyboardSystem} from "../../ecs/systems/back/keyboardSystem";
 import {CommonNetworkSystem} from "../../ecs/systems/back/networkSystem";
-import {PixiMeasureSystem} from "../../ecs/systems/back/pixiMeasureSystem";
-import {PixiLayerSystem} from "../../ecs/systems/back/pixiLayerSystem";
-import {BigStorageSystem} from "../../ecs/systems/back/bigStorageSystem";
+import {PixiMeasureSystem} from "../../ecs/systems/back/pixi/pixiMeasureSystem";
+import {PixiLayerSystem} from "../../ecs/systems/back/pixi/pixiLayerSystem";
+import {BigStorageSystem} from "../../ecs/systems/back/files/bigStorageSystem";
 import {MouseTrailSystem} from "../../ecs/systems/mouseTrailSystem";
 import {CopyPasteSystem} from "../../ecs/systems/copyPasteSystem";
 import { LinkRelocationSystem } from "../../ecs/systems/back/linkRelocationSystem";
@@ -35,6 +35,8 @@ import { PlayerLocatorSystem } from "../../ecs/systems/playerLocator";
 import { App, createApp, shallowRef } from "vue";
 import { ToolbarSystem } from "@/ecs/systems/toolbarSystem";
 import { BattleSystem } from "../../ecs/systems/battleSystem";
+import { ImageMetaSyncSystem } from "@/ecs/systems/back/ImageMetaSystem";
+import { DeclarativeListenerSystem } from "@/ecs/systems/back/DeclarativeListenerSystem";
 
 
 export class EditMapPhase extends EcsPhase {
@@ -56,13 +58,14 @@ export class EditMapPhase extends EcsPhase {
         super.registerSystems();
         let w = this.world;
         w.addSystem(new CommonNetworkSystem(w, this.channel));
+        w.addSystem(new DeclarativeListenerSystem(w));
+        w.addSystem(new WebKeyboardSystem(w));
+        w.addSystem(new BigStorageSystem(w));
 
         w.addSystem(new CommandSystem(w));
         if (w.isMaster) {
             w.addSystem(new CommandHistorySystem(w));
         }
-        w.addSystem(new WebKeyboardSystem(w));
-        w.addSystem(new BigStorageSystem(w));
         w.addSystem(new LinkRelocationSystem(w));
         w.addSystem(new ToolbarSystem(w));
         w.addSystem(new LayerSystem(w));
@@ -79,6 +82,7 @@ export class EditMapPhase extends EcsPhase {
         w.addSystem(new GridSystem(w));
         w.addSystem(new InteractionSystem(w));
         w.addSystem(new TextSystem(w));
+        w.addSystem(new ImageMetaSyncSystem(w));
         w.addSystem(new PixiGraphicSystem(w));
         w.addSystem(new PixiLayerSystem(w));
         w.addSystem(new NameAsLabelSystem(w));

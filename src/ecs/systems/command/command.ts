@@ -19,6 +19,11 @@ export interface CommandKind {
      */
     applyInvert(command: Command): Command;
 
+    /**
+    * Applies the command without inversion (used in non-master worlds where the command does not need history log)
+    */
+    apply(command: Command): void;
+
     stripClient(command: Command): Command[];
 
     merge(to: Command, from: Command, strict: boolean): boolean;
@@ -27,16 +32,12 @@ export interface CommandKind {
 }
 
 
-export function executeAndLogCommand(world: World, command: Command): Command | undefined {
-    let res = {} as CommandResult;
-    world.events.emit(EVENT_COMMAND_LOG, command, res);
-    return res.inverted;
+export function executeAndLogCommand(world: World, command: Command, callback?: (res: CommandResult) => void): void {
+    world.events.emit(EVENT_COMMAND_LOG, command, callback);
 }
 
-export function emitCommand(world: World, command: Command, share: boolean): Command | undefined {
-    let res = {} as CommandResult;
-    world.events.emit(EVENT_COMMAND_EMIT, command, res, share);
-    return res.inverted;
+export function emitCommand(world: World, command: Command, share: boolean, callback?: (res: CommandResult) => void): void {
+    world.events.emit(EVENT_COMMAND_EMIT, command, callback, share);
 }
 
 export function commandRegisterPreConsequence(world: World, command: Command): void {

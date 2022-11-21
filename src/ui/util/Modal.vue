@@ -71,7 +71,7 @@ export default defineComponent({
       });
       htmlModal.addEventListener('shown.bs.modal', () => {
         if (!modelValue.value) {
-          modal.value.hide();
+          modal.value!.hide();
         }
       });
       htmlModal.addEventListener('hide.bs.modal', () => {
@@ -79,7 +79,7 @@ export default defineComponent({
       });
       htmlModal.addEventListener('hidden.bs.modal', () => {
         if (modelValue.value) {
-          modal.value.hide();
+          modal.value!.hide();
         }
       });
 

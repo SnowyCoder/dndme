@@ -1,8 +1,8 @@
-import {World} from "../../world";
+import {World} from "@/ecs/world";
 import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
-import {System} from "../../system";
-import {RECTANGULAR_SELECTION_TYPE, RectangularSelectionResource, Resource} from "../../resource";
-import {Aabb} from "../../../geometry/aabb";
+import {System} from "@/ecs/system";
+import {RECTANGULAR_SELECTION_TYPE, RectangularSelectionResource, Resource} from "@/ecs/resource";
+import {Aabb} from "@/geometry/aabb";
 import * as PIXI from "pixi.js";
 
 

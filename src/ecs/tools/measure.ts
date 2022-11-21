@@ -1,6 +1,6 @@
 import {World} from "../world";
 import PIXI from "../../PIXI";
-import {PointerDownEvent, PointerEvents, PointerMoveEvent, PointerUpEvent} from "../systems/back/pixiBoardSystem";
+import {PointerDownEvent, PointerEvents, PointerMoveEvent, PointerUpEvent} from "../systems/back/pixi/pixiBoardSystem";
 import {ToolPart} from "../systems/back/toolSystem";
 import {KEYBOARD_TYPE, KeyboardResource} from "../systems/back/keyboardSystem";
 import {MeasureResource} from "../resource";

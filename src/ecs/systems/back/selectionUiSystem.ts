@@ -5,7 +5,7 @@ import { System } from "../../system";
 import { World } from "../../world";
 import { SelectionSystem, SELECTION_TYPE } from "./selectionSystem";
 import { Resource } from "../../resource";
-import { PixiBoardSystem, PIXI_BOARD_TYPE } from "./pixiBoardSystem";
+import { PixiBoardSystem, PIXI_BOARD_TYPE } from "./pixi/pixiBoardSystem";
 import PIXI from "@/PIXI";
 import { componentEditCommand, ComponentEditCommand } from "../command/componentEdit";
 import { DeSpawnCommand } from "../command/despawnCommand";
@@ -18,18 +18,20 @@ import EcsName from "@/ui/ecs/EcsName.vue";
 import EcsNote from "@/ui/ecs/EcsNote.vue";
 import EcsPosition from "@/ui/ecs/EcsPosition.vue";
 import EcsTransform from "@/ui/ecs/EcsTransform.vue";
+import { arrayFilterInPlace } from "../../../util/array";
 
 export const COMPONENT_INFO_PANEL_TYPE = 'component_info_panel';
 export type COMPONENT_INFO_PANEL_TYPE = typeof COMPONENT_INFO_PANEL_TYPE;
 export interface ComponentInfoPanel extends Component {
     type: COMPONENT_INFO_PANEL_TYPE;
     // component type
-    component: string; 
+    component: string;
     // Displayed name
     name: string;
     // Sidebar panel (props pased: component)
     panel: VueComponent;
     panelPriority?: number;
+    hidePanels?: string[];
     // (only used in single components)
     // If true then it is open
     isOpen?: boolean;
@@ -72,7 +74,7 @@ export class SelectionUiSystem implements System {
     private readonly world: World;
     readonly name = SELECTION_UI_TYPE;
     readonly dependencies = [PIXI_BOARD_TYPE, SELECTION_TYPE] as string[];
-    
+
     private readonly selectionSys: SelectionSystem;
 
     private uiResDirty: boolean = true;
@@ -82,7 +84,7 @@ export class SelectionUiSystem implements System {
 
     public constructor(world: World) {
         this.world = world;
-        
+
         this.world.addStorage(this.storage);
 
         const boardSys = world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
@@ -215,19 +217,26 @@ export class SelectionUiSystem implements System {
     }
 
     private getSingleComponents(): Component[] {
-        let res = new Array<Component>();
-        let entity = this.selectionSys.selectedEntities.values().next().value;
+        const res = new Array<Component>();
+        const entity = this.selectionSys.selectedEntities.values().next().value;
+        // Should we use a set? I think that it introduces more overhead than necessary
+        // (there should be at most 1-3 strings in this array at most)
+        const hidden = new Array<string>();
 
         for (let storage of this.world.storages.values()) {
             const info = this.panelInfos.get(storage.type);
             if (info === undefined) continue;
 
-            let comps = storage.getComponents(entity);
+            const comps = storage.getComponents(entity);
             for (let comp of comps) {
+                hidden.push(...info.hidePanels ?? []);
                 res.push(removePrivate(this.initialComponent(info), comp));
             }
         }
-        
+        if (hidden.length > 0) {
+            arrayFilterInPlace(res, x =>!hidden.includes(x.type));
+        }
+
         return this.sortSidebarComponents(res);
     }
 
@@ -235,10 +244,11 @@ export class SelectionUiSystem implements System {
         const selectedEntities = this.selectionSys.selectedEntities;
         if (selectedEntities.size === 0) return [];
 
-        let selCount = selectedEntities.size;
+        const selCount = selectedEntities.size;
 
         if (selCount === 1) return this.getSingleComponents();
-        let commonTypes = new Array<EcsStorage<Component>>();
+        const commonTypes = new Array<EcsStorage<Component>>();
+        const hidden = new Array<String>();
 
         for (let sto of this.world.storages.values()) {
             const info = this.panelInfos.get(sto.type);
@@ -247,12 +257,16 @@ export class SelectionUiSystem implements System {
             const type = sto.type;
 
             let data = this.selectionSys.dataByType.get(type);
+            if (data != undefined && info.hidePanels) {
+                hidden.push(...info.hidePanels);
+            }
             if (data != undefined && data.entities.size === selCount && !sto.isMulti) {
                 commonTypes.push(sto);
             }
         }
+        arrayFilterInPlace(commonTypes, x => !hidden.includes(x.type));
 
-        let res = new Array<Component>();
+        const res = new Array<Component>();
 
         for (let sto of commonTypes) {
             const info = this.panelInfos.get(sto.type)!;
@@ -350,12 +364,12 @@ export class SelectionUiSystem implements System {
                 }
                 case 'addComponent': {
                     const info = this.panelInfos.get(propertyValue)!;
-                    
+
                     if (info === undefined) {
                         console.warn("Error: cannot add component of type " + propertyValue + ": unknown");
                         return;
                     }
-                    
+
                     let add = [];
                     for (let entity of [...entities]) {
                         add.push(...info.addEntry!.component(entity));

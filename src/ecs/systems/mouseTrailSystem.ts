@@ -14,7 +14,7 @@ import {
     BoardTransformResource,
     PIXI_BOARD_TYPE,
     PixiBoardSystem,
-} from "./back/pixiBoardSystem";
+} from "./back/pixi/pixiBoardSystem";
 import {ToolType} from "../tools/toolType";
 import {
     NETWORK_ENTITY_TYPE,

@@ -40,7 +40,7 @@ export interface EcsStorage<C extends Component> {
     serializedStrip(data: any, filter: (x: number) => boolean): void;
 }
 
-type MultiEcsStorageSerialized = {[entity: number]: any[]};
+export type MultiEcsStorageSerialized = {[entity: number]: any[]};
 export class MultiEcsStorage<C extends MultiComponent> implements EcsStorage<C> {
     readonly type: string;
     readonly sync: boolean;
