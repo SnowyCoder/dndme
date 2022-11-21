@@ -33,6 +33,7 @@ import {GRID_TYPE, GridSystem} from "../gridSystem";
 import {SELECTION_TYPE, SelectionSystem} from "./selectionSystem";
 import { IPoint } from "@/geometry/point";
 import * as PIXI from "pixi.js";
+import { componentClone } from "@/ecs/ecsUtil";
 
 export enum ShapeType {
     POINT, AABB, CIRCLE, LINE, POLYGON, OBB,
@@ -329,6 +330,7 @@ export class InteractionSystem implements System {
 
     storage = new SingleEcsStorage<InteractionComponent>('interaction', false, false);
     isTranslating: boolean = false;
+    private translatingEntities: number[] = [];
 
     snapDb: PointDB;
     aabbTree = new DynamicTree<InteractionComponent>();
@@ -454,18 +456,26 @@ export class InteractionSystem implements System {
     }
 
     private onToolMoveBegin(): void {
+        if (this.isTranslating) {
+            console.warn("tool_move never ended");
+            this.onToolMoveEnd();
+        }
+        this.translatingEntities = [];
         for (let comp of this.selectionSys.getSelectedByType(INTERACTION_TYPE)) {
             let c = comp as InteractionComponent;
             this.unregisterComponent(c);
+            this.translatingEntities.push(c.entity);
         }
         this.isTranslating = true;
     }
 
     private onToolMoveEnd(): void {
         this.isTranslating = false;
-        for (let comp of this.selectionSys.getSelectedByType(INTERACTION_TYPE)) {
-            let c = comp as InteractionComponent;
-            this.updateComponent(c);
+        for (let entity of this.translatingEntities) {
+            let c = this.world.getComponent(entity, INTERACTION_TYPE) as InteractionComponent | undefined;
+            if (c !== undefined) {
+                this.updateComponent(c);
+            }
         }
     }
 

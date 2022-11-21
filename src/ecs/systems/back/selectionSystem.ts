@@ -53,9 +53,14 @@ export class SelectionSystem implements System {
         });
         if (ecs.isMaster) {
             this.ecs.events.on('command_post_execute', (c: Command | undefined) => {
-                // a spawn command has been executed
+                // a spawn command has been executed, we should check for despawn events since
+                // when a command is executed it is inverted, and the inverse of a spawn command is a despawn
                 if (c === undefined || c.kind !== 'despawn') return;
-                this.setOnlyEntities((c as DeSpawnCommand).entities);
+                let cmd = c as DeSpawnCommand;
+                // Check if the spawned entity is interesting, if it is, select it
+                if (cmd.entities.some(x => this.ecs.getComponent(x, POSITION_TYPE) !== undefined)) {
+                    this.setOnlyEntities((c as DeSpawnCommand).entities);
+                }
             });
             this.ecs.events.on('delete', () => {
                 const cmd = {
@@ -66,7 +71,6 @@ export class SelectionSystem implements System {
                 executeAndLogCommand(this.ecs, cmd);
             });
         }
-        this.ecs.events.on('entity_despawn', this.onEntityDespawn, this);
     }
 
 
