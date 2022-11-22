@@ -88,18 +88,18 @@ export class PinSystem implements System {
                     priority: StandardToolbarOrder.CREATE_PIN,
                 },
             });
-            world.events.on('populate', () => {
-                this.world.spawnEntity({
-                    type: COMPONENT_INFO_PANEL_TYPE,
-                    entity: -1,
-                    component: PIN_TYPE,
-                    name: 'Pin',
-                    panel: EcsPin,
-                    panelPriority: 100,
-                    hidePanels: [TRANSFORM_TYPE],// Controlled directly by us
-                } as ComponentInfoPanel);
-            });
         }
+        world.events.on('populate', () => {
+            this.world.spawnEntity({
+                type: COMPONENT_INFO_PANEL_TYPE,
+                entity: -1,
+                component: PIN_TYPE,
+                name: 'Pin',
+                panel: EcsPin,
+                panelPriority: 100,
+                hidePanels: [TRANSFORM_TYPE],// Controlled directly by us
+            } as ComponentInfoPanel);
+        });
 
         this.gridSize = (this.world.getResource(GRID_TYPE) as GridResource ?? STANDARD_GRID_OPTIONS).size / STANDARD_GRID_OPTIONS.size;
 

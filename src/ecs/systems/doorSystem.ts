@@ -76,31 +76,32 @@ export class DoorSystem implements System {
         this.world.events.on('resource_edited', this.onResourceEdited, this);
         if (world.isMaster) {
             this.world.events.on('interact', this.onInteract, this);
-            this.world.events.on('populate', () => {
-                this.world.spawnEntity({
-                    type: COMPONENT_INFO_PANEL_TYPE,
-                    entity: -1,
-                    component: DOOR_TYPE,
-                    name: 'Door',
-                    panel: EcsDoor,
-                    panelPriority: 50,
-                    addEntry: {
-                        whitelist: [WALL_TYPE],
-                        blacklist: [DOOR_TYPE],
-                        component(entity: number) {
-                            return [{
-                                type: DOOR_TYPE,
-                                entity,
-                                doorType: DoorType.NORMAL_LEFT,
-                                locked: false,
-                                open: false,
-                                clientVisible: true,
-                            } as DoorComponent]
-                        },
-                    }
-                } as ComponentInfoPanel);
-            });
         }
+        this.world.events.on('populate', () => {
+            this.world.spawnEntity({
+                type: COMPONENT_INFO_PANEL_TYPE,
+                entity: -1,
+                component: DOOR_TYPE,
+                name: 'Door',
+                removable: true,
+                panel: EcsDoor,
+                panelPriority: 50,
+                addEntry: {
+                    whitelist: [WALL_TYPE],
+                    blacklist: [DOOR_TYPE],
+                    component(entity: number) {
+                        return [{
+                            type: DOOR_TYPE,
+                            entity,
+                            doorType: DoorType.NORMAL_LEFT,
+                            locked: false,
+                            open: false,
+                            clientVisible: true,
+                        } as DoorComponent]
+                    },
+                }
+            } as ComponentInfoPanel);
+        });
     }
 
     redrawComponent(door: DoorComponent): void {
@@ -418,6 +419,7 @@ export class DoorConflictDetector implements System {
 
     readonly storage = new SingleEcsStorage<DoorStuckComponent>(DOOR_STUCK, false, false);
     readonly dualToPrimal = new Map<number, number>();
+    private isMasterView: boolean = true;
 
 
     // The idea to check what door is stuck without impacting performance is to have an optimized
@@ -441,6 +443,7 @@ export class DoorConflictDetector implements System {
         this.world.events.on(EVENT_INTERACTION_COLLIDER_UPDATE, this.onInteractionColliderUpdate.bind(this));
 
         this.world.events.on('component_remove', this.onComponentRemove.bind(this));
+        this.world.events.on('resource_edited', this.onResourceEdited.bind(this));
 
         this.world.addStorage(this.storage);
     }
@@ -515,11 +518,21 @@ export class DoorConflictDetector implements System {
         this.world.editComponent(primalEntity, DOOR_STUCK, {
             isStuck: isNowStuck,
         });
-        const wallComp = this.world.getComponent(primalEntity, GRAPHIC_TYPE) as GraphicComponent;
+        this.redrawComponent(stuckComp);
+    }
 
-        (wallComp.display as LineElement).color = isNowStuck ? 0xFF0000 : 0x000000;
-        // Tell the graphics system to redraw the element
-        this.world.editComponent(primalEntity, GRAPHIC_TYPE, {}, undefined, false);
+    private redrawComponent(stuckCmp: DoorStuckComponent) {
+        const entity = stuckCmp.entity;
+        const newColor = (this.isMasterView && stuckCmp.isStuck) ? 0xFF0000 : 0x000000;
+
+        const graphics = this.world.getComponent(entity, GRAPHIC_TYPE) as GraphicComponent;
+        const line = graphics.display as LineElement;
+
+        if (line.color != newColor) {
+            line.color = newColor;
+            // Tell the graphics system to redraw the element
+            this.world.editComponent(entity, GRAPHIC_TYPE, {}, undefined, false);
+        }
     }
 
     private onComponentRemove(comp: Component): void {
@@ -528,7 +541,17 @@ export class DoorConflictDetector implements System {
         }
     }
 
+    private onResourceEdited(res: Resource, edited: any) {
+        if (res.type === LOCAL_LIGHT_SETTINGS_TYPE && 'visionType' in edited) {
+            this.isMasterView = (res as LocalLightSettings).visionType !== 'rp';
+            for (let c of this.storage.allComponents()) {
+                this.redrawComponent(c);
+            }
+        }
+    }
+
     enable(): void {
+        this.isMasterView = (this.world.getResource(LOCAL_LIGHT_SETTINGS_TYPE) as LocalLightSettings)?.visionType !== 'rp';
     }
     destroy(): void {
     }

@@ -151,30 +151,28 @@ export class LightSystem implements System {
         world.events.on('component_remove', this.onComponentRemove, this);
         world.events.on('resource_edited', this.onResourceEdited, this);
 
-        if (world.isMaster) {
-            world.events.on('populate', () => {
-                this.world.spawnEntity({
-                    type: COMPONENT_INFO_PANEL_TYPE,
-                    entity: -1,
-                    component: LIGHT_TYPE,
-                    name: 'Light',
-                    removable: true,
-                    panel: EcsLight,
-                    addEntry: {
-                        whitelist: [PIN_TYPE],
-                        blacklist: [LIGHT_TYPE],
-                        component: (entity: number) => {
-                            return [{
-                                entity,
-                                type: LIGHT_TYPE,
-                                color: 0xFFFFFF,
-                                range: 2,
-                            } as LightComponent];
-                        },
-                    }
-                } as ComponentInfoPanel);
-            });
-        }
+        world.events.on('populate', () => {
+            this.world.spawnEntity({
+                type: COMPONENT_INFO_PANEL_TYPE,
+                entity: -1,
+                component: LIGHT_TYPE,
+                name: 'Light',
+                removable: true,
+                panel: EcsLight,
+                addEntry: {
+                    whitelist: [PIN_TYPE],
+                    blacklist: [LIGHT_TYPE],
+                    component: (entity: number) => {
+                        return [{
+                            entity,
+                            type: LIGHT_TYPE,
+                            color: 0xFFFFFF,
+                            range: 2,
+                        } as LightComponent];
+                    },
+                }
+            } as ComponentInfoPanel);
+        });
     }
 
     createLightVisMesh(): PIXI.Mesh {

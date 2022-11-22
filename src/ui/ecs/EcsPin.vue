@@ -6,7 +6,7 @@
     </div>
     <div class="d-flex align-items-center">
       Size:
-      <input type="checkbox" title="Specify" v-model="sizeSpecify" :readonly="!isMaster" />
+      <input type="checkbox" title="Specify" v-model="sizeSpecify" :disabled="!isMaster" />
       <editable-range
         :readonly="!isMaster || !sizeSpecify"
         v-model="size"

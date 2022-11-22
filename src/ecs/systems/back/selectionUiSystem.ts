@@ -96,68 +96,66 @@ export class SelectionUiSystem implements System {
         this.world.events.on('component_add', this.onComponentAdd, this);
         this.world.events.on('component_remove', this.onComponentRemove, this);
 
-        if (world.isMaster) {
-            world.events.on('populate', () => {
-                this.world.spawnEntity({
-                    type: COMPONENT_INFO_PANEL_TYPE,
-                    entity: -1,
-                    component: POSITION_TYPE,
-                    name: 'Position',
-                    panel: EcsPosition,
-                    panelPriority: 500,
-                } as ComponentInfoPanel);
-                this.world.spawnEntity({
-                    type: COMPONENT_INFO_PANEL_TYPE,
-                    entity: -1,
-                    component: TRANSFORM_TYPE,
-                    name: 'Transform',
-                    panel: EcsTransform,
-                    panelPriority: 400,
-                } as ComponentInfoPanel);
-                this.world.spawnEntity({
-                    type: COMPONENT_INFO_PANEL_TYPE,
-                    entity: -1,
-                    component: NAME_TYPE,
-                    name: 'Name',
-                    removable: true,
-                    panel: EcsName,
-                    panelPriority: 2000,
-                    isDefaultOpen: true,
-                    addEntry: {
-                        component: (entity: number) => {
-                            return [{
-                                type: NAME_TYPE,
-                                entity,
-                                name: '',
-                                clientVisible: true,
-                                multiId: generateRandomId(),
-                            } as NameComponent];
-                        },
-                    }
-                } as ComponentInfoPanel);
-                this.world.spawnEntity({
-                    type: COMPONENT_INFO_PANEL_TYPE,
-                    entity: -1,
-                    component: NOTE_TYPE,
-                    name: 'Note',
-                    removable: true,
-                    panel: EcsNote,
-                    panelPriority: -110,
-                    isDefaultOpen: false,
-                    addEntry: {
-                        component: (entity: number) => {
-                            return [{
-                                type: NOTE_TYPE,
-                                entity,
-                                note: '',
-                                clientVisible: true,
-                                multiId: generateRandomId(),
-                            } as NoteComponent];
-                        },
-                    }
-                } as ComponentInfoPanel);
-            });
-        }
+        world.events.on('populate', () => {
+            this.world.spawnEntity({
+                type: COMPONENT_INFO_PANEL_TYPE,
+                entity: -1,
+                component: POSITION_TYPE,
+                name: 'Position',
+                panel: EcsPosition,
+                panelPriority: 500,
+            } as ComponentInfoPanel);
+            this.world.spawnEntity({
+                type: COMPONENT_INFO_PANEL_TYPE,
+                entity: -1,
+                component: TRANSFORM_TYPE,
+                name: 'Transform',
+                panel: EcsTransform,
+                panelPriority: 400,
+            } as ComponentInfoPanel);
+            this.world.spawnEntity({
+                type: COMPONENT_INFO_PANEL_TYPE,
+                entity: -1,
+                component: NAME_TYPE,
+                name: 'Name',
+                removable: true,
+                panel: EcsName,
+                panelPriority: 2000,
+                isDefaultOpen: true,
+                addEntry: {
+                    component: (entity: number) => {
+                        return [{
+                            type: NAME_TYPE,
+                            entity,
+                            name: '',
+                            clientVisible: true,
+                            multiId: generateRandomId(),
+                        } as NameComponent];
+                    },
+                }
+            } as ComponentInfoPanel);
+            this.world.spawnEntity({
+                type: COMPONENT_INFO_PANEL_TYPE,
+                entity: -1,
+                component: NOTE_TYPE,
+                name: 'Note',
+                removable: true,
+                panel: EcsNote,
+                panelPriority: -110,
+                isDefaultOpen: false,
+                addEntry: {
+                    component: (entity: number) => {
+                        return [{
+                            type: NOTE_TYPE,
+                            entity,
+                            note: '',
+                            clientVisible: true,
+                            multiId: generateRandomId(),
+                        } as NoteComponent];
+                    },
+                }
+            } as ComponentInfoPanel);
+        });
 
         this.uiResDirty = true;
         this.onRender();

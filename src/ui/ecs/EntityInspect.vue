@@ -1,7 +1,7 @@
 <template>
   <div v-show="data.components.length > 0">
     <div class="entity-inspect_component-btn-header">
-      <div class="dropdown">
+      <div class="dropdown" v-if="world.isMaster">
         <button class="btn btn-success rounded-0" type="button" :id="dropdownId" data-bs-toggle="dropdown" aria-expanded="false">
           <i class="fas fa-plus"></i>
         </button>

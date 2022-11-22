@@ -95,29 +95,27 @@ export class LayerSystem implements System {
         events.on('component_remove', this.onComponentRemove, this);
         events.on('resource_edited', this.onResourceEdited, this);
 
-        if (world.isMaster) {
-            events.on('populate', () => {
-                this.world.spawnEntity({
-                    type: COMPONENT_INFO_PANEL_TYPE,
-                    entity: -1,
-                    component: PARENT_LAYER_TYPE,
-                    name: 'Foreground',
-                    removable: true,
-                    panel: EcsLayer,
-                    panelPriority: 1000,
-                    addEntry: {
-                        blacklist: [PARENT_LAYER_TYPE],
-                        component: (entity: number) => {
-                            return [{
-                                type: PARENT_LAYER_TYPE,
-                                entity,
-                                layer: findForeground(this.world),
-                            } as ParentLayerComponent];
-                        }
+        events.on('populate', () => {
+            this.world.spawnEntity({
+                type: COMPONENT_INFO_PANEL_TYPE,
+                entity: -1,
+                component: PARENT_LAYER_TYPE,
+                name: 'Foreground',
+                removable: true,
+                panel: EcsLayer,
+                panelPriority: 1000,
+                addEntry: {
+                    blacklist: [PARENT_LAYER_TYPE],
+                    component: (entity: number) => {
+                        return [{
+                            type: PARENT_LAYER_TYPE,
+                            entity,
+                            layer: findForeground(this.world),
+                        } as ParentLayerComponent];
                     }
-                } as ComponentInfoPanel);
-            });
-        }
+                }
+            } as ComponentInfoPanel);
+        });
     }
 
     private onLayerEdited(l: Layer, edits: any): void {

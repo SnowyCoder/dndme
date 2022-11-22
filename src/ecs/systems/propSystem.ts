@@ -101,36 +101,36 @@ export class PropSystem implements System {
             toolSys.addTool(ToolType.PROP_TELEPORT_LINK, {
                 parts: ['space_pan', ToolType.PROP_TELEPORT_LINK],
             });
-            world.events.on('populate', () => {
-                this.world.spawnEntity({
-                    type: COMPONENT_INFO_PANEL_TYPE,
-                    entity: -1,
-                    component: PROP_TYPE,
-                    name: 'Prop',
-                    panel: EcsProp,
-                    panelPriority: 100,
-                } as ComponentInfoPanel);
-                this.world.spawnEntity({
-                    type: COMPONENT_INFO_PANEL_TYPE,
-                    entity: -1,
-                    component: PROP_TELEPORT_TYPE,
-                    name: 'Teleporter',
-                    panel: EcsPropTeleport,
-                    panelPriority: 50,
-                    addEntry: {
-                        whitelist: [PROP_TYPE],
-                        blacklist: [PROP_TELEPORT_TYPE],
-                        component(entity: number) {
-                            return [{
-                                type: PROP_TELEPORT_TYPE,
-                                entity,
-                                targetProp: -1,
-                            } as PropTeleport]
-                        },
-                    }
-                } as ComponentInfoPanel);
-            });
         }
+        world.events.on('populate', () => {
+            this.world.spawnEntity({
+                type: COMPONENT_INFO_PANEL_TYPE,
+                entity: -1,
+                component: PROP_TYPE,
+                name: 'Prop',
+                panel: EcsProp,
+                panelPriority: 100,
+            } as ComponentInfoPanel);
+            this.world.spawnEntity({
+                type: COMPONENT_INFO_PANEL_TYPE,
+                entity: -1,
+                component: PROP_TELEPORT_TYPE,
+                name: 'Teleporter',
+                panel: EcsPropTeleport,
+                panelPriority: 50,
+                addEntry: {
+                    whitelist: [PROP_TYPE],
+                    blacklist: [PROP_TELEPORT_TYPE],
+                    component(entity: number) {
+                        return [{
+                            type: PROP_TELEPORT_TYPE,
+                            entity,
+                            targetProp: -1,
+                        } as PropTeleport]
+                    },
+                }
+            } as ComponentInfoPanel);
+        });
 
         let linkReloc = this.world.systems.get(LINK_RELOCATION_TYPE) as LinkRelocationSystem | undefined;
         if (linkReloc !== undefined) {

@@ -73,17 +73,17 @@ export class WallSystem implements System {
                     priority: StandardToolbarOrder.CREATE_WALL,
                 }
             });
-            world.events.on('populate', () => {
-                this.world.spawnEntity({
-                    type: COMPONENT_INFO_PANEL_TYPE,
-                    entity: -1,
-                    component: WALL_TYPE,
-                    name: 'Wall',
-                    panel: EcsWall,
-                    panelPriority: 100,
-                } as ComponentInfoPanel);
-            });
         }
+        world.events.on('populate', () => {
+            this.world.spawnEntity({
+                type: COMPONENT_INFO_PANEL_TYPE,
+                entity: -1,
+                component: WALL_TYPE,
+                name: 'Wall',
+                panel: EcsWall,
+                panelPriority: 100,
+            } as ComponentInfoPanel);
+        });
 
         this.interactionSys = world.systems.get(INTERACTION_TYPE) as InteractionSystem;
         this.selectionSys = world.systems.get(SELECTION_TYPE) as SelectionSystem;

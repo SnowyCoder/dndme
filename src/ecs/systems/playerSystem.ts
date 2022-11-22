@@ -97,30 +97,28 @@ export class PlayerSystem implements System {
         this.world.events.on('component_remove', this.onComponentRemove, this);
         this.world.events.on('resource_edited', this.onResourceEdited, this);
 
-        if (world.isMaster) {
-            world.events.on('populate', () => {
-                this.world.spawnEntity({
-                    type: COMPONENT_INFO_PANEL_TYPE,
-                    entity: -1,
-                    component: PLAYER_TYPE,
-                    name: 'Player',
-                    removable: true,
-                    panel: EcsPlayer,
-                    addEntry: {
-                        whitelist: [PIN_TYPE],
-                        blacklist: [PLAYER_TYPE],
-                        component: (entity: number) => {
-                            return [{
-                                type: PLAYER_TYPE,
-                                entity,
-                                nightVision: false,
-                                range: 50,
-                            } as PlayerComponent];
-                        },
-                    }
-                } as ComponentInfoPanel);
-            });
-        }
+        world.events.on('populate', () => {
+            this.world.spawnEntity({
+                type: COMPONENT_INFO_PANEL_TYPE,
+                entity: -1,
+                component: PLAYER_TYPE,
+                name: 'Player',
+                removable: true,
+                panel: EcsPlayer,
+                addEntry: {
+                    whitelist: [PIN_TYPE],
+                    blacklist: [PLAYER_TYPE],
+                    component: (entity: number) => {
+                        return [{
+                            type: PLAYER_TYPE,
+                            entity,
+                            nightVision: false,
+                            range: 50,
+                        } as PlayerComponent];
+                    },
+                }
+            } as ComponentInfoPanel);
+        });
 
         let visAware = world.systems.get(VISIBILITY_AWARE_TYPE) as VisibilityAwareSystem;
         visAware.events.on('aware_update', this.onVisibilityAwareUpdate, this);
