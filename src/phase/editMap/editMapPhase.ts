@@ -10,7 +10,7 @@ import {VisibilitySystem} from "../../ecs/systems/back/visibilitySystem";
 import {InteractionSystem} from "../../ecs/systems/back/interactionSystem";
 import {PlayerSystem} from "../../ecs/systems/playerSystem";
 import {VisibilityAwareSystem} from "../../ecs/systems/back/visibilityAwareSystem";
-import {DoorSystem} from "../../ecs/systems/doorSystem";
+import {DoorConflictDetector, DoorSystem} from "../../ecs/systems/doorSystem";
 import {PropSystem} from "../../ecs/systems/propSystem";
 import {PixiGraphicSystem} from "../../ecs/systems/back/pixi/pixiGraphicSystem";
 import {ToolSystem} from "../../ecs/systems/back/toolSystem";
@@ -90,6 +90,7 @@ export class EditMapPhase extends EcsPhase {
         w.addSystem(new BackgroundImageSystem(w));
         w.addSystem(new WallSystem(w));
         w.addSystem(new DoorSystem(w));
+        if (w.isMaster) w.addSystem(new DoorConflictDetector(w));
         w.addSystem(new VisibilitySystem(w));
         w.addSystem(new VisibilityAwareSystem(w));
         w.addSystem(new PinSystem(w));

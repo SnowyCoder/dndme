@@ -33,7 +33,7 @@ import {GRID_TYPE, GridSystem} from "../gridSystem";
 import {SELECTION_TYPE, SelectionSystem} from "./selectionSystem";
 import { IPoint } from "@/geometry/point";
 import * as PIXI from "pixi.js";
-import { componentClone } from "@/ecs/ecsUtil";
+import { arrayRemoveElem } from "@/util/array";
 
 export enum ShapeType {
     POINT, AABB, CIRCLE, LINE, POLYGON, OBB,
@@ -305,21 +305,34 @@ function shapeClone(shape: Shape): Shape {
     }
 }
 
+// Args: entity, newColliders, added, removed
+export const EVENT_INTERACTION_COLLIDER_UPDATE = 'interaction_collider_update';
+
 export const INTERACTION_TYPE = 'interaction';
 export type INTERACTION_TYPE = 'interaction';
+
+export type QueryMetadata = {[name: string | symbol]: any};
 
 export interface InteractionComponent extends Component {
     type: INTERACTION_TYPE;
 
-    selectPriority: number;// If true then the item is selectable
+    selectPriority: number;// If > 0 then the item is selectable
     snapEnabled: boolean;// if true then the snapDb registration is available.
     shape: Shape;
     // Additional checks (not required)
-    queryCheck?: (shape: Shape) => boolean;
+    queryCheck?: (shape: Shape, meta: QueryMetadata) => boolean;
+    // If true, the InteractionSystem will keep a list of colliding elements updated (_colliding) calling EVENT_INTERACTION_COLLIDER_UPDATE
+    // every time the list changes, queryCheck can be used to filter out unwanted collisions
+    isCollider?: boolean;
 
     _treeId?: number;
     _snaps?: number[];
+
+    _colliding?: number[];// If this component is a collider, this lists the components it's touching
+    _touchingColliders?: number[];// colliders this component is touching
 }
+
+export const QUERY_META_COLLIDING_ENTITY = Symbol();
 
 export class InteractionSystem implements System {
     readonly world: World;
@@ -371,7 +384,7 @@ export class InteractionSystem implements System {
         }
     }
 
-    private unregisterComponent(comp: InteractionComponent): void {
+    private unregisterTreeAndSnaps(comp: InteractionComponent): void {
         if (comp._snaps) {
             this.unregisterSnapPoints(comp._snaps);
             comp._snaps = undefined;
@@ -382,13 +395,102 @@ export class InteractionSystem implements System {
         }
     }
 
+    private unregisterColliders(comp: InteractionComponent) {
+        for (let x of (comp._touchingColliders ?? [])) {
+            const c = this.storage.getComponent(x)!;
+            arrayRemoveElem(c._colliding!, comp.entity);
+            this.world.events.emit(EVENT_INTERACTION_COLLIDER_UPDATE, c.entity, c._colliding, [], [comp.entity]);
+        }
+        comp._touchingColliders = [];
+
+        if (comp.isCollider === true && comp._colliding !== undefined) {
+            for (let x of comp._colliding) {
+                arrayRemoveElem(this.storage.getComponent(x)!._touchingColliders!, comp.entity);
+            }
+            const old = comp._colliding;
+            comp._colliding = [];
+            this.world.events.emit(EVENT_INTERACTION_COLLIDER_UPDATE, comp.entity,  comp._colliding, [], old);
+        }
+    }
+
     private updateComponent(comp: InteractionComponent): void {
-        this.unregisterComponent(comp);
-        if (comp.shape === undefined) return;
+        this.unregisterTreeAndSnaps(comp);
+        if (comp.shape === undefined) {
+            this.unregisterColliders(comp);
+            return;
+        }
         comp._treeId = this.aabbTree.createProxy(shapeToAabb(comp.shape), comp);
         if (comp.snapEnabled) {
             comp._snaps = shapeToSnaps(comp.shape);
             this.registerSnapPoints(comp._snaps);
+        }
+        // collider - collider - collider
+        // collider -    me    - collider
+        //   UNLIMITED COLLIDER WORKS!!
+        if (comp.isCollider) {
+            const oldColls = comp._colliding ?? [];
+            const newColls = [];
+            const added = [];
+            const removed = [];
+            for (let e of this.query(comp.shape, c => comp != c)) {
+                // So, the two shapes collide, e wants to collide with comp, but we forgot to check if comp.queryCheck is statisfied
+                if (comp.queryCheck !== undefined) {
+                    const meta = { [QUERY_META_COLLIDING_ENTITY]: e.entity };
+                    if (!comp.queryCheck(e.shape, meta)) continue;
+                }
+                newColls.push(e.entity);
+                if (!oldColls.includes(e.entity)) {
+                    added.push(e.entity);
+                    if (e._touchingColliders === undefined) e._touchingColliders = [];
+                    e._touchingColliders.push(comp.entity);
+                }
+            }
+            if (oldColls.length + added.length != newColls.length) {
+                // Compute what was removed
+                for (let i of oldColls) {
+                    if (newColls.includes(i)) continue;
+                    removed.push(i);
+                    arrayRemoveElem(this.storage.getComponent(i)!._touchingColliders!, comp.entity);
+                }
+            }
+            //console.log("- collider: " + added.length + ", " + removed.length);
+            if (added.length + removed.length > 0) {
+                comp._colliding = newColls;
+                this.world.events.emit(EVENT_INTERACTION_COLLIDER_UPDATE, comp.entity,  comp._colliding, added, removed);
+            }
+        }
+
+        // If we aren't colliders, we might be collided, this means that some components that we collided with previously
+        // might not collide with us anymore, and some new one might.
+        {
+            const oldColliders = comp._touchingColliders ?? [];
+            const newColliders = [];
+            let added = 0;
+            const meta = { [QUERY_META_COLLIDING_ENTITY]: comp.entity };
+            for (let c of this.query(comp.shape, c => c.isCollider === true && c != comp, meta)) {
+                //console.log("- collided + " + c.entity + " was_old: " + oldColliders.includes(c.entity));
+                newColliders.push(c.entity);
+                if (!oldColliders.includes(c.entity)) {
+                    if (c._colliding === undefined) c._colliding = [];
+                    c._colliding.push(comp.entity);
+                    //console.log("non-collider " + comp.entity + " discovered that it is now in collision with " + c.entity);
+                    this.world.events.emit(EVENT_INTERACTION_COLLIDER_UPDATE, c.entity,  c._colliding, [comp.entity], []);
+                    added += 1;
+                }
+            }
+            if (oldColliders.length + added != newColliders.length) {
+                // Compute what was removed
+
+                for (let i of oldColliders) {
+                    if (!newColliders.includes(i)) {
+                        const c = this.storage.getComponent(i)!;
+                        arrayRemoveElem(c._colliding!, comp.entity);
+                        //console.log("non-collider " + comp.entity + " discovered that it is not in collision with " + i);
+                        this.world.events.emit(EVENT_INTERACTION_COLLIDER_UPDATE, i,  c._colliding, [], [comp.entity]);
+                    }
+                }
+            }
+            comp._touchingColliders = newColliders;
         }
     }
 
@@ -452,7 +554,9 @@ export class InteractionSystem implements System {
 
     private onComponentRemove(comp: Component): void {
         if (comp.type !== INTERACTION_TYPE) return;
-        this.unregisterComponent(comp as InteractionComponent);
+        const c = comp as InteractionComponent;
+        this.unregisterTreeAndSnaps(c);
+        this.unregisterColliders(c);
     }
 
     private onToolMoveBegin(): void {
@@ -463,7 +567,8 @@ export class InteractionSystem implements System {
         this.translatingEntities = [];
         for (let comp of this.selectionSys.getSelectedByType(INTERACTION_TYPE)) {
             let c = comp as InteractionComponent;
-            this.unregisterComponent(c);
+            this.unregisterTreeAndSnaps(c);
+            this.unregisterColliders(c);
             this.translatingEntities.push(c.entity);
         }
         this.isTranslating = true;
@@ -536,15 +641,15 @@ export class InteractionSystem implements System {
         })
     }
 
-    *query(shape: Shape, preCheck?: (c: InteractionComponent) => boolean): Generator<InteractionComponent> {
+    *query(shape: Shape, preCheck?: (c: InteractionComponent) => boolean, queryDetails: QueryMetadata = {}): Generator<InteractionComponent> {
         let aabb = shapeToAabb(shape);
 
         for (let c of this.aabbTree.query(aabb)) {
             let tag = c.tag!;
             if (preCheck && !preCheck(tag)) continue;
-            if (!shapeIntersect(tag.shape!, shape)) continue;
             let qc = tag.queryCheck;
-            if (qc && !qc(shape)) continue;
+            if (qc && !qc(shape, queryDetails)) continue;
+            if (!shapeIntersect(tag.shape!, shape)) continue;
             yield tag;
         }
     }
