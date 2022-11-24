@@ -25,6 +25,7 @@ export class GameMap {
             levels[id] = level.serialize();
         }
 
+        this.filedb.clearUnused();
         let data = {
             version: GameMap.SER_VERSION,
             levels: levels,

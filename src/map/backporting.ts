@@ -151,6 +151,7 @@ export async function rewriteCompatibility(zip: JSZip, filedb: FileDb, progress:
             }
         }
         filedb.clearUnused();
+        filedb.resetUsage();
 
     case GameMap.SER_VERSION:
         break;// Current version

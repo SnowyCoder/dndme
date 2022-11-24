@@ -57,6 +57,7 @@ export class FileDb {
             throw Error("Required image but no payload found");
         }
         entry.refCount += counts;
+        //onsole.log("[FileDb] require", hash, entry.refCount);
         return entry.payload;
     }
 
@@ -66,6 +67,7 @@ export class FileDb {
             throw Error("Trying to dump nulled hash");
         }
         entry.refCount -= counts;
+        //console.log("[FileDb] dump", hash, entry.refCount);
         if (entry.refCount > 0) return false;
         this.entries.delete(hash);
         return true;
@@ -102,6 +104,12 @@ export class FileDb {
         }
     }
 
+    resetUsage() {
+        for (let e of this.entries.values()) {
+            e.refCount = 0;
+        }
+    }
+
     serialized(): SerializedFileDb {
         const res = {} as SerializedFileDb;
         for (let [hash, entry] of this.entries)  {
@@ -113,24 +121,25 @@ export class FileDb {
     saveToZip(folder: JSZip): void {
         for (let [hash, entry] of this.entries)  {
             if (!entry.payload) continue;
-            const b64Hash = Buffer.from(hash, 'binary').toString('base64');
-            folder.file(b64Hash, entry.payload);;
+            const fileName = Buffer.from(hash, 'binary').toString('hex');
+            folder.file(fileName, entry.payload);;
         }
     }
 
     async loadFromZip(serialized: SerializedFileDb, folder: JSZip, progress: (prog: number) => void): Promise<void> {
         for (let hash in serialized) {
             const data = serialized[hash];
-            const b64Hash = Buffer.from(hash, 'binary').toString('base64');
-            const file = folder.file(b64Hash);
+            const fileName = Buffer.from(hash, 'binary').toString('hex');
+            const file = folder.file(fileName);
             if (file == null) {
-                console.warn("Cannot find file for " + b64Hash);
+                console.warn("Cannot find file for " + fileName);
                 continue;
             }
             const payload = await file.async('uint8array', meta => progress(meta.percent));
             console.log("[FileDb] Loaded file " + hash, data[1]);
+            // TODO: better cross-level file usage counting
             this.entries.set(hash, {
-                refCount: data[0],
+                refCount: 0,
                 meta: data[1],
                 payload,
             })

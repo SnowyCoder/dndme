@@ -98,12 +98,12 @@ export class BigStorageSystem implements System {
             this.world.addComponent(owner, entSto);
         }
         entSto.totRefs += 1;
-        //console.log("++++++++ Use: ", owner, id, entSto.totRefs);
         if (!(id in entSto.refs)) {
             entSto.refs[id] = 1;
         } else {
             entSto.refs[id] += 1;
         }
+        //console.log("++++++++ Use: ", owner, id, entSto.totRefs, entSto.refs[id]);
         this._createRef(id, 1);
         this.world.events.emit('file_usage_inc', owner, id);
     }
@@ -115,13 +115,13 @@ export class BigStorageSystem implements System {
             return;
         }
         entSto.totRefs--;
-        //console.log("-------- Use: ", owner, id, entSto.totRefs);
         if (id in entSto.refs && entSto.refs[id] > 0) {
             entSto.refs[id] -= 1;
         } else {
             console.error("Unpaired file drop");
             return;
         }
+        //console.log("-------- Use: ", owner, id, entSto.totRefs, entSto.refs[id]);
         if (entSto.refs[id] <= 0) {
             delete entSto.refs[id];
         }
