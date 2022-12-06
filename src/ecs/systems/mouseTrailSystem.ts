@@ -34,6 +34,7 @@ import { Group, Layer } from "@pixi/layers";
 
 import MouseTrailIcon from "@/ui/icons/MouseTrailIcon.vue";
 import { StandardToolbarOrder } from "@/phase/editMap/standardToolbarOrder";
+import { arrayRemoveElem } from "@/util/array";
 
 export const MOUSE_TRAIL_TYPE = 'mouse_trail';
 export type MOUSE_TRAIL_TYPE = typeof MOUSE_TRAIL_TYPE;
@@ -247,6 +248,14 @@ export class MouseTrailSystem implements System {
         }
     }
 
+    private safeOnTick() {
+        try {
+            this.onTick();
+        } catch(e) {
+            console.error("[MouseTrail] Error  onTick", e);
+        }
+    }
+
     private onTick() {
         if (this.toUpdate.length === 0) return;
         const delta = this.pixiBoardSys.clock.elapsedMs;
@@ -255,7 +264,12 @@ export class MouseTrailSystem implements System {
         const myEntityId = netres.entityIndex.get(netres.myId);
         for (let i = this.toUpdate.length - 1; i >= 0; i--) {
             const entity = this.toUpdate[i];
-            const trail = this.storage.getComponent(entity)!;
+            const trail = this.storage.getComponent(entity);
+            if (trail === undefined) {
+                console.warn("Should update entity " + entity + " but no component is available");
+                arrayRemoveElem(this.toUpdate, entity);
+                continue;
+            }
 
             // different = Math.abs(nextx - prevx) + Math.abs(nexty - prevy) > Number.EPSILON;
             trail.local_clock += delta;
@@ -313,6 +327,7 @@ export class MouseTrailSystem implements System {
         if (comp.type === MOUSE_TRAIL_TYPE) {
             let c = comp as MouseTrailComponent;
             c._g.destroy();
+            arrayRemoveElem(this.toUpdate, c.entity);
         }
     }
 
@@ -347,13 +362,13 @@ export class MouseTrailSystem implements System {
         this.networkStatusResource = this.world.getResource(NETWORK_STATUS_TYPE) as NetworkStatusResource;
 
 
-        this.pixiBoardSys.ticker.add(this.onTick, this);
+        this.pixiBoardSys.ticker.add(this.safeOnTick, this);
         this.networkSys.channel.packets.on('mtrail', this.onMouseTrailPacket, this);
     }
 
     destroy(): void {
         this.networkSys.channel.packets.off('mtrail', this.onMouseTrailPacket, this);
-        this.pixiBoardSys.ticker.remove(this.onTick, this);
+        this.pixiBoardSys.ticker.remove(this.safeOnTick, this);
     }
 }
 
