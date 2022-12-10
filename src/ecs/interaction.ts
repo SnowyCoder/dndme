@@ -34,7 +34,9 @@ export class QueryHitEvent {
     }
 
     getSorted(): Array<number> {
-        return [...this.hits.entries()].sort(x => -x[1]).map(x => x[0]);
+        return [...this.hits.entries()]
+            .sort((x, y) => y[1] - x[1])
+            .map(x => x[0]);
     }
 
     static queryPoint(point: IPoint, multi: boolean): QueryHitEvent {
@@ -45,4 +47,3 @@ export class QueryHitEvent {
         return new QueryHitEvent(GeomertyQueryType.AABB, multi, aabb);
     }
 }
-
