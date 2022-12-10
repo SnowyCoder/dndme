@@ -52,8 +52,8 @@ export class WebKeyboardSystem implements System {
             return;
         }
         let edit = {
-            shift: event.shiftKey,
-            ctrl: event.ctrlKey,
+            shift: event.shiftKey || event.key === 'Shift',
+            ctrl: event.ctrlKey || event.key === 'Control',
         };
         this.world.editResource(KEYBOARD_TYPE, edit);
         if (event.key) {
@@ -65,8 +65,8 @@ export class WebKeyboardSystem implements System {
 
     onKeyUp(event: KeyboardEvent): void {
         let edit = {
-            shift: event.shiftKey,
-            ctrl: event.ctrlKey,
+            shift: event.shiftKey && event.key !== 'Shift',
+            ctrl: event.ctrlKey && event.key !== 'Control',
         };
         this.world.editResource(KEYBOARD_TYPE, edit);
 

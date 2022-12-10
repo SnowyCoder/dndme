@@ -148,14 +148,7 @@ export class SelectPart implements ToolPart {
 
         const ctrlPressed = this.keyboard.ctrl;
         if (ctrlPressed) {
-            let selected = this.selectionSys.selectedEntities;
-            let e = [];
-            for (let entity of this.lastDownSelected) {
-                if (!selected.has(entity)) {
-                    e.push(entity);
-                }
-            }
-            this.selectionSys.addEntities(e);
+            // Do nothing, we toggle entities on mouseUp (and we need to check if we should enable rectangle selection)
         } else if (this.lastDownSelected.length > 0) {
             const entity = this.lastDownSelected[0];
             this.justSelected = entity;
@@ -176,6 +169,8 @@ export class SelectPart implements ToolPart {
         if (event.isClick) {
             if (event.entitiesHovered().length === 0) {
                 this.selectionSys.clear();
+            } else if (this.keyboard.ctrl) {
+                this.selectionSys.toggleEntities(event.entitiesHovered());
             } else if (this.justSelected !== undefined) {
                 this.selectionSys.setOnlyEntity(this.justSelected);
             }
@@ -195,15 +190,15 @@ export class SelectPart implements ToolPart {
     }
 
     onPointerMove(event: PointerMoveEvent): void {
-        if (!this.isDown || !this.canMoveSelected || event.canBecomeClick) return;
+        if (!this.isDown || event.canBecomeClick) return;
 
-        if (this.lastDownSelected.length === 0) {
+        if (this.lastDownSelected.length === 0 || this.keyboard.ctrl) {
             if (!this.rectSelection.isActive) {
                 this.rectSelection.begin(this.movingStart);
             }
 
             this.rectSelection.moveEnd(event.boardPos)
-        } else {
+        } else if (this.canMoveSelected) {
             if (!this.isMoving) {
                 if (this.justSelected !== undefined && !this.selectionSys.selectedEntities.has(this.justSelected)) {
                     this.selectionSys.setOnlyEntity(this.justSelected);
