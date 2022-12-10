@@ -18,7 +18,8 @@ import {
 import {STANDARD_GRID_OPTIONS} from "../../../game/grid";
 import {GRID_TYPE} from "../gridSystem";
 import {GridResource, Resource} from "../../resource";
-import { GameClockResource, GAME_CLOCK_TYPE } from "./pixi/pixiBoardSystem";
+import { GameClockResource, GAME_CLOCK_TYPE, PixiBoardSystem, PIXI_BOARD_TYPE } from "./pixi/pixiBoardSystem";
+import PIXI from "@/PIXI";
 
 // This system uses a reuqest-response pattern
 // Where there are multiple "requests" for visibility but a single answer, let's make an example.
@@ -27,6 +28,8 @@ import { GameClockResource, GAME_CLOCK_TYPE } from "./pixi/pixiBoardSystem";
 //   bigger range, then check the range to see if they're visible for both the player or the light
 //   or the player only
 
+
+const DEBUG_PRINT_POLYGON = false;
 
 export const VISIBILITY_TYPE = 'visibility';
 export type VISIBILITY_TYPE = typeof VISIBILITY_TYPE;
@@ -48,6 +51,7 @@ export interface VisibilityDetailsComponent extends Component {
     // side is at least as much as the diameter
     polygon?: number[];
     aabb?: Aabb;
+    _debugPrint?: PIXI.Graphics;
     _aabbTreeId?: number;
     _blockersUsed: number[];
     _canSee: {[id: number]: Array<number>};// Visibility aware components _canSee[whoIsSeen] = Array<whocanseeit (multiid)>
@@ -177,6 +181,20 @@ export class VisibilitySystem implements System {
             aabb: viewport,
             _blockersUsed: usedBlockers,
         });
+
+        if (DEBUG_PRINT_POLYGON) {
+            let g = c._debugPrint!;
+            g.clear();
+            g.lineStyle({
+                width: 8,
+                color: 0xFF0000,
+            });
+            g.moveTo(polygon[0], polygon[1]);
+            for (let i = 2; i < polygon.length; i += 2) {
+                g.lineTo(polygon[i], polygon[i + 1]);
+            }
+            g.lineTo(polygon[0], polygon[1]);
+        }
     }
 
     private recomputeArea(aabb: Aabb) {
@@ -210,10 +228,16 @@ export class VisibilitySystem implements System {
                     range, trackWalls,
                 }, undefined, false);
             } else {
+                let dbgPrint = undefined;
+                if (DEBUG_PRINT_POLYGON) {
+                    dbgPrint = new PIXI.Graphics();
+                    (this.world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem).board.addChild(dbgPrint);
+                }
                 details = {
                     entity,
                     type: VISIBILITY_DETAILS_TYPE,
                     range, trackWalls,
+                    _debugPrint: dbgPrint,
                     _canSee: {},
                 } as VisibilityDetailsComponent;
                 this.world.addComponent(entity, details);
@@ -288,6 +312,13 @@ export class VisibilitySystem implements System {
         if (c.type === VISIBILITY_TYPE) {
             (c as VisibilityComponent).isBeingRemoved = true;
             this.recomputeDetails(c.entity);
+            let details = this.detailsStorage.getComponent(c.entity);
+            if (details !== undefined) {
+                if (DEBUG_PRINT_POLYGON) {
+                    (c as VisibilityDetailsComponent)._debugPrint?.destroy();
+                }
+                this.world.removeComponent(details);
+            }
         }
     }
 

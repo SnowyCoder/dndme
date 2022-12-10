@@ -11,8 +11,6 @@ import {
     shapeCircle,
     shapeIntersect,
     shapePolygon,
-    ShapeType,
-    shapeToAabb,
     CircleShape
 } from "./interactionSystem";
 import {Aabb} from "../../../geometry/aabb";
@@ -20,7 +18,6 @@ import {GRID_TYPE} from "../gridSystem";
 import {GridResource, Resource} from "../../resource";
 import {STANDARD_GRID_OPTIONS} from "../../../game/grid";
 import SafeEventEmitter from "../../../util/safeEventEmitter";
-import { remove } from "jszip";
 
 
 export const VISIBILITY_AWARE_TYPE = 'visibility_aware';

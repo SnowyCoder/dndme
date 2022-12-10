@@ -93,8 +93,6 @@ export function overlapCircleVsPolygon(ac: IPoint, ar: number, poly: number[]): 
     if (polygonPointIntersect(ac, poly)) return true;
 
     let tmpLine = new Line(0, 0, 0, 0);
-    let tmpPoint = new PIXI.Point();
-    let r2 = ar * ar;
 
     for (let i = 2; i < poly.length; i += 2) {
         tmpLine.fromX = poly[i - 2];
@@ -102,10 +100,7 @@ export function overlapCircleVsPolygon(ac: IPoint, ar: number, poly: number[]): 
         tmpLine.toX = poly[i];
         tmpLine.toY = poly[i + 1];
 
-        tmpLine.projectPoint(ac, tmpPoint, true);
-        if (distSquared2d(tmpPoint.x, tmpPoint.y, ac.x, ac.y) <= r2) {
-            return true;
-        }
+        if (overlapLineVsCircle(tmpLine, ac, ar)) return true;
     }
 
     return false;
@@ -245,13 +240,30 @@ export function overlapRotatedRectVsRotatedRect(obb1: Obb, obb2: Obb): boolean {
 }
 
 export function overlapLineVsCircle(line: Line, point: IPoint, radius: number): boolean {
-    let tmpPoint = new PIXI.Point();
+    // https://stackoverflow.com/questions/1073336/circle-line-segment-collision-detection-algorithm
+    const dx = line.toX - line.fromX;
+    const dy = line.toY - line.fromY;
 
-    if (!line.projectPoint(point, tmpPoint, true)) {
-        return false;
-    }
-    let dist = distSquared2d(tmpPoint.x, tmpPoint.y, point.x, point.y);
-    return dist < radius * radius;
+    // vector from point to line start
+    const fx = line.fromX - point.x;
+    const fy = line.fromY - point.y;
+
+    const a = dx * dx + dy * dy;// d . d
+    const b = 2 * fx * dx + fy * dy // 2*f.d
+    const c = fx * fx + fy * fy - radius * radius// f.f - r*r
+
+    const discriminantSq = b*b - 4*a*c;
+    if (discriminantSq < 0) return false;
+
+    const discriminant = Math.sqrt(discriminantSq);
+
+    const t1 = (-b - discriminant) / (2*a);
+    const t2 = (-b + discriminant) / (2*a);
+
+    if (t1 >= 0 && t2 <= 1) return true;
+    if (t2 >= 0 && t1 <= 1) return true;
+
+    return false;
 }
 
 export enum SegmentVsSegmentRes {
@@ -305,4 +317,3 @@ export function lineSameSlope(ax: number, ay: number, bx: number, by: number): b
     // ay / ax == by / bx  ==> ay * bx == by * ax
     return Math.abs(ay * bx - by * ax) < EPSILON;
 }
-

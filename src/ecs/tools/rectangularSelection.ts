@@ -33,7 +33,9 @@ export class RectangularSelection {
     }
 
     begin(pos: IPoint) {
-        this.entitiesSelected.clear();
+        if (!this.keyboard.ctrl) {
+            this.entitiesSelected.clear();
+        }
         this.isActive = true;
         this.world.addResource({
             type: RECTANGULAR_SELECTION_TYPE,

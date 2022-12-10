@@ -17,7 +17,8 @@ export function polygonPointIntersect(point: IPoint, polygon: number[]): boolean
         const yi = polygon[(i * 2) + 1];
         const xj = polygon[j * 2];
         const yj = polygon[(j * 2) + 1];
-        const intersect = ((yi > y) !== (yj > y)) && (x < ((xj - xi) * ((y - yi) / (yj - yi))) + xi);
+        const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+
         if (intersect) {
             inside = !inside;
         }

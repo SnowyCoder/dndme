@@ -127,7 +127,7 @@ export class PlayerSystem implements System {
     private onPlayerVisibleCountersUpdate(t: PlayerVisibleComponent) {
         //console.log(`${t.entity} ${t._lightCount} ${t._playerCount} ${t._playerNightVisionCount}`);
         if (t._playerCount < 0 || t._lightCount < 0) {
-            console.error("Buf found, visibility counters are below 0");
+            console.error("Bug found, visibility counters are below 0");
         }
         let newVisible = t._playerNightVisionCount > 0 ||
             ((this.ambientIlluminated || t._lightCount > 0 || t.isWall) && t._playerCount > 0);

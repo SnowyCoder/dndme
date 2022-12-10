@@ -147,7 +147,7 @@ export class BigStorageNetworkClient {
                 break;
             case PacketType.ACCEPT: {
                 const fileLen = pkt.readUInt32LE(1);
-                console.log("Allocating file of " + fileLen);
+                //console.log("Allocating file of " + fileLen);
                 if (this.currentFile!.current === undefined) {
                     try {
                         this.currentFile!.current = new Uint8Array(fileLen);
@@ -186,7 +186,7 @@ export class BigStorageNetworkClient {
 
     private onFragment(data: Uint8Array): void {
         const file = this.currentFile!;
-        console.log("Received fragment: " + data.length);
+        //console.log("Received fragment: " + data.length);
         if (data.length > file.current!.length - file.currentIndex) {
             this.sendCancel();
             this.queueRequestNext();
@@ -196,7 +196,7 @@ export class BigStorageNetworkClient {
         file.current!.set(data, file.currentIndex);
         file.currentIndex += data.length;
         if (file.currentIndex == file.current!.length) {
-            console.log("File received");
+            //console.log("File received");
             // DONE! weee
             this.state = ClientState.IDLE;
             this.queueRequestNext();
