@@ -1,15 +1,15 @@
-import {System} from "@/ecs/system";
+import { System } from "@/ecs/system";
 import * as PIXI from "pixi.js";
-import {IHitArea, Container} from "pixi.js";
-import {World} from "@/ecs/world";
-import {Resource} from "@/ecs/resource";
-import {FOLLOW_MOUSE_TYPE, POSITION_TYPE} from "@/ecs/component";
-import {FlagEcsStorage} from "@/ecs/storage";
-import {findEntitiesAt, getBoardPosFromOrigin, snapPoint} from "@/ecs/tools/utils";
-import {KEYBOARD_KEY_DOWN, KEYBOARD_TYPE, KeyboardResource} from "../keyboardSystem";
-import {addCustomBlendModes} from "@/util/pixi";
-import {DEFAULT_BACKGROUND} from "@/ecs/systems/lightSystem";
-import {LayerOrder} from "@/phase/editMap/layerOrder";
+import { IHitArea, Container } from "pixi.js";
+import { World } from "@/ecs/world";
+import { Resource } from "@/ecs/resource";
+import { FOLLOW_MOUSE_TYPE, POSITION_TYPE } from "@/ecs/component";
+import { FlagEcsStorage } from "@/ecs/storage";
+import { findEntitiesAt, snapPoint } from "@/ecs/tools/utils";
+import { KEYBOARD_KEY_DOWN, KEYBOARD_TYPE, KeyboardResource } from "../keyboardSystem";
+import { addCustomBlendModes } from "@/util/pixi";
+import { DEFAULT_BACKGROUND } from "@/ecs/systems/lightSystem";
+import { LayerOrder } from "@/phase/editMap/layerOrder";
 import { Group, Layer, Stage } from "@pixi/layers";
 import { IPoint } from "@/geometry/point";
 
@@ -116,8 +116,7 @@ export class PixiBoardSystem implements System {
     board: Container;
     toolForegroundGroup: Group;
 
-    private wheelListener: any;
-    private resizeListener: any;
+    private htmlListeners: [string, any, GlobalEventHandlers][] = [];
     pointers = new Map<number, PointerData>();
     mouseLastX: number = 0;
     mouseLastY: number = 0;
@@ -180,12 +179,7 @@ export class PixiBoardSystem implements System {
         this.root.sortableChildren = true;
         this.root.group.enableSort = true;
 
-        this.root.interactive = true;
-        this.root.hitArea = {
-            contains(x: number, y: number): boolean {
-                return true;
-            }
-        } as IHitArea;
+        this.root.interactive = false;
 
         this.ticker.add(() => {
             this.world.editResource(GAME_CLOCK_TYPE, {
@@ -228,7 +222,7 @@ export class PixiBoardSystem implements System {
                     if (shift) event_name = 'command_redo';
                     else event_name = 'command_undo';
                     break;
-                case 'y': event_name = 'command_redo';  break;
+                case 'y': event_name = 'command_redo'; break;
             }
         } else {
             switch (key) {
@@ -242,8 +236,8 @@ export class PixiBoardSystem implements System {
         }
     }
 
-    toGeneralEvent(pixi: PIXI.InteractionEvent): PointerInteractionEvent {
-        const boardPos = getBoardPosFromOrigin(this.world, pixi);
+    toGeneralEvent(event: PointerEvent, pos: PIXI.IPoint): PointerInteractionEvent {
+        const boardPos = this.board.worldTransform.applyInverse(pos);
 
         let hoveredCache: number[] | undefined = undefined;
         const entitiesHovered = () => {
@@ -254,11 +248,11 @@ export class PixiBoardSystem implements System {
         }
 
         return {
-            globalPos: pixi.data.global,
+            globalPos: pos,
             boardPos,
-            pointerId: pixi.data.pointerId,
-            pointerType: pixi.data.pointerType,
-            originalEvent: pixi.data.originalEvent,
+            pointerId: event.pointerId,
+            pointerType: event.pointerType,
+            originalEvent: event,
             entitiesHovered,
         } as PointerInteractionEvent;
     }
@@ -320,17 +314,17 @@ export class PixiBoardSystem implements System {
         this.zoom(dScale, event.clientX, event.clientY);
     }
 
-    onPointerDown(event: PIXI.InteractionEvent) {
-        if (event.data.pointerType === 'mouse' && event.data.button === 2) {
+    onPointerDown(event: PointerEvent) {
+        const pos = this.htmlEventToPoint(event.clientX, event.clientY);
+        if (event.pointerType === 'mouse' && event.button === 2) {
             // Right button
-            let prde = this.toGeneralEvent(event) as PointerRightDownEvent;
+            let prde = this.toGeneralEvent(event, pos) as PointerRightDownEvent;
             prde.consumed = false;
             this.world.events.emit(PointerEvents.POINTER_RIGHT_DOWN, prde);
             return;
         }
 
-        let pos = event.data.global;
-        this.pointers.set(event.data.pointerId, {
+        this.pointers.set(event.pointerId, {
             firstX: pos.x,
             firstY: pos.y,
             lastX: pos.x,
@@ -339,14 +333,14 @@ export class PixiBoardSystem implements System {
 
         this.lastMouseDownTime = Date.now();
 
-        let e = this.toGeneralEvent(event) as PointerDownEvent;
+        let e = this.toGeneralEvent(event, pos) as PointerDownEvent;
         e.consumed = false;
         e.consumeDragBoard = false;
-        if (event.data.pointerType === 'mouse' && event.data.button === 1) {
+        if (event.pointerType === 'mouse' && event.button === 1) {
             // If middle button is pressed ignore, we force it to drag the board
             // (and prevent the paste event)
-            event.data.originalEvent.preventDefault();
-            event.data.originalEvent.stopPropagation();
+            event.preventDefault();
+            event.stopPropagation();
             e.consumeDragBoard = true;// middle click to drag is always enabled
         } else {
             this.world.events.emit(PointerEvents.POINTER_DOWN, e);
@@ -357,33 +351,34 @@ export class PixiBoardSystem implements System {
         }
     }
 
-    onPointerUp(event: PIXI.InteractionEvent, isInside: boolean = true): void {
-        const e = this.toGeneralEvent(event) as PointerUpEvent;
-        e.isInside = isInside;
+    onPointerUp(event: PointerEvent): void {
+        const pos = this.htmlEventToPoint(event.clientX, event.clientY);
+        const e = this.toGeneralEvent(event, pos) as PointerUpEvent;
+        e.isInside = !(pos.x < 0 || pos.y < 0 || pos.x >= this.board.width || pos.y > this.board.height);
 
-        if (event.data.pointerType === 'mouse' && event.data.button === 2) {
+        if (event.pointerType === 'mouse' && event.button === 2) {
             // Right button
             this.world.events.emit(PointerEvents.POINTER_RIGHT_UP, e as PointerRightUpEvent);
-        } else if (event.data.pointerType === 'mouse' && event.data.button === 1) {
+        } else if (event.pointerType === 'mouse' && event.button === 1) {
             // If middle button is pressed ignore, we force it to drag the board
             // (and prevent the paste event)
-            event.data.originalEvent.preventDefault();
-            event.data.originalEvent.stopPropagation();
+            event.preventDefault();
+            event.stopPropagation();
             // of course every browser ignores the preventDefault so we have to ignore it ourself
             this.world.events.emit('ignore_next_paste');
         }
 
-        let pdata = this.pointers.get(event.data.pointerId);
+        let pdata = this.pointers.get(event.pointerId);
         if (pdata === undefined) return;
 
-        this.pointers.delete(event.data.pointerId);
+        this.pointers.delete(event.pointerId);
 
         if (this.lastMouseDownTime === undefined) return;
 
         if (this.pointers.size === 0) {
             this.isDraggingBoard = false;
 
-            let isClick = this.canBecomeClick(pdata, event.data.global);
+            let isClick = this.canBecomeClick(pdata, pos);
 
             let pue = e as PointerUpEvent;
             pue.lastPosition = {
@@ -400,20 +395,22 @@ export class PixiBoardSystem implements System {
         }
     }
 
-    onPointerUpOutside(event: PIXI.InteractionEvent) {
-        this.onPointerUp(event, false);
-    }
-
     /** Function called when the cursor moves around the map. */
-    onPointerMove(e: PIXI.InteractionEvent) {
-        let pos = e.data.global;
-        let event = this.toGeneralEvent(e);
+    onPointerMove(e: PointerEvent) {
+        const pos = this.htmlEventToPoint(e.clientX, e.clientY);
+        let event = this.toGeneralEvent(e, pos);
 
         // TODO: magnet snap system
         let localPos = snapPoint(this.world, event.boardPos);
         this.updatePointerFollowers(localPos);
 
-        let pdata = this.pointers.get(e.data.pointerId);
+        let pdata = this.pointers.get(e.pointerId);
+
+        if (pdata !== undefined && e.buttons === 0) {
+            // Exception! The mouse has re-entered the canvas and when it was out it un-clicked the mouse
+            this.onPointerUp(e);
+            return;
+        }
 
         if (this.pointers.size <= 1 && !this.isDraggingBoard) {
             let pme = event as PointerMoveEvent;
@@ -470,6 +467,13 @@ export class PixiBoardSystem implements System {
                 (pa.lastY + pb.lastY) / 2,
             );
             this.zoom((secondDist / firstDist), center.x, center.y);
+        }
+    }
+
+    private onPointerCancel(e: PointerEvent) {
+        let pdata = this.pointers.get(e.pointerId);
+        if (pdata !== undefined) {
+            this.onPointerUp(e);
         }
     }
 
@@ -531,6 +535,29 @@ export class PixiBoardSystem implements System {
         });
     }
 
+    //https://github.com/pixijs/pixijs/blob/936b210ca553a804791b1704da13dbffbcc06550/packages/events/src/EventSystem.ts#L480
+    private htmlEventToPoint(x: number, y: number): PIXI.Point {
+        const elem = this.renderer.view;
+        const rect = elem.getBoundingClientRect();
+
+        const resolutionMultiplier = 1.0 / this.renderer.resolution;
+        const px = ((x - rect.left) * (elem.width / rect.width)) * resolutionMultiplier;
+        const py = ((y - rect.top) * (elem.height / rect.height)) * resolutionMultiplier;
+
+        return new PIXI.Point(px, py);
+    }
+
+    private addHtmlListener<K extends keyof HTMLElementEventMap, E extends GlobalEventHandlers>(element: E, type: K, listener: (this: E, ev: HTMLElementEventMap[K]) => void): void {
+        element.addEventListener(type, listener as any);// shut up typescript, you're drunk
+        this.htmlListeners.push([type, listener, element]);
+    }
+
+    private removeCanvasListeners() {
+        for (let [name, listener, element] of this.htmlListeners) {
+            element.removeEventListener(name, listener);
+        }
+    }
+
     enable(): void {
         const canvas = this.renderer.view;
         this.applyCanvasStyle(canvas);
@@ -542,15 +569,13 @@ export class PixiBoardSystem implements System {
         cnt.appendChild(canvas);
 
         // PIXI
-        this.root.on("pointermove", this.onPointerMove, this);
-        this.root.on("pointerdown", this.onPointerDown, this);
-        this.root.on("pointerup", this.onPointerUp, this);
-        this.root.on("pointerupoutside", this.onPointerUpOutside, this);
+        this.addHtmlListener(canvas, "pointerdown", this.onPointerDown.bind(this));
+        this.addHtmlListener(canvas, "pointerup", this.onPointerUp.bind(this));
+        this.addHtmlListener(canvas, "pointermove", this.onPointerMove.bind(this));
+        this.addHtmlListener(canvas, "pointercancel", this.onPointerCancel.bind(this));
 
-        this.wheelListener = this.onMouseWheel.bind(this);
-        canvas.addEventListener("wheel", this.wheelListener);
-        this.resizeListener = this.resize.bind(this);
-        window.addEventListener("resize", this.resizeListener);
+        this.addHtmlListener(canvas, "wheel", this.onMouseWheel.bind(this))
+        this.addHtmlListener(window, "resize", this.resize.bind(this));
 
         this.resize();
         this.ticker.start();
@@ -558,14 +583,7 @@ export class PixiBoardSystem implements System {
 
     destroy(): void {
         this.ticker.stop();
-        window.removeEventListener("resize", this.resizeListener);
-
-        this.root.off("pointermove", this.onPointerMove, this);
-        this.root.off("pointerdown", this.onPointerDown, this);
-        this.root.off("pointerup", this.onPointerUp, this);
-        this.root.off("pointerupoutside", this.onPointerUpOutside, this);
-
-        this.renderer.view.removeEventListener('wheel', this.wheelListener);
+        this.removeCanvasListeners();
 
         let cnt = document.getElementById('canvas-container');
         cnt?.removeChild(this.renderer.view);

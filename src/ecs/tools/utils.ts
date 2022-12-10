@@ -13,17 +13,6 @@ export function findEntitiesAt(world: World, point: PIXI.Point, multi: boolean):
     return event.getSorted();
 }
 
-export function getBoardPosFromOrigin(world: World, event: PIXI.InteractionEvent, orig?: PIXI.Point): PIXI.Point {
-    let board = world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
-    return event.data.getLocalPosition(board.board, orig);
-}
-
-export function getMapPointFromMouseInteraction(world: World, event: PIXI.InteractionEvent, orig?: PIXI.Point): PIXI.Point {
-    let point = getBoardPosFromOrigin(world, event, orig);
-
-    return snapPoint(world, point);
-}
-
 export function snapPoint(world: World, p: IPoint, useWall: boolean = true): PIXI.Point {
     const point = new PIXI.Point(p.x, p.y);
 
