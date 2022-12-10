@@ -327,6 +327,7 @@ export class WebTorrentTracker {
 
         if (data.offer && data.peer_id) {
             const peerId = Buffer.from(data.peer_id, 'binary').toString('hex');
+            //console.log("[WTT] Offer " + peerId);
             const eventData = {
                 peerId,
                 offer: data.offer,
@@ -347,7 +348,7 @@ export class WebTorrentTracker {
                 offer_id: data.offer_id,
             } as any;
             if (this.trackerId) params.trackerId = this.trackerId;
-            // console.log("Answering offer");
+            //console.log("[WTT] Answering offer");
             this.send(params);
         }
 
@@ -357,6 +358,7 @@ export class WebTorrentTracker {
 
             let offerData = this.connectingPeers[offerId];
             const peerId = Buffer.from(data.peer_id, 'binary').toString('hex');
+            //console.log("[WTT] Answer " + peerId);
 
             if (offerData == undefined) {
                 this.events.emit('warning', new Error("Got answer for unknown offer from " + peerId));
@@ -364,7 +366,7 @@ export class WebTorrentTracker {
 
             delete this.connectingPeers[offerId];
             if (offerData.peer === undefined) {
-                // console.log("Received second");
+                //console.log("[WTT] Received second");
                 // Received the second message of the 3-way handshake!
                 const peer = this.createPeer({});
                 peer.events.once('signal', answer => {
@@ -378,13 +380,13 @@ export class WebTorrentTracker {
                     } as any;
                     if (this.trackerId) params.trackerId = this.trackerId;
                     this.send(params);
-                    // console.log("Sending third message");
+                    //console.log("[WTT] Sending third message");
 
                 });
                 peer.signal(data.answer);
                 this.events.emit('peer', peer, peerId);
             } else {
-                // console.log("Received third");
+                //console.log("[WTT] Received third");
                 clearTimeout(offerData.offerTimeout);
 
                 this.events.emit('peer', offerData.peer, peerId);
@@ -406,11 +408,12 @@ export class WebTorrentTracker {
         let peer = new WrtcConnection(peerOpts);
 
         const onErr = (err: Error) => {
-            console.error(err);
+            //console.error('[WTT] Peer error', err);
             peer.destroy();
         };
         peer.events.once('error', onErr);
         peer.events.once('connect', () => {
+            //console.log('[WTT] Connect');
             peer.events.off('error', onErr);
         });
         return peer;

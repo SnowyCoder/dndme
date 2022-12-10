@@ -68,6 +68,7 @@ export class WTDiscovery {
             console.error('Tracker error', x);
         });
         tracker.events.on('offer_filter', (e: OfferFilterData) => {
+            //console.log("[WTD] OfferFilter");
             if ((!!(e.offer as OfferData).master) === this.isMaster) {
                 console.log("Offer rejected (non-master): " + e.offer);
                 e.continue = false;
@@ -86,6 +87,7 @@ export class WTDiscovery {
             this.peers.delete(peerId);
         });
         tracker.events.on('peer', (peer: WrtcConnection, peerId: string) => {
+            //console.log("[WTD] Peer");
             const oldPeerData = this.peers.get(peerId);
             if (oldPeerData !== undefined && oldPeerData !== WAITING_FOR_INIT) {
                 console.error("Opened another socket for an already connected peer");
@@ -95,6 +97,7 @@ export class WTDiscovery {
             console.log('Peer connected', peerId);
             this.peers.set(peerId, peer);
             peer.events.once('connect', () => {
+                //console.log("[WTD] Connect");
                 if (!this.isMaster) {
                     console.log("Master connected, pausing.")
                     this.pause();
@@ -102,6 +105,7 @@ export class WTDiscovery {
             });
             this.onPeerCallback(peer, peerId);
             peer.events.once('close', () => {
+                //console.log("[WTD] Close");
                 this.peers.delete(peerId);
             })
         });

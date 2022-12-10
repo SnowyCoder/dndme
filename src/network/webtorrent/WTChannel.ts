@@ -78,6 +78,7 @@ export class WTChannel {
     private peers = new Map<string, PeerData>();
 
     private extraChannels: {[key: symbol]: ExtraChannel} = {};
+    private extraChannelNextId = 2;
 
     constructor() {
         this.connectedSecret = Buffer.from([]);
@@ -91,6 +92,8 @@ export class WTChannel {
             label: channel.label,
             options: channel.options ?? {}
         } as ExtraChannel;
+        c.options.negotiated = true;
+        c.options.id = this.extraChannelNextId++;
         const id = Symbol();
         this.extraChannels[id] = c;
         if (this.connections.size > 0) {
@@ -212,6 +215,7 @@ export class WTChannel {
     }
 
     private onPeer(peer: WrtcConnection, peerId: string): void {
+        console.log('[WTChannel] Connecting peer...');
         const isMaster = this.discovery.isMaster;
         const socket = peer.createDataChannel('main', {
             negotiated: true,
@@ -236,25 +240,14 @@ export class WTChannel {
         data.afterSendBounded = () => this.afterDataSend(data);
         this.peers.set(peerId, data);
 
-        if (isMaster) {
-            for (let id of Object.getOwnPropertySymbols(this.extraChannels)) {
-                const x = this.extraChannels[id];
-                data.extras[id] = peer.createDataChannel(x.label, x.options);
-            }
-        } else {
-            peer.events.on('datachannel', (ch: WrtcChannel) => {
-                let id = Object.getOwnPropertySymbols(this.extraChannels)
-                               .find(id => this.extraChannels[id].label === ch.handle.label);
-                if (id == null) {
-                    console.error("Received unknown extra channel: " + ch.handle.label);
-                } else {
-                    data.extras[id] = ch;
-                }
-            });
+        for (let id of Object.getOwnPropertySymbols(this.extraChannels)) {
+            const x = this.extraChannels[id];
+            data.extras[id] = peer.createDataChannel(x.label, x.options);
         }
 
         if (socket.handle.readyState !== 'connecting') throw Error("Already connected");
         socket.events.once('open', () => {
+            console.log("[WTChannel] Connecton open");
             if (this.discovery.isMaster) {
                 socket.send('' + data.id, postBootstrap);
             } else {
@@ -280,7 +273,7 @@ export class WTChannel {
 
 
         peer.events.on('close', () => {
-            console.info("Peer closed");
+            console.trace("[WTChannel] Peer closed");
             this.connections.delete(data.id);
             this.peers.delete(peerId);
             this.events.emit('device_left', data.id);
@@ -289,7 +282,7 @@ export class WTChannel {
         });
 
         peer.events.on('error', (e: Error) => {
-            console.error("Peer error", e);
+            console.error("[WTChannel] Peer error", e);
         });
 
     }

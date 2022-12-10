@@ -59,16 +59,20 @@ export class WrtcConnection {
 
         this.handle.onicegatheringstatechange = () => {
             const state = this.handle.iceGatheringState;
+            //console.log("[WrtcConnection] ice-gathering-state ", state);
             if (state === 'complete' && !this.sdpSent) {
                 this.sdpSent = true;
+                //console.log("[WC] Local gathering complete");
                 this.events.emit('signal', {
                     sdp: this.handle.localDescription,
                 } as SignalingData);
                 this.checkConnected();
             }
         };
+        // this.handle.onicecandidate = (e)  => console.log("[WrtcConnection] ice candidate", e.candidate);
         this.handle.oniceconnectionstatechange = () => {
             const state = this.handle.iceConnectionState;
+            //console.log("[WrtcConnection] ice-connection-state " + state);
 
             switch (state) {
                 case 'disconnected':
@@ -97,11 +101,13 @@ export class WrtcConnection {
 
     async signal(message: SignalingData) {
         this.sdpReceived = true;
+        //console.log("[WC] SET REMOTE");
         await this.handle.setRemoteDescription(message.sdp);
         if (message.sdp.type == 'offer') {
             this.sdpSent = false;
             const offer = await this.handle.createAnswer();
             offer.sdp = filterTrickle(offer.sdp);
+            //console.log("[WC] SET LOCAL");
             await this.handle.setLocalDescription(offer);
         }
         this.checkConnected();
@@ -126,14 +132,15 @@ export class WrtcConnection {
     }
 
     private onDestroy(err?: Error | undefined) {
+        //console.log("[WrtcConnection] DESTROY", err);
         if (this.isDestroyed) return;
         this.isDestroyed = true;
 
 
         try {
             this.handle.close();
-        } catch (err) {}
-        if (err) this.events.emit('error', err);
+        } catch (err2) {}
+        if (err !== undefined) this.events.emit('error', err);
         this.events.emit('close');
     }
 }
