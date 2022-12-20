@@ -249,7 +249,7 @@ export function overlapLineVsCircle(line: Line, point: IPoint, radius: number): 
     const fy = line.fromY - point.y;
 
     const a = dx * dx + dy * dy;// d . d
-    const b = 2 * fx * dx + fy * dy // 2*f.d
+    const b = 2 * (fx * dx + fy * dy) // 2*f.d
     const c = fx * fx + fy * fy - radius * radius// f.f - r*r
 
     const discriminantSq = b*b - 4*a*c;
