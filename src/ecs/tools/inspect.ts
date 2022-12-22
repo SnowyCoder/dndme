@@ -1,5 +1,4 @@
 import {World} from "../world";
-import PIXI from "../../PIXI";
 import {SELECTION_TYPE, SelectionSystem} from "../systems/back/selectionSystem";
 import {PointerClickEvent, PointerDownEvent, PointerEvents, PointerMoveEvent, PointerUpEvent} from "../systems/back/pixi/pixiBoardSystem";
 import {ToolPart} from "../systems/back/toolSystem";
@@ -7,6 +6,7 @@ import {RectangularSelection} from "./rectangularSelection";
 import {LAYER_TYPE, LayerSystem} from "../systems/back/layerSystem";
 import {KEYBOARD_TYPE, KeyboardResource} from "../systems/back/keyboardSystem";
 import SafeEventEmitter from "../../util/safeEventEmitter";
+import { Point } from "pixi.js";
 
 export class FilteredPanPart implements ToolPart {
     readonly name;
@@ -109,8 +109,8 @@ export class SelectPart implements ToolPart {
 
     private canMoveSelected: boolean = false;
     private isMoving: boolean = false;
-    private movingStart = new PIXI.Point();
-    private lastMove = new PIXI.Point();
+    private movingStart = new Point();
+    private lastMove = new Point();
 
     constructor(world: World) {
         this.world = world;

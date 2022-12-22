@@ -7,7 +7,7 @@ import {PIXI_BOARD_TYPE, PixiBoardSystem} from "../../ecs/systems/back/pixi/pixi
 import {SpawnCommandKind} from "../../ecs/systems/command/spawnCommand";
 import {executeAndLogCommand} from "../../ecs/systems/command/command";
 import { ImageRenderer } from "@/ecs/systems/back/pixi/ImageRenderer";
-import PIXI from "@/PIXI";
+import { Point } from "pixi.js";
 
 export class HostEditMapPhase extends EditMapPhase {
     map: GameMap;
@@ -68,7 +68,7 @@ export class HostEditMapPhase extends EditMapPhase {
         // Sometimes this does not work but the problem is not the matrix calculation, it's the browser coords
         // so if you have firefox and linux (this seems to be the wrong stack) and have spare time, pls debug this.
         // Could be caused by: https://bugzilla.mozilla.org/show_bug.cgi?id=505521#c80
-        let p = new PIXI.Point(x, y);
+        let p = new Point(x, y);
         let pixiBoard = this.world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
         pixiBoard.board.updateTransform();
         pixiBoard.board.transform.worldTransform.applyInverse(p, p);
@@ -130,7 +130,7 @@ export class HostEditMapPhase extends EditMapPhase {
     enable() {
         super.enable();
 
-        const canvas = (this.world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem).renderer.view;
+        const canvas = (this.world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem).renderer.view as HTMLCanvasElement;
         canvas.ondrop = this.onDrop.bind(this);
         canvas.ondragover = this.onDragOver.bind(this);
 

@@ -3,7 +3,7 @@ import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
 import {System} from "@/ecs/system";
 import {RECTANGULAR_SELECTION_TYPE, RectangularSelectionResource, Resource} from "@/ecs/resource";
 import {Aabb} from "@/geometry/aabb";
-import * as PIXI from "pixi.js";
+import { Graphics } from "pixi.js";
 
 
 export const PIXI_RECTANGULAR_SELECTION_TYPE = "pixi_rect_selection";
@@ -13,11 +13,11 @@ export class PixiRectSelectionSystem implements System {
     dependencies = [PIXI_BOARD_TYPE];
 
     world: World;
-    display: PIXI.Graphics;
+    display: Graphics;
 
     constructor(world: World) {
         this.world = world;
-        this.display = new PIXI.Graphics();
+        this.display = new Graphics();
         world.events.on('resource_add', this.onResourceAdd, this);
         world.events.on('resource_edited', this.onResourceEdit, this);
         world.events.on('resource_removed', this.onResourceRemove, this);

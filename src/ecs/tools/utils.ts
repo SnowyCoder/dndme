@@ -1,19 +1,19 @@
-import PIXI from "../../PIXI";
 import {QueryHitEvent} from "../interaction";
 import {World} from "../world";
 import {INTERACTION_TYPE, InteractionSystem} from "../systems/back/interactionSystem";
 import {WALL_TYPE, WallSystem} from "../systems/wallSystem";
 import { IPoint } from "@/geometry/point";
+import { Point } from "pixi.js";
 
-export function findEntitiesAt(world: World, point: PIXI.Point, multi: boolean): number[] {
+export function findEntitiesAt(world: World, point: Point, multi: boolean): number[] {
     let event = QueryHitEvent.queryPoint(point, multi);
 
     world.events.emit('query_hit', event);
     return event.getSorted();
 }
 
-export function snapPoint(world: World, p: IPoint, useWall: boolean = true): PIXI.Point {
-    const point = new PIXI.Point(p.x, p.y);
+export function snapPoint(world: World, p: IPoint, useWall: boolean = true): Point {
+    const point = new Point(p.x, p.y);
 
     const interSys = world.systems.get(INTERACTION_TYPE) as InteractionSystem;
     let nearest = interSys.snapDb.findNearest([point.x, point.y]);

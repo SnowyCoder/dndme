@@ -5,13 +5,12 @@ import { STANDARD_GRID_OPTIONS } from "@/game/grid";
 import { Aabb } from "@/geometry/aabb";
 import { Obb } from "@/geometry/obb";
 import { IPoint } from "@/geometry/point";
-import { ElementType, EVENT_REMEMBER_BIT_BY_BIY_MASK_UPDATE, GraphicComponent, GRAPHIC_TYPE, ImageElement, ImageMeta, ImageScaleMode, VisibilityType } from "@/graphics";
+import { ElementType, EVENT_REMEMBER_BIT_BY_BIY_MASK_UPDATE, GRAPHIC_TYPE, ImageElement, ImageMeta, ImageScaleMode, VisibilityType } from "@/graphics";
 import { FileIndex } from "@/map/FileDb";
-import PIXI from "@/PIXI";
 import { arrayRemoveElem } from "@/util/array";
 import { BitSet } from "@/util/bitSet";
 import { DESTROY_ALL, DESTROY_MIN, loadTexture } from "@/util/pixi";
-import { BLEND_MODES, Matrix, RenderTexturePool } from "pixi.js";
+import { BaseTexture, BLEND_MODES, BufferResource, Container, FORMATS, Matrix, RenderTexture, RenderTexturePool, Sprite, Texture } from "pixi.js";
 import { GRID_TYPE } from "../../gridSystem";
 import { EVENT_VISIBILITY_SPREAD, VisibilitySpreadData } from "../../playerSystem";
 import { BigStorageSystem, BIG_STORAGE_TYPE } from "../files/bigStorageSystem";
@@ -20,20 +19,20 @@ import { PixiDisplayElement, PixiGraphicComponent, PixiGraphicSystem, PIXI_GRAPH
 
 interface TextureEntry {
     elements: PixiImageElement[];
-    texture: PIXI.Texture;
+    texture: Texture;
     pending: boolean;
 }
 
 export interface PixiImageElement extends ImageElement, PixiDisplayElement {
     type: ElementType.IMAGE;// interference between interfaces (good-old diamond problem?)
     _owner: number;
-    _oldTex?: FileIndex | PIXI.Texture,
+    _oldTex?: FileIndex | Texture,
     // Used for BBB
     _visibData?: 'downloading' | 'loaded';
-    _renTex?: PIXI.RenderTexture;
+    _renTex?: RenderTexture;
     _visMapChanged?: boolean;
     // sprite
-    _pixi?: PIXI.Sprite;
+    _pixi?: Sprite;
 }
 
 
@@ -41,7 +40,7 @@ export class ImageRenderer {
     readonly world: World;
     readonly sys: PixiGraphicSystem;
     readonly fileSys: BigStorageSystem;
-    readonly textureMap = new Map<FileIndex | PIXI.Texture, TextureEntry>();
+    readonly textureMap = new Map<FileIndex | Texture, TextureEntry>();
 
     private readonly renderTexturePool = new RenderTexturePool();
 
@@ -100,7 +99,7 @@ export class ImageRenderer {
             this.updateVisibility(el);
             return;
         }
-        el._pixi!.texture = PIXI.Texture.WHITE;
+        el._pixi!.texture = Texture.WHITE;
         const dims = this.getDimensions(el);
         el._pixi!.scale.set(dims[0], dims[1]);
 
@@ -114,7 +113,7 @@ export class ImageRenderer {
 
         const newEntry = {
             elements: [el],
-            texture: PIXI.Texture.WHITE,
+            texture: Texture.WHITE,
             pending: true,
         } as TextureEntry;
         this.textureMap.set(el.texture.value, newEntry);
@@ -158,7 +157,7 @@ export class ImageRenderer {
     }
 
 
-    private onTextureLoaded(index: FileIndex, tex: PIXI.Texture): void {
+    private onTextureLoaded(index: FileIndex, tex: Texture): void {
         const entry = this.textureMap.get(index);
         if (entry === undefined) return;
         if (!entry.pending) {
@@ -272,7 +271,7 @@ export class ImageRenderer {
             data = index;
             index = await bss.create(index);
         }
-        let tex: PIXI.Texture;
+        let tex: Texture;
         try {
             tex = await loadTexture(data, dataType);
         } catch (e) {
@@ -340,7 +339,7 @@ export class ImageRenderer {
         const [width, height] = this.getDimensions(c);
 
         if (c._renTex === undefined) {
-            c._renTex = PIXI.RenderTexture.create({
+            c._renTex = RenderTexture.create({
                 width, height,
                 scaleMode: c._pixi!.texture.baseTexture.scaleMode,
             });
@@ -352,7 +351,7 @@ export class ImageRenderer {
 
         const texOpts = {
             width, height,
-            format: PIXI.FORMATS.RGBA,
+            format: FORMATS.RGBA,
         };
 
         const texData = new Uint32Array(width * height);
@@ -370,19 +369,19 @@ export class ImageRenderer {
         }
 
         const byteData = new Uint8Array(texData.buffer);
-        const resource = new PIXI.BufferResource(byteData, { width, height });
-        const baseTexture = new PIXI.BaseTexture(resource, texOpts)
+        const resource = new BufferResource(byteData, { width, height });
+        const baseTexture = new BaseTexture(resource, texOpts)
 
-        const tex = new PIXI.Texture(baseTexture);
-        const lumSprite = new PIXI.Sprite(tex);
-        lumSprite.blendMode = PIXI.BLEND_MODES.SRC_IN;
+        const tex = new Texture(baseTexture);
+        const lumSprite = new Sprite(tex);
+        lumSprite.blendMode = BLEND_MODES.SRC_IN;
 
         const entry = this.textureMap.get(c.texture.value)!;
-        const mapSprite = new PIXI.Sprite(entry.texture);
+        const mapSprite = new Sprite(entry.texture);
         if (mapSprite.width !== width || mapSprite.height !== height) {
             mapSprite.scale.set(width, height);
         }
-        const cnt = new PIXI.Container();
+        const cnt = new Container();
         cnt.addChild(mapSprite, lumSprite);
 
         this.sys.pixiBoardSystem.renderer.render(cnt, {
@@ -548,7 +547,7 @@ export class ImageRenderer {
 
         const renderer = this.sys.pixiBoardSystem.renderer;
 
-        const localCnt = new PIXI.Container();
+        const localCnt = new Container();
         // Setup local transform
         const m = new Matrix();
         const pixi = img._pixi!;
@@ -563,7 +562,7 @@ export class ImageRenderer {
         m.translate(dims[0] / 2, dims[1] / 2);
         localCnt.transform.setFromMatrix(m);
 
-        const worldCnt = new PIXI.Container();
+        const worldCnt = new Container();
 
         // If there are any players without night vision (and there are lights) render them (THIS IS SLOW!)
         let tex, tex2, nightSprite;
@@ -583,11 +582,11 @@ export class ImageRenderer {
             localCnt.removeChildren();
 
             for (let light of data.lights) {
-                light.mesh.blendMode = PIXI.BLEND_MODES.ADD;
+                light.mesh.blendMode = BLEND_MODES.ADD;
                 localCnt.addChild(light.mesh);
             }
 
-            let playerSprite = new PIXI.Sprite(tex);
+            let playerSprite = new Sprite(tex);
             playerSprite.blendMode = BLEND_MODES.SRC_IN;
 
             // Render the lights onto tex2, then render tex as BLEND_MODE.SRC_IN to filter out where the lights were not
@@ -601,8 +600,8 @@ export class ImageRenderer {
             localCnt.removeChildren();
 
             // Add tex2 to the main phase
-            nightSprite = new PIXI.Sprite(tex2);
-            nightSprite.blendMode = PIXI.BLEND_MODES.ADD;
+            nightSprite = new Sprite(tex2);
+            nightSprite.blendMode = BLEND_MODES.ADD;
             worldCnt.addChild(nightSprite);
         }
 
@@ -611,11 +610,11 @@ export class ImageRenderer {
         }
 
         const entry = this.textureMap.get(img.texture.value)!;
-        const origTex = new PIXI.Sprite(entry.texture);
+        const origTex = new Sprite(entry.texture);
         if (entry.texture.width !== dims[0] || entry.texture.height !== dims[1]) {
             origTex.scale.set(dims[0], dims[1]);
         }
-        origTex.blendMode = PIXI.BLEND_MODES.SRC_IN;
+        origTex.blendMode = BLEND_MODES.SRC_IN;
 
         worldCnt.addChild(localCnt, origTex)
 

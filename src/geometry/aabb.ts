@@ -1,5 +1,5 @@
-import {IPoint, Point} from "./point";
-import PIXI from "../PIXI";
+import { Point, Rectangle } from "pixi.js";
+import {IPoint} from "./point";
 
 export class Aabb {
     minX: number;
@@ -22,7 +22,7 @@ export class Aabb {
     }
 
     getCenter(): Point {
-        return new PIXI.Point(
+        return new Point(
             (this.minX + this.maxX) / 2,
             (this.minY + this.maxY) / 2
         );
@@ -120,7 +120,7 @@ export class Aabb {
         return new Aabb(0, 0, 0, 0);
     }
 
-    static fromBounds(b: PIXI.Rectangle): Aabb {
+    static fromBounds(b: Rectangle): Aabb {
         return new Aabb(b.left, b.top, b.right, b.bottom);
     }
 

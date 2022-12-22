@@ -1,9 +1,8 @@
-import PIXI from "../PIXI";
 import {IPoint} from "../geometry/point";
 import {Aabb} from "../geometry/aabb";
+import { Point } from "pixi.js";
 
-type PPoint = PIXI.Point;
-export type Point = [number, number];
+export type RPoint = [number, number];
 
 export function polygonPointIntersect(point: IPoint, polygon: number[]): boolean {
     const x = point.x;
@@ -37,7 +36,7 @@ export function distSquared2d(x1: number, y1: number, x2: number, y2: number): n
     return x * x + y * y
 }
 
-export function projectPointOnSegment(ax: number, ay: number, bx: number, by: number, px: number, py: number): Point | undefined {
+export function projectPointOnSegment(ax: number, ay: number, bx: number, by: number, px: number, py: number): RPoint | undefined {
     if (ax == bx && ay == ay) ax -= 0.00001;
 
     let u = ((px - ax) * (bx - ax)) + ((py - ay) * (by - ay));
@@ -62,7 +61,7 @@ export function projectPointOnSegment(ax: number, ay: number, bx: number, by: nu
     return isValid ? [rx, ry] : undefined;
 }
 
-export function intersectLineVsLine(a1: IPoint, a2: IPoint, b1: IPoint, b2: IPoint, target?: PPoint): boolean {
+export function intersectLineVsLine(a1: IPoint, a2: IPoint, b1: IPoint, b2: IPoint, target?: Point): boolean {
     let dbx = b2.x - b1.x;
     let dby = b2.y - b1.y;
     let dax = a2.x - a1.x;

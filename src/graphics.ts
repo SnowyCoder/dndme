@@ -1,10 +1,10 @@
 // Common info about the graphical systems, this should be a semi-abstraction.
 // NONE OF THIS SHOULD BE SERIALIZED! THIS IS ALL RUNTIME DEPENDANT! DETAILS WILL CHANGE BETWEEN MINOR VERSIONS!
 
+import { Texture } from "pixi.js";
 import {Component} from "./ecs/component";
 import { IPoint } from "./geometry/point";
 import { FileIndex } from "./map/FileDb";
-import PIXI from "./PIXI";
 
 export const EVENT_REMEMBER_BIT_BY_BIY_MASK_UPDATE = 'remember_bit_by_bit_vis_update';
 
@@ -89,7 +89,7 @@ export interface ImageElement extends DisplayElement, AnchorableElement {
         priority?: number;
     } | {
         type: 'raw';
-        value: PIXI.Texture;
+        value: Texture;
     };
     tint: number;
     // Output of the visible image, only available if visib=REMEMBER_BIT_BY_BIT and it's an image

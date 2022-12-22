@@ -1,5 +1,4 @@
-import PIXI from "../../PIXI";
-import {distSquared2d, Point} from "../../util/geometry";
+import {distSquared2d} from "../../util/geometry";
 import {DESTROY_ALL} from "../../util/pixi";
 import {GridGraphicalOptions, GridType, STANDARD_GRID_OPTIONS} from "../../game/grid";
 import {GridResource, Resource} from "../resource";
@@ -15,7 +14,7 @@ import GridEditComponent from "@/ui/edit/GridEdit.vue";
 import { VueComponent } from "@/ui/vue";
 import { Group, Layer } from "@pixi/layers";
 import { StandardToolbarOrder } from "@/phase/editMap/standardToolbarOrder";
-import { RenderTexture } from "pixi.js";
+import { BaseTexture, Extract, FORMATS, Point, RenderTexture, Texture, TilingSprite } from "pixi.js";
 
 
 const SQRT3 = Math.sqrt(3);
@@ -30,7 +29,7 @@ export class GridSystem implements System {
 
     world: World;
     private boardSys: PixiBoardSystem;
-    sprite: PIXI.TilingSprite;
+    sprite: TilingSprite;
 
     private readonly gridRes: GridResource;
     private internalScale: number = 1;
@@ -45,7 +44,7 @@ export class GridSystem implements System {
         this.boardSys = world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
         let screen = this.boardSys.renderer.screen;
 
-        this.sprite = new PIXI.TilingSprite(PIXI.Texture.EMPTY, screen.width, screen.height);
+        this.sprite = new TilingSprite(Texture.EMPTY, screen.width, screen.height);
         this.sprite.zIndex = LayerOrder.GRID;
 
         if (world.isMaster) {
@@ -105,7 +104,7 @@ export class GridSystem implements System {
     }
 
     onGridExport(width: number, height: number) {
-        const sprite = new PIXI.TilingSprite(PIXI.Texture.EMPTY, width, height);
+        const sprite = new TilingSprite(Texture.EMPTY, width, height);
         sprite.texture = this.sprite.texture;
         sprite.tilePosition.copyFrom(this.sprite.tilePosition);
         sprite.tileScale.copyFrom(this.sprite.tileScale);
@@ -114,14 +113,14 @@ export class GridSystem implements System {
 
         const renderTexture = RenderTexture.create({
             width, height,
-            format: PIXI.FORMATS.RGBA,
+            format: FORMATS.RGBA,
         });
 
         r.render(sprite, {
             renderTexture,
             clear: true,
         });
-        const canvas = (r.plugins.extract as PIXI.Extract).canvas(renderTexture);
+        const canvas = (r.plugins.extract as Extract).canvas(renderTexture) as HTMLCanvasElement;
         canvas.toBlob(blob => {
             console.log("Saving exported image!");
             this.world.events.emit('blob_save', blob, "grid.png");
@@ -132,13 +131,13 @@ export class GridSystem implements System {
         this.sprite.texture.destroy(true);
 
         if (!this.gridRes.visible) {
-            this.sprite.texture = PIXI.Texture.EMPTY;
+            this.sprite.texture = Texture.EMPTY;
             return;
         }
 
         let tex = drawGridTexture(512, this.gridRes.gridType, this.gridRes);
         this.internalScale = this.gridRes.size / 512;
-        this.sprite.texture = new PIXI.Texture(tex);
+        this.sprite.texture = new Texture(tex);
     }
 
     updatePos() {
@@ -148,11 +147,10 @@ export class GridSystem implements System {
 
     closestPoint(point: Point): Point | undefined {
         if (this.gridRes === undefined) return undefined;
-        let pnt = new PIXI.Point(point[0], point[1]);
-        this.sprite.worldTransform.apply(pnt, pnt);
+        this.sprite.worldTransform.apply(point, point);
 
-        let pointX = pnt.x / this.gridRes.size - this.gridRes.offX;
-        let pointY = pnt.y / this.gridRes.size - this.gridRes.offY;
+        let pointX = point.x / this.gridRes.size - this.gridRes.offX;
+        let pointY = point.y / this.gridRes.size - this.gridRes.offY;
 
         let resX: number;
         let resY: number;
@@ -229,13 +227,13 @@ export class GridSystem implements System {
                 }
             } break;
         }
-        pnt.set(
+        point.set(
             (resX + this.gridRes.offX) * this.gridRes.size,
             (resY + this.gridRes.offY) * this.gridRes.size
         );
-        this.sprite.worldTransform.applyInverse(pnt, pnt);
+        this.sprite.worldTransform.applyInverse(point, point);
 
-        return [pnt.x, pnt.y];
+        return point;
     }
 
     enable() {
@@ -255,7 +253,7 @@ export class GridSystem implements System {
 
 // ----------------------------------------- DRAW -----------------------------------------
 
-function drawGridTexture(size: number, type: GridType, options: GridGraphicalOptions): PIXI.BaseTexture {
+function drawGridTexture(size: number, type: GridType, options: GridGraphicalOptions): BaseTexture {
     let canvas: ImageData;
     switch (type) {
         case GridType.HEXAGON:
@@ -268,7 +266,7 @@ function drawGridTexture(size: number, type: GridType, options: GridGraphicalOpt
             throw new Error('Cannot draw unknown type: ' + type);
     }
 
-    return PIXI.BaseTexture.fromBuffer(new Uint8Array(canvas.data.buffer), canvas.width, canvas.height);
+    return BaseTexture.fromBuffer(new Uint8Array(canvas.data.buffer), canvas.width, canvas.height);
 }
 
 function drawSquare(size: number, opt: GridGraphicalOptions): ImageData {

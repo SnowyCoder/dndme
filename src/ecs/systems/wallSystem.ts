@@ -1,11 +1,10 @@
-import PIXI from "../../PIXI";
 import {System} from "../system";
 import {World} from "../world";
 import {DESTROY_ALL} from "../../util/pixi";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {SingleEcsStorage} from "../storage";
 import {Component, POSITION_TYPE, PositionComponent, SerializedFlag, SERIALIZED_TYPE, SHARED_TYPE, SharedFlag} from "../component";
-import {distSquared2d, Point} from "../../util/geometry";
+import {distSquared2d, RPoint} from "../../util/geometry";
 import {Aabb} from "../../geometry/aabb";
 import {Line} from "../../geometry/line";
 import {intersectSegmentVsSegment, lineSameSlope, SegmentVsSegmentRes} from "../../geometry/collision";
@@ -35,12 +34,13 @@ import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE } from "./back/selectionU
 
 import WallIcon from "@/ui/icons/WallIcon.vue";
 import EcsWall from "@/ui/ecs/EcsWall.vue";
+import { Graphics, Point } from "pixi.js";
 
 export const WALL_TYPE = 'wall';
 export type WALL_TYPE = typeof WALL_TYPE;
 export interface WallComponent extends Component {
     type: WALL_TYPE;
-    vec: Point;
+    vec: RPoint;
     _dontMerge: number;
 }
 
@@ -295,17 +295,17 @@ export class WallSystem implements System {
         this.world.editComponent(wall.entity, GRAPHIC_TYPE, {display}, undefined, false);
     }
 
-    findLocationOnWall(point: PIXI.Point, radius: number): PIXI.Point | undefined {
+    findLocationOnWall(point: Point, radius: number): Point | undefined {
         let points = this.interactionSys.query(shapeAabb(new Aabb(
             point.x - radius, point.y - radius,
             point.x + radius, point.y + radius
         )), c => {
             return this.storage.getComponent(c.entity) !== undefined;
         });
-        let bestPoint = new PIXI.Point();
+        let bestPoint = new Point();
         let bestDist = Number.POSITIVE_INFINITY;
 
-        let tmpPoint = new PIXI.Point();
+        let tmpPoint = new Point();
         for (let node of points) {
             let line = (node.shape as LineShape).data;
             if (!line.projectPoint(point, tmpPoint)) {
@@ -367,7 +367,7 @@ export class WallSystem implements System {
         }
 
         let tmpLine = new Line(0, 0, 0, 0);
-        let tmpPoint = new PIXI.Point();
+        let tmpPoint = new Point();
         let query = this.interactionSys.query(shapeAabb(aabb), c => {
             return this.storage.getComponent(c.entity) !== undefined;
         });
@@ -431,15 +431,15 @@ export class CreateWallToolPart implements ToolPart {
 
     // Sprite of the pin to be created
     createdIds: number[] = [];
-    createdLastPos?: Point;
-    createLastLineDisplay: PIXI.Graphics;
+    createdLastPos?: RPoint;
+    createLastLineDisplay: Graphics;
 
     isActive = false;
-    mouseLastPos: IPoint = new PIXI.Point();
+    mouseLastPos: IPoint = new Point();
 
     constructor(sys: WallSystem) {
         this.sys = sys;
-        this.createLastLineDisplay = new PIXI.Graphics();
+        this.createLastLineDisplay = new Graphics();
         this.pixiBoardSys = sys.world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
         sys.world.events.on('component_add', (c: Component) => {
             if (this.isActive && c.type === 'wall') {

@@ -1,6 +1,5 @@
+import { Geometry, Program, TYPES, Buffer, Mesh, Shader, MeshMaterial, DRAW_MODES, utils } from "pixi.js";
 import { IPoint } from "../geometry/point";
-import PIXI from "../PIXI";
-import hex2rgb = PIXI.utils.hex2rgb;
 
 // Other methods: https://github.com/mattdesl/lwjgl-basics/wiki/2D-Pixel-Perfect-Shadows
 const LIGHT_VERTEX_SHADER = `
@@ -67,24 +66,24 @@ const PLAYER_VIS_FRAGMENT_SHADER = `
     }
 `;
 
-let lightProgram: PIXI.Program | undefined = undefined;
-let constLightProgram: PIXI.Program | undefined = undefined;
-let playerVisProgram: PIXI.Program | undefined = undefined;
+let lightProgram: Program | undefined = undefined;
+let constLightProgram: Program | undefined = undefined;
+let playerVisProgram: Program | undefined = undefined;
 
 type LightProgramType = 'normal' | 'const' | 'player';
 
 export function setup() {
     if (lightProgram === undefined) {
-        lightProgram = PIXI.Program.from(LIGHT_VERTEX_SHADER, LIGHT_FRAGMENT_SHADER, 'light');
-        constLightProgram = PIXI.Program.from(LIGHT_VERTEX_SHADER, CONST_LIGHT_FRAGMENT_SHADER, 'const_light');
-        playerVisProgram = PIXI.Program.from(LIGHT_VERTEX_SHADER, PLAYER_VIS_FRAGMENT_SHADER, 'player_vis');
+        lightProgram = Program.from(LIGHT_VERTEX_SHADER, LIGHT_FRAGMENT_SHADER, 'light');
+        constLightProgram = Program.from(LIGHT_VERTEX_SHADER, CONST_LIGHT_FRAGMENT_SHADER, 'const_light');
+        playerVisProgram = Program.from(LIGHT_VERTEX_SHADER, PLAYER_VIS_FRAGMENT_SHADER, 'player_vis');
     }
 }
 
-export function createMesh(lightType: LightProgramType = 'normal'): PIXI.Mesh {
-    let geometry = new PIXI.Geometry();
-    let buff = new PIXI.Buffer(new Float32Array(1));
-    geometry.addAttribute('aVertexPosition', buff, 2, false, PIXI.TYPES.FLOAT);
+export function createMesh(lightType: LightProgramType = 'normal'): Mesh {
+    let geometry = new Geometry();
+    let buff = new Buffer(new Float32Array(1));
+    geometry.addAttribute('aVertexPosition', buff, 2, false, TYPES.FLOAT);
 
     let program;
     switch (lightType) {
@@ -93,20 +92,20 @@ export function createMesh(lightType: LightProgramType = 'normal'): PIXI.Mesh {
         case 'player': program = playerVisProgram; break;
     }
     // We'll change them all, in due time
-    let shaders = new PIXI.Shader(program!, {
+    let shaders = new Shader(program!, {
         'center': new Float32Array([0.5, 0.5]),
         'radius': 10,
         'color': new Float32Array([0, 0, 0]),
     });
 
-    let mesh = new PIXI.Mesh(geometry, shaders as PIXI.MeshMaterial, undefined, PIXI.DRAW_MODES.TRIANGLE_FAN);
+    let mesh = new Mesh(geometry, shaders as MeshMaterial, undefined, DRAW_MODES.TRIANGLE_FAN);
     mesh.interactive = false;
     mesh.interactiveChildren = false;
 
     return mesh;
 }
 
-export function updateMeshPolygons(mesh: PIXI.Mesh, pos: IPoint, poly?: number[]): void {
+export function updateMeshPolygons(mesh: Mesh, pos: IPoint, poly?: number[]): void {
     let buffer = mesh.geometry.getBuffer('aVertexPosition');
 
     if (poly === undefined) {
@@ -123,11 +122,11 @@ export function updateMeshPolygons(mesh: PIXI.Mesh, pos: IPoint, poly?: number[]
     buffer.update(fBuffer);
 }
 
-export function updateMeshUniforms(mesh: PIXI.Mesh, center: IPoint, radius: number, color: number) {
+export function updateMeshUniforms(mesh: Mesh, center: IPoint, radius: number, color: number) {
     let uni = mesh.shader.uniforms;
     let c = uni.center;
     c[0] = center.x;
     c[1] = center.y;
     uni.radius = radius;
-    hex2rgb(color, uni.color);
+    utils.hex2rgb(color, uni.color);
 }

@@ -5,9 +5,9 @@ import { World } from "../ecs/world";
 import { arrayRemoveElem } from "../util/array";
 import { ListenerFn } from "../util/safeEventEmitter";
 
-import * as PIXI from "pixi.js";
 import { objectClone, randombytes } from "../util/jsobj";
 import { EcsStorage } from "../ecs/storage";
+import { utils } from "pixi.js";
 
 export type VueComponent = VComponent | DefineComponent;
 
@@ -69,7 +69,7 @@ export function useResourceReactive<T extends {[key: string]: any}>(world: World
     // This is glued to the spiky and reactive ECS world, where everything is an event
     // Also another nice property is that we get to have default values for when a resource is missing (altough I don't quite recommend it)
     const res = shallowRef(world.getResource(resName));
-    
+
     const obj = {} as {[key in string | typeof isNull]: ShallowRef<any>};
     for (let name in properties) {
         obj[name] = customRef((track, _trigger) => {
@@ -195,7 +195,7 @@ export function useComponentPiece<T>(component: ShallowRef<Component>, name: str
 }
 
 export function uhex2str(hex: number | undefined) {
-    return hex === undefined ? '' : PIXI.utils.hex2string(hex);
+    return hex === undefined ? '' : utils.hex2string(hex);
 }
 
 export function useComponentsOfType<T extends Component>(type: string): ShallowRef<T[]> {
@@ -227,4 +227,3 @@ export function useComponentsOfType<T extends Component>(type: string): ShallowR
 
     return res;
 }
-

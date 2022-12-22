@@ -1,9 +1,9 @@
 
 // A version highly inspired by plank.js (https://github.com/shakiba/planck.js/blob/f5777884f537db97608d8016bda960d251d42d4d/lib/collision/DynamicTree.js)
 
+import { IPoint } from "pixi.js";
 import {Aabb} from "./aabb";
 import {containsAabbVsAabb, overlapAabbVsAabb} from "./collision";
-import {Point} from "./point";
 
 class TreeNode<T> {
     id: number;
@@ -87,7 +87,7 @@ export class DynamicTree<T> {
         this.freeNode(node);
     }
 
-    moveProxy(id: number, aabb: Aabb, d: Point): boolean {
+    moveProxy(id: number, aabb: Aabb, d: IPoint): boolean {
         let node = this.nodes.get(id)!;
 
         if (containsAabbVsAabb(node.aabb, aabb)) {
@@ -366,4 +366,3 @@ export class DynamicTree<T> {
         }
     }
 }
-

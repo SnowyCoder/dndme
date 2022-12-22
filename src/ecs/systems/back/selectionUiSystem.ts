@@ -6,7 +6,6 @@ import { World } from "../../world";
 import { SelectionSystem, SELECTION_TYPE } from "./selectionSystem";
 import { Resource } from "../../resource";
 import { PixiBoardSystem, PIXI_BOARD_TYPE } from "./pixi/pixiBoardSystem";
-import PIXI from "@/PIXI";
 import { componentEditCommand, ComponentEditCommand } from "../command/componentEdit";
 import { DeSpawnCommand } from "../command/despawnCommand";
 import { emitCommand } from "../command/command";
@@ -19,6 +18,7 @@ import EcsNote from "@/ui/ecs/EcsNote.vue";
 import EcsPosition from "@/ui/ecs/EcsPosition.vue";
 import EcsTransform from "@/ui/ecs/EcsTransform.vue";
 import { arrayFilterInPlace } from "../../../util/array";
+import { UPDATE_PRIORITY } from "pixi.js";
 
 export const COMPONENT_INFO_PANEL_TYPE = 'component_info_panel';
 export type COMPONENT_INFO_PANEL_TYPE = typeof COMPONENT_INFO_PANEL_TYPE;
@@ -90,7 +90,7 @@ export class SelectionUiSystem implements System {
         const boardSys = world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
         this.selectionSys = world.systems.get(SELECTION_TYPE) as SelectionSystem;
 
-        boardSys.ticker.add(this.onRender, this, PIXI.UPDATE_PRIORITY.LOW);
+        boardSys.ticker.add(this.onRender, this, UPDATE_PRIORITY.LOW);
 
         this.world.events.on('selection_update', this.updateUi, this);
         this.world.events.on('component_add', this.onComponentAdd, this);

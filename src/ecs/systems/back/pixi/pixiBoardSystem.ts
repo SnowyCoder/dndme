@@ -1,6 +1,5 @@
 import { System } from "@/ecs/system";
-import * as PIXI from "pixi.js";
-import { IHitArea, Container } from "pixi.js";
+import { Container, Point, Renderer, settings, Ticker, UPDATE_PRIORITY } from "pixi.js";
 import { World } from "@/ecs/world";
 import { Resource } from "@/ecs/resource";
 import { FOLLOW_MOUSE_TYPE, POSITION_TYPE } from "@/ecs/component";
@@ -96,7 +95,7 @@ export interface GameClockResource extends Resource {
     frame: number;
     timestampMs: number;
     elapsedMs: number;
-    ticker: PIXI.Ticker;
+    ticker: Ticker;
 }
 
 export type PIXI_BOARD_TYPE = 'pixi_board';
@@ -107,8 +106,8 @@ export class PixiBoardSystem implements System {
 
     world: World;
 
-    renderer: PIXI.Renderer;
-    ticker: PIXI.Ticker;
+    renderer: Renderer;
+    ticker: Ticker;
     clock: GameClockResource;
     private resizeReqId?: number;
 
@@ -140,7 +139,7 @@ export class PixiBoardSystem implements System {
             scaleY: 1,
         } as BoardTransformResource);
 
-        this.ticker = new PIXI.Ticker();
+        this.ticker = new Ticker();
         this.clock = {
             type: GAME_CLOCK_TYPE,
             frame: 0,
@@ -161,15 +160,14 @@ export class PixiBoardSystem implements System {
         } as BoardSizeResource);
 
         // We cannot work without webgl
-        PIXI.settings.FAIL_IF_MAJOR_PERFORMANCE_CAVEAT = false;
-        this.renderer = new PIXI.Renderer({
+        settings.FAIL_IF_MAJOR_PERFORMANCE_CAVEAT = false;
+        this.renderer = new Renderer({
             backgroundColor: DEFAULT_BACKGROUND,
             backgroundAlpha: 1,
-            useContextAlpha: false,
             powerPreference: 'low-power',
         });
         addCustomBlendModes(this.renderer);
-        this.renderer.view.addEventListener('contextmenu', (e) => {
+        (this.renderer.view as HTMLCanvasElement).addEventListener('contextmenu', (e) => {
             e.preventDefault();
         });
 
@@ -188,12 +186,12 @@ export class PixiBoardSystem implements System {
                 elapsedMs: this.ticker.elapsedMS,
             })
             this.renderer.render(this.root);
-        }, PIXI.UPDATE_PRIORITY.LOW);
+        }, UPDATE_PRIORITY.LOW);
 
         // TODO: we should create render phases, one for the world (using the projection matrix to move the camera)
         //       and the other for the GUI (or other things that do not depend on camera position, as the GridSystem(?)).
         //       to create a custom game loop: https://github.com/pixijs/pixi.js/wiki/v5-Custom-Application-GameLoop
-        this.board = new PIXI.Container();
+        this.board = new Container();
         this.board.interactive = false;
         this.board.interactiveChildren = false;
         this.board.position.set(0, 0);
@@ -236,7 +234,7 @@ export class PixiBoardSystem implements System {
         }
     }
 
-    toGeneralEvent(event: PointerEvent, pos: PIXI.IPoint): PointerInteractionEvent {
+    toGeneralEvent(event: PointerEvent, pos: IPoint): PointerInteractionEvent {
         const boardPos = this.board.worldTransform.applyInverse(pos);
 
         let hoveredCache: number[] | undefined = undefined;
@@ -287,8 +285,8 @@ export class PixiBoardSystem implements System {
         padX *= dScale;
         padY *= dScale;
 
-        const position = new PIXI.Point(padX + centerX, padY + centerY);
-        const scale = new PIXI.Point(this.board.scale.x * dScale, this.board.scale.y * dScale);
+        const position = new Point(padX + centerX, padY + centerY);
+        const scale = new Point(this.board.scale.x * dScale, this.board.scale.y * dScale);
 
         // TODO
         /*if (this.board.isBoardLost(position, scale)) {
@@ -430,7 +428,7 @@ export class PixiBoardSystem implements System {
                 const newPosX = this.board.position.x + (pos.x - pdata.lastX);
                 const newPosY = this.board.position.y + (pos.y - pdata.lastY);
 
-                /*if (this.board.isBoardLost(new PIXI.Point(newPosX, newPosY), this.scale)) {
+                /*if (this.board.isBoardLost(new Point(newPosX, newPosY), this.scale)) {
                     //console.log("You can't go further than this, you'll loose the board!");
                     return;
                 }*/
@@ -462,7 +460,7 @@ export class PixiBoardSystem implements System {
             let dy = pa.lastY - pb.lastY;
             let secondDist = Math.sqrt(dx * dx + dy * dy);
 
-            let center = new PIXI.Point(
+            let center = new Point(
                 (pa.lastX + pb.lastX) / 2,
                 (pa.lastY + pb.lastY) / 2,
             );
@@ -527,7 +525,7 @@ export class PixiBoardSystem implements System {
         if (this.resizeReqId !== undefined) {
             this.resizeReqId = undefined;
         }
-        let { clientWidth, clientHeight } = this.renderer.view;
+        let { clientWidth, clientHeight } = (this.renderer.view as HTMLCanvasElement);
         this.renderer.resize(clientWidth, clientHeight);
         this.world.editResource(BOARD_SIZE_TYPE, {
             width: clientWidth,
@@ -536,15 +534,15 @@ export class PixiBoardSystem implements System {
     }
 
     //https://github.com/pixijs/pixijs/blob/936b210ca553a804791b1704da13dbffbcc06550/packages/events/src/EventSystem.ts#L480
-    private htmlEventToPoint(x: number, y: number): PIXI.Point {
-        const elem = this.renderer.view;
+    private htmlEventToPoint(x: number, y: number): Point {
+        const elem = this.renderer.view as HTMLCanvasElement;
         const rect = elem.getBoundingClientRect();
 
         const resolutionMultiplier = 1.0 / this.renderer.resolution;
         const px = ((x - rect.left) * (elem.width / rect.width)) * resolutionMultiplier;
         const py = ((y - rect.top) * (elem.height / rect.height)) * resolutionMultiplier;
 
-        return new PIXI.Point(px, py);
+        return new Point(px, py);
     }
 
     private addHtmlListener<K extends keyof HTMLElementEventMap, E extends GlobalEventHandlers>(element: E, type: K, listener: (this: E, ev: HTMLElementEventMap[K]) => void): void {
@@ -559,7 +557,7 @@ export class PixiBoardSystem implements System {
     }
 
     enable(): void {
-        const canvas = this.renderer.view;
+        const canvas = this.renderer.view as HTMLCanvasElement;
         this.applyCanvasStyle(canvas);
         let cnt = document.getElementById('canvas-container');
         if (cnt === null) {
@@ -586,6 +584,6 @@ export class PixiBoardSystem implements System {
         this.removeCanvasListeners();
 
         let cnt = document.getElementById('canvas-container');
-        cnt?.removeChild(this.renderer.view);
+        cnt?.removeChild(this.renderer.view as HTMLCanvasElement);
     }
 }

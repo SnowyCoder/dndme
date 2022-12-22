@@ -1,4 +1,3 @@
-import PIXI from "../../PIXI";
 import {System} from "../system";
 import {World} from "../world";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
@@ -17,7 +16,7 @@ import {
     SerializedFlag
 } from "../component";
 import {INTERACTION_TYPE, InteractionComponent, InteractionSystem, shapePoint} from "./back/interactionSystem";
-import {Texture} from "pixi.js";
+import {Assets, Spritesheet, Texture} from "pixi.js";
 import {PinComponent} from "./pinSystem";
 import {
     ElementType,
@@ -158,7 +157,7 @@ export class PropSystem implements System {
     }
 
     loadPropTypes(): void {
-        const atlas = PIXI.Loader.shared.resources["props"].spritesheet!;
+        const atlas = Assets.get<Spritesheet>('props') as Spritesheet;
         const props = [
             {
                 id: 'ladder_up',

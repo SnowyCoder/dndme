@@ -1,5 +1,5 @@
-import PIXI from "../PIXI";
 import { Buffer } from "buffer";
+import { BaseTexture, ImageResource, Renderer, Texture } from "pixi.js";
 
 export const DESTROY_ALL = {
     children: true,
@@ -20,9 +20,9 @@ function validateImageMimeType(type: string): void {
     if (ALLOWED_IMAGETYPES.indexOf(type.substring('image/'.length)) < 0) throw new Error('Unsupported image type');
 }
 
-export async function loadTexture(data: ArrayBuffer, dataType: string): Promise<PIXI.Texture> {
+export async function loadTexture(data: ArrayBuffer, dataType: string): Promise<Texture> {
     const image = await loadTextureHTML(data, dataType);
-    return new PIXI.Texture(new PIXI.BaseTexture(new PIXI.ImageResource(image)));
+    return new Texture(new BaseTexture(new ImageResource(image)));
 }
 
 export function loadTextureHTML(data: ArrayBuffer, dataType: string): Promise<HTMLImageElement> {
@@ -42,7 +42,7 @@ export enum CUSTOM_BLEND_MODES {
     ADD_WHERE_ALPHA_1,
 }
 
-export function addCustomBlendModes(renderer: PIXI.Renderer) {
+export function addCustomBlendModes(renderer: Renderer) {
     let gl = renderer.gl;
     let array = (renderer.state as any).blendModes;
     // [src_color_factor, dst_color_factor, src_alpha_factor, dst_alpha_factor]

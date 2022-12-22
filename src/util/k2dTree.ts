@@ -1,14 +1,14 @@
+import { RPoint } from "./geometry";
 
-type Point = [number, number];
 
 class Node {
-    point: Point;
+    point: RPoint;
     left?: Node = undefined;
     right?: Node = undefined;
     parent?: Node;
     dimension: number;// 0: X, 1: Y
 
-    constructor(point: Point, parent: Node | undefined, dimension: number) {
+    constructor(point: RPoint, parent: Node | undefined, dimension: number) {
         this.point = point;
         this.parent = parent;
         this.dimension = dimension;
@@ -18,13 +18,13 @@ class Node {
 export class K2dTree {
     root?: Node = undefined;
 
-    private distance(a: Point, b: Point): number {
+    private distance(a: RPoint, b: RPoint): number {
         let dx = a[0] - b[0];
         let dy = a[1] - b[1];
         return dx * dx + dy * dy;
     }
 
-    private lastSearch(point: Point, node: Node | undefined, parent: Node | undefined): Node | undefined {
+    private lastSearch(point: RPoint, node: Node | undefined, parent: Node | undefined): Node | undefined {
         while (node !== undefined) {
             parent = node;
             if (point[node.dimension] < node.point[node.dimension]) {
@@ -36,7 +36,7 @@ export class K2dTree {
         return parent;
     }
 
-    private nodeSearch(point: Point): Node | undefined {
+    private nodeSearch(point: RPoint): Node | undefined {
         let node = this.root;
         while (node !== undefined) {
             if (point[0] === node.point[0] && point[1] === node.point[1]) {
@@ -51,7 +51,7 @@ export class K2dTree {
         return undefined;
     }
 
-    insert(point: Point) {
+    insert(point: RPoint) {
         let insertPosition = this.lastSearch(point, this.root, undefined);
 
         if (insertPosition === undefined) {
@@ -130,7 +130,7 @@ export class K2dTree {
         }
     }
 
-    remove(point: Point): boolean {
+    remove(point: RPoint): boolean {
         let node = this.nodeSearch(point);
         if (node === undefined) return false;
 
@@ -138,7 +138,7 @@ export class K2dTree {
         return true;
     }
 
-    nearestPoint(point: Point, root?: Node): [Point, number] | undefined {
+    nearestPoint(point: RPoint, root?: Node): [RPoint, number] | undefined {
         root = root || this.root;
         if (root === undefined) return undefined;
 
@@ -174,7 +174,7 @@ export class K2dTree {
         }
 
         // Searched point projected to our axis
-        let linearPoint: Point = [point[0], point[1]];
+        let linearPoint: RPoint = [point[0], point[1]];
         linearPoint[root.dimension] = root.point[root.dimension];
 
         let linearDist = this.distance(linearPoint, point);
@@ -196,4 +196,3 @@ export class K2dTree {
         return [bestNode, bestDist]
     }
 }
-

@@ -1,6 +1,7 @@
 import {K2dTree} from "../util/k2dTree";
-import {distSquared2d, Point} from "../util/geometry";
+import {distSquared2d, RPoint} from "../util/geometry";
 import {GridSystem} from "../ecs/systems/gridSystem";
+import { Point } from "pixi.js";
 
 
 export class PointDB {
@@ -15,7 +16,7 @@ export class PointDB {
     }
 
 
-    insert(point: Point): void {
+    insert(point: RPoint): void {
         let ptrStr = point[0] + '|' + point[1];
         let p = this.counter.get(ptrStr) || 0
         this.counter.set(ptrStr, p + 1);
@@ -25,7 +26,7 @@ export class PointDB {
         this.count++;
     }
 
-    remove(point: Point): boolean {
+    remove(point: RPoint): boolean {
         let ptrStr = point[0] + '|' + point[1];
         let p = (this.counter.get(ptrStr) || 0) - 1;
         if (p == 0) {
@@ -43,12 +44,14 @@ export class PointDB {
         return true;
     }
 
-    findNearest(point: Point): [Point, number] | undefined {
+    findNearest(point: RPoint): [RPoint, number] | undefined {
         let treeNearest = this.tree.nearestPoint(point);
 
-        let gridNearest: Point | undefined = undefined;
+        let gridNearest: RPoint | undefined = undefined;
         if (this.grid !== undefined) {
-            gridNearest = this.grid.closestPoint(point);
+            const p = new Point(point[0], point[1]);
+            const q = this.grid.closestPoint(p);
+            gridNearest = q == undefined ? undefined : [q.x, q.y];
         }
 
         if (gridNearest !== undefined) {

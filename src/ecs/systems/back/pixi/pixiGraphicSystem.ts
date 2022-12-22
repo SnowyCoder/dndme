@@ -22,7 +22,6 @@ import {
     VisibilityType
 } from "@/graphics";
 import {GridResource, Resource} from "@/ecs/resource";
-import PIXI from "@/PIXI";
 import {DESTROY_MIN} from "@/util/pixi";
 import {STANDARD_GRID_OPTIONS} from "@/game/grid";
 import {
@@ -38,12 +37,9 @@ import {
     InteractionSystem,
     Shape,
     shapeLine,
-    shapeObb,
     shapeCircle,
     CircleShape
 } from "../interactionSystem";
-import {Aabb} from "@/geometry/aabb";
-import {Obb} from "@/geometry/obb";
 import {Line} from "@/geometry/line";
 import {arrayRemoveElem} from "@/util/array";
 import {GRID_TYPE} from "../../gridSystem";
@@ -53,6 +49,7 @@ import { VisibilityAwareSystem, VISIBILITY_AWARE_TYPE } from "../visibilityAware
 import { Group } from "@pixi/layers";
 import { IPoint } from "@/geometry/point";
 import { ImageRenderer, PixiImageElement } from "./ImageRenderer";
+import { Container, DisplayObject, Graphics, Point, Sprite, Text, TextStyle } from "pixi.js";
 
 export interface PixiGraphicComponent extends GraphicComponent {
     _selected: boolean;
@@ -63,7 +60,7 @@ export interface PixiGraphicComponent extends GraphicComponent {
 
 export interface PixiDisplayElement extends DisplayElement {
     _oldType?: ElementType;
-    _pixi?: PIXI.DisplayObject;
+    _pixi?: DisplayObject;
 }
 
 export const REMEMBER_TYPE = 'remember';
@@ -353,7 +350,7 @@ export class PixiGraphicSystem implements System {
 
             if (comp._bitByBit) {
                 this.renImage.doOnBitByBit(comp, comp.display, img => {
-                    let w = new PIXI.Container();
+                    let w = new Container();
                     this.pixiBoardSystem.renderer.render(w, {
                         renderTexture: img._renTex,
                         clear: true,
@@ -431,7 +428,7 @@ export class PixiGraphicSystem implements System {
             }
             case ElementType.POINT: {
                 const c = comp as PointElement;
-                return shapeCircle(new PIXI.Point(pos.x, pos.y), c.scale * (trans?.scale ?? 1) * POINT_RADIUS);
+                return shapeCircle(new Point(pos.x, pos.y), c.scale * (trans?.scale ?? 1) * POINT_RADIUS);
             }
         }
     }
@@ -496,17 +493,17 @@ export class PixiGraphicSystem implements System {
                 break;
             }
             case ElementType.LINE:
-                (elem as PIXI.Graphics).destroy({
+                (elem as Graphics).destroy({
                     children: false,
                     texture: true,
                     baseTexture: true,
                 });
                 break;
             case ElementType.POINT:
-                (elem as PIXI.Sprite).destroy(DESTROY_MIN);
+                (elem as Sprite).destroy(DESTROY_MIN);
                 break;
             case ElementType.TEXT:
-                (elem as PIXI.Text).destroy(DESTROY_MIN);
+                (elem as Text).destroy(DESTROY_MIN);
                 break;
         }
 
@@ -524,26 +521,26 @@ export class PixiGraphicSystem implements System {
         this.destroyElement(cmp.entity, desc, false);
 
         let defLayer = true;
-        let res: PIXI.DisplayObject;
+        let res: DisplayObject;
         switch (desc.type) {
             case ElementType.CONTAINER:
-                res = new PIXI.Container();
+                res = new Container();
                 break;
             case ElementType.IMAGE:
-                res = new PIXI.Sprite();
+                res = new Sprite();
                 break;
             case ElementType.LINE:
-                res = new PIXI.Graphics();
+                res = new Graphics();
                 break;
             case ElementType.POINT:
-                res = new PIXI.Graphics();
+                res = new Graphics();
                 break;
             case ElementType.TEXT:
-                const style = new PIXI.TextStyle({
+                const style = new TextStyle({
                     fill: 'white',
                     strokeThickness: 2,
                 })
-                res = new PIXI.Text("", style);
+                res = new Text("", style);
                 res.parentLayer = this.textSystem.textLayer;
                 defLayer = false;
                 break;
@@ -683,7 +680,7 @@ export class PixiGraphicSystem implements System {
                 break;
             }
             case ElementType.LINE: {
-                let g = (d as PIXI.Graphics);
+                let g = (d as Graphics);
                 let el = (desc as LineElement);
 
                 g.clear();
@@ -712,7 +709,7 @@ export class PixiGraphicSystem implements System {
                 if (par._selected) {
                     color = lerpColor(color, 0x7986CB, 0.3);
                 }
-                let g = d as PIXI.Graphics;
+                let g = d as Graphics;
                 g.clear();
                 g.beginFill(color);
                 g.lineStyle(0);
@@ -722,7 +719,7 @@ export class PixiGraphicSystem implements System {
             }
             case ElementType.TEXT: {
                 let el = (desc as TextElement);
-                let g = (d as PIXI.Text);
+                let g = (d as Text);
                 g.text = el.text;
                 g.anchor.copyFrom(el.anchor);
                 g.style.fontSize = Math.round(26 * this.gridSize / STANDARD_GRID_OPTIONS.size);

@@ -5,10 +5,10 @@
 </template>
 
 <script lang="ts">
+import { utils } from "pixi.js";
 import { defineComponent } from "vue";
-import * as PIXI from "pixi.js";
-import string2hex = PIXI.utils.string2hex;
-import hex2string = PIXI.utils.hex2string;
+import string2hex = utils.string2hex;
+import hex2string = utils.hex2string;
 
 export default defineComponent({
   props: {

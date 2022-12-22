@@ -1,14 +1,14 @@
-import {Point, IPoint} from "./point";
+import {IPoint} from "./point";
 import {Line} from "./line";
 import {intersectSegmentVsSegment, SegmentVsSegmentRes, triangleContainsPoint} from "./collision";
 import {distSquared2d, intersectLineVsLine} from "../util/geometry";
 import {BinaryHeap} from "../util/binaryHeap";
 import {Aabb} from "./aabb";
-import PIXI from "../PIXI";
+import { Point } from "pixi.js";
 
 export const EPSILON = 0.0000001;
 
-class EndPoint extends PIXI.Point {
+class EndPoint extends Point {
     angle: number = 0;
     dist: number = 0;
     segment?: Segment;
@@ -169,7 +169,7 @@ function compute0(pos: IPoint, segments: Segment[]): Array<number> {
         if (extend) {
             // Vertex is the first point of the old segment, we need to push this right away
             polygon.push(vertex.x, vertex.y);
-            let point = new PIXI.Point();
+            let point = new Point();
             let firstSeg = segmentPriorityQueue.peek()!;
             intersectLineVsLine(firstSeg.from, firstSeg.to, pos, vertex, point);
             if (!(Math.abs(point.x - vertex.x) < EPSILON && Math.abs(point.y - vertex.y) < EPSILON)) {
@@ -178,7 +178,7 @@ function compute0(pos: IPoint, segments: Segment[]): Array<number> {
         } else if (segmentPriorityQueue.peek() != oldSegment) {
             // A new segment has hidden the old first segment.
             // First compute where the old segment has been hidden, and push that point to the polygon
-            let point = new PIXI.Point();
+            let point = new Point();
             intersectLineVsLine(oldSegment.from, oldSegment.to, pos, vertex, point);
             polygon.push(point.x, point.y);
 

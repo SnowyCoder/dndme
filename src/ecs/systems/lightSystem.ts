@@ -5,13 +5,11 @@ import {CUSTOM_BLEND_MODES, DESTROY_ALL} from "../../util/pixi";
 import {SingleEcsStorage} from "../storage";
 import {IPoint} from "../../geometry/point";
 import {GridResource, Resource} from "../resource";
-import PIXI from "../../PIXI";
 import {VISIBILITY_TYPE, VisibilityComponent, VISIBILITY_DETAILS_TYPE, VisibilityDetailsComponent} from "./back/visibilitySystem";
 import * as PointLightRender from "../../game/pointLightRenderer";
 import {PLAYER_TYPE, PlayerComponent} from "./playerSystem";
-import {BLEND_MODES, Mesh} from "pixi.js";
+import {BLEND_MODES, Container, Mesh, Sprite, utils} from "pixi.js";
 import {PixiBoardSystem, PIXI_BOARD_TYPE} from "./back/pixi/pixiBoardSystem";
-import hex2rgb = PIXI.utils.hex2rgb;
 import {TOOL_TYPE, ToolSystem} from "./back/toolSystem";
 import {ToolType} from "../tools/toolType";
 import {GRID_TYPE} from "./gridSystem";
@@ -25,6 +23,7 @@ import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE } from "./back/selectionU
 import LightSettingsEditComponent from "@/ui/edit/LightSettingsEdit.vue";
 import EcsLight from "@/ui/ecs/EcsLight.vue";
 import { PIN_TYPE } from "./pinSystem";
+
 
 export const DEFAULT_BACKGROUND = 0x6e472c;
 
@@ -41,12 +40,12 @@ export interface LightComponent extends Component {
     color: number;
     range: number;
 
-    _lightDisplay?: PIXI.Mesh;
+    _lightDisplay?: Mesh;
     _visIndex: number;
 }
 
 export interface CustomPlayerComponent extends PlayerComponent {
-    _lightVisionDisplay?: PIXI.Mesh;
+    _lightVisionDisplay?: Mesh;
 }
 
 export const LIGHT_SETTINGS_TYPE = 'light_settings';
@@ -102,8 +101,8 @@ export class LightSystem implements System {
     storage = new SingleEcsStorage<LightComponent>(LIGHT_TYPE);
 
     lightLayer: Layer;
-    playerContainer: PIXI.Container;
-    lightContainer: PIXI.Container;
+    playerContainer: Container;
+    lightContainer: Container;
 
     lightSettings: LightSettings;
     localLightSettings: LocalLightSettings;
@@ -115,8 +114,8 @@ export class LightSystem implements System {
         this.boardSys = world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
 
         this.lightLayer = new Layer(new Group(LayerOrder.LIGHT, false));
-        this.playerContainer = new PIXI.Container();
-        this.lightContainer = new PIXI.Container();
+        this.playerContainer = new Container();
+        this.lightContainer = new Container();
 
         if (world.isMaster) {
             let toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
@@ -175,7 +174,7 @@ export class LightSystem implements System {
         });
     }
 
-    createLightVisMesh(): PIXI.Mesh {
+    createLightVisMesh(): Mesh {
         let mesh = PointLightRender.createMesh();
 
         mesh.blendMode = CUSTOM_BLEND_MODES.ADD_WHERE_ALPHA_1 as any as BLEND_MODES;
@@ -184,25 +183,25 @@ export class LightSystem implements System {
         return mesh;
     }
 
-    createPlayerVisMesh(): PIXI.Mesh {
+    createPlayerVisMesh(): Mesh {
         let mesh = PointLightRender.createMesh('player');
 
-        mesh.blendMode = PIXI.BLEND_MODES.ADD;
+        mesh.blendMode = BLEND_MODES.ADD;
         this.playerContainer.addChild(mesh);
 
         return mesh;
     }
 
-    updateVisMesh(mesh: PIXI.Mesh, pos: IPoint, poly?: number[]) {
+    updateVisMesh(mesh: Mesh, pos: IPoint, poly?: number[]) {
         mesh.visible = true;
         PointLightRender.updateMeshPolygons(mesh, pos, poly);
     }
 
-    updateVisUniforms(mesh: PIXI.Mesh, center: IPoint, range: number, color: number) {
+    updateVisUniforms(mesh: Mesh, center: IPoint, range: number, color: number) {
         PointLightRender.updateMeshUniforms(mesh, center, range, color);
     }
 
-    disableVisMesh(mesh: PIXI.Mesh) {
+    disableVisMesh(mesh: Mesh) {
         mesh.visible = false;
     }
 
@@ -299,13 +298,13 @@ export class LightSystem implements System {
         } else if (comp.type === LIGHT_SETTINGS_TYPE || comp.type === LOCAL_LIGHT_SETTINGS_TYPE) {
             let arr = [0.0, 0.0, 0.0, 0.0];
             if (this.localLightSettings.visionType === 'dm') arr[3] = 1.0;
-            hex2rgb(this.lightSettings.ambientLight, arr);
+            utils.hex2rgb(this.lightSettings.ambientLight, arr);
             this.lightLayer.clearColor = arr;
 
             this.playerContainer.visible = this.localLightSettings.visionType !== 'dm';
 
-            this.boardSys.renderer.backgroundColor = this.lightSettings.background;
-            this.boardSys.renderer.backgroundAlpha = 1;
+            this.boardSys.renderer.background.color = this.lightSettings.background;
+            this.boardSys.renderer.background.alpha = 1;
         }
     }
 
@@ -347,7 +346,7 @@ export class LightSystem implements System {
 
         this.onResourceEdited(this.lightSettings, {});// Update the clearColor
 
-        let lightingSprite = new PIXI.Sprite(this.lightLayer.getRenderTexture());
+        let lightingSprite = new Sprite(this.lightLayer.getRenderTexture());
         lightingSprite.blendMode = CUSTOM_BLEND_MODES.MULTIPLY_COLOR_ONLY as any as BLEND_MODES;
         lightingSprite.zIndex = LayerOrder.LIGHT;
         lightingSprite.interactive = false;

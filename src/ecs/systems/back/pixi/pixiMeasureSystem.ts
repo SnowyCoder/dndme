@@ -5,7 +5,7 @@ import {GridResource, MEASURE_TYPE, MeasureResource, Resource} from "@/ecs/resou
 import {distSquared2d} from "@/util/geometry";
 import {STANDARD_GRID_OPTIONS} from "@/game/grid";
 import {GRID_TYPE} from "@/ecs/systems/gridSystem";
-import * as PIXI from "pixi.js";
+import { Graphics, Text } from "pixi.js";
 
 
 export const PIXI_MEASURE_TYPE = "pixi_measure";
@@ -15,8 +15,8 @@ export class PixiMeasureSystem implements System {
     readonly dependencies = [PIXI_BOARD_TYPE];
 
     private readonly world: World;
-    private display: PIXI.Graphics;
-    private text: PIXI.Text;
+    private display: Graphics;
+    private text: Text;
 
     private gridSize: number = STANDARD_GRID_OPTIONS.size;
     private gridUnitMul: number = STANDARD_GRID_OPTIONS.unitMul;
@@ -27,9 +27,9 @@ export class PixiMeasureSystem implements System {
         this.world = world;
         const pixiBoard = this.world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
 
-        this.display = new PIXI.Graphics();
+        this.display = new Graphics();
         this.display.parentGroup = pixiBoard.toolForegroundGroup;
-        this.text = new PIXI.Text("");
+        this.text = new Text("");
         this.text.anchor.set(0.5, 1);
         this.text.style.fill = 0xff0000;
         this.text.style.fontSize = 40;

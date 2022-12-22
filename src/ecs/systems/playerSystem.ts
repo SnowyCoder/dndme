@@ -13,7 +13,6 @@ import {
 } from "./back/visibilityAwareSystem";
 import {LIGHT_SETTINGS_TYPE, LIGHT_TYPE, LightComponent, LightSettings, LightSystem, LOCAL_LIGHT_SETTINGS_TYPE, LocalLightSettings} from "./lightSystem";
 import {Aabb} from "../../geometry/aabb";
-import PIXI from "../../PIXI";
 import {GridResource, Resource} from "../resource";
 import {PIN_TYPE} from "./pinSystem";
 import {GRID_TYPE} from "./gridSystem";
@@ -22,6 +21,7 @@ import { IPoint } from "@/geometry/point";
 import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE } from "./back/selectionUiSystem";
 
 import EcsPlayer from "@/ui/ecs/EcsPlayer.vue";
+import { Mesh } from "pixi.js";
 
 export const PLAYER_TYPE = 'player';
 export type PLAYER_TYPE = typeof PLAYER_TYPE;
@@ -57,7 +57,7 @@ export interface VisibilitySpreadData {
 }
 
 export interface VisibilitySpreadEntryData {
-    mesh: PIXI.Mesh;
+    mesh: Mesh;
     pos: IPoint;
     vis: VisibilityDetailsComponent,
 }
@@ -208,7 +208,7 @@ export class PlayerSystem implements System {
         if (visDet._canSeeWalls) for (let t in visDet._canSeeWalls) fun(Number(t), visDet._canSeeWalls[t]);
     }
 
-    private createVisMeshFrom(pos: IPoint, vis: VisibilityDetailsComponent, range: number): PIXI.Mesh {
+    private createVisMeshFrom(pos: IPoint, vis: VisibilityDetailsComponent, range: number): Mesh {
         let mesh = PointLightRender.createMesh('const');
         PointLightRender.updateMeshPolygons(mesh, pos, vis.polygon!);
         let r = range * this.gridSize;

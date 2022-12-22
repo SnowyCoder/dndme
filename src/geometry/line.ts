@@ -1,4 +1,5 @@
-import {IPoint, Point} from "./point";
+import { Point } from "pixi.js";
+import {IPoint} from "./point";
 
 export class Line {
     fromX: number;

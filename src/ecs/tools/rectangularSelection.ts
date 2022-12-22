@@ -1,4 +1,3 @@
-import * as PIXI from "pixi.js";
 import {Aabb} from "../../geometry/aabb";
 import {World} from "../world";
 import {INTERACTION_TYPE, InteractionSystem, shapeAabb, shapeIntersect} from "../systems/back/interactionSystem";
@@ -7,6 +6,7 @@ import {RECTANGULAR_SELECTION_TYPE, RectangularSelectionResource} from "../resou
 import {SELECTION_TYPE, SelectionSystem} from "../systems/back/selectionSystem";
 import {KEYBOARD_TYPE, KeyboardResource} from "../systems/back/keyboardSystem";
 import { IPoint } from "@/geometry/point";
+import { Graphics, Point } from "pixi.js";
 
 export class RectangularSelection {
     private readonly world: World;
@@ -14,20 +14,20 @@ export class RectangularSelection {
     private readonly keyboard: KeyboardResource;
 
     isActive: boolean = false;
-    startPoint: IPoint = new PIXI.Point();
-    endPoint: IPoint = new PIXI.Point();
+    startPoint: IPoint = new Point();
+    endPoint: IPoint = new Point();
 
     predicate: (id: number) => boolean = _ => true;
     entitiesInside = new Set<number>();
     entitiesSelected = new Set<number>();
     isMultiple: boolean = false;
 
-    display: PIXI.Graphics;
+    display: Graphics;
 
     constructor(world: World) {
         this.world = world;
         this.keyboard = world.getResource(KEYBOARD_TYPE) as KeyboardResource;
-        this.display = new PIXI.Graphics();
+        this.display = new Graphics();
 
         this.selectionSys = world.systems.get(SELECTION_TYPE) as SelectionSystem;
     }

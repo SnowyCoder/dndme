@@ -1,5 +1,4 @@
 import {World} from "../world";
-import PIXI from "../../PIXI";
 import {PointerDownEvent, PointerEvents, PointerMoveEvent, PointerUpEvent} from "../systems/back/pixi/pixiBoardSystem";
 import {ToolPart} from "../systems/back/toolSystem";
 import {KEYBOARD_TYPE, KeyboardResource} from "../systems/back/keyboardSystem";
@@ -7,6 +6,7 @@ import {MeasureResource} from "../resource";
 import SafeEventEmitter from "../../util/safeEventEmitter";
 import { snapPoint } from "./utils";
 import { IPoint } from "@/geometry/point";
+import { Point } from "pixi.js";
 
 
 export const MEASURE_TYPE = "measure";
@@ -16,8 +16,8 @@ export class MeasureToolPart implements ToolPart {
     private readonly world: World;
     private readonly keyboard: KeyboardResource;
 
-    private startMeasure: IPoint = new PIXI.Point();
-    private lastMeasure: IPoint = new PIXI.Point();
+    private startMeasure: IPoint = new Point();
+    private lastMeasure: IPoint = new Point();
     private isDown: boolean = false;
 
     constructor(world: World) {

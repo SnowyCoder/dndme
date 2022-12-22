@@ -4,7 +4,7 @@ import {SingleEcsStorage} from "../storage";
 import {Component} from "../component";
 import { Resource } from "../resource";
 import { VueComponent } from "@/ui/vue";
-import PIXI from "../../PIXI";
+import { isMobile } from "pixi.js";
 
 
 export const TOOLBAR_ITEM_TYPE = 'toolbar_item';
@@ -47,7 +47,7 @@ export class ToolbarSystem implements System {
         this.world.addStorage(this.storage);
         this.world.addResource({
             type: SIDEBAR_TYPE,
-            open: !PIXI.isMobile.phone,
+            open: !isMobile.phone,
             current: undefined,
             currentProps: {},
             _save: false,

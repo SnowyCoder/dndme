@@ -22,7 +22,6 @@ import {
     NETWORK_TYPE, NetworkEntityComponent,
     NetworkStatusResource, NetworkSystem,
 } from "./back/networkSystem";
-import PIXI from "../../PIXI";
 import {LayerOrder} from "../../phase/editMap/layerOrder";
 
 import TrailImage from "@/assets/trail.png";
@@ -35,6 +34,7 @@ import { Group, Layer } from "@pixi/layers";
 import MouseTrailIcon from "@/ui/icons/MouseTrailIcon.vue";
 import { StandardToolbarOrder } from "@/phase/editMap/standardToolbarOrder";
 import { arrayRemoveElem } from "@/util/array";
+import { BLEND_MODES, Container, Point, RopeGeometry, SimpleRope, Texture, UPDATE_PRIORITY } from "pixi.js";
 
 export const MOUSE_TRAIL_TYPE = 'mouse_trail';
 export type MOUSE_TRAIL_TYPE = typeof MOUSE_TRAIL_TYPE;
@@ -63,7 +63,7 @@ export interface MouseTrailComponent extends Component {
     historyt: number[];
     local_clock: number;
     lastinput: number,// how many frames have passed since an input
-    _g: PIXI.SimpleRope;
+    _g: SimpleRope;
 }
 
 
@@ -80,9 +80,9 @@ export class MouseTrailSystem implements System {
     networkStatusResource?: NetworkStatusResource;
 
     layer: Layer;
-    container: PIXI.Container;
+    container: Container;
 
-    private tex: PIXI.Texture;
+    private tex: Texture;
     private boardScale: number = 1;
 
     private toUpdate: number[] = [];
@@ -99,7 +99,7 @@ export class MouseTrailSystem implements System {
         this.networkSys = this.world.systems.get(NETWORK_TYPE) as NetworkSystem;
 
         this.layer = new Layer(new Group(LayerOrder.TOOLS, false));
-        this.container = new PIXI.Container();
+        this.container = new Container();
 
         // Add system
         let toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
@@ -122,7 +122,7 @@ export class MouseTrailSystem implements System {
         world.events.on('resource_edited', this.onResourceEdited, this);
 
         // Paint texture
-        this.tex = PIXI.Texture.from(TrailImage);
+        this.tex = Texture.from(TrailImage);
     }
 
     onSelfInput(x: number, y: number) {
@@ -177,14 +177,14 @@ export class MouseTrailSystem implements System {
         return added != 0;
     }
 
-    private createSimpleRope(): PIXI.SimpleRope {
-        const points = new Array<PIXI.Point>(ROPE_SIZE);
+    private createSimpleRope(): SimpleRope {
+        const points = new Array<Point>(ROPE_SIZE);
         for (let i = 0; i < ROPE_SIZE; i++) {
-            points[i] = new PIXI.Point();
+            points[i] = new Point();
         }
 
-        const rope = new PIXI.SimpleRope(this.tex, points);
-        (rope as any).blendmode = PIXI.BLEND_MODES.ADD;
+        const rope = new SimpleRope(this.tex, points);
+        (rope as any).blendmode = BLEND_MODES.ADD;
 
         this.container.addChild(rope);
 
@@ -193,7 +193,7 @@ export class MouseTrailSystem implements System {
 
     updateRope(c: MouseTrailComponent, netwEntity: NetworkEntityComponent | undefined = undefined) {
         const rope = c._g;
-        const geom = rope.geometry as PIXI.RopeGeometry;
+        const geom = rope.geometry as RopeGeometry;
         const ropePoints = geom.points;
 
         const ropeSize = ropePoints.length;
@@ -413,7 +413,7 @@ export class MouseTrailToolPart implements ToolPart {
 
     onEnable(): void {
         this.initFollower();
-        this.sys.pixiBoardSys.ticker.add(this.onTick, this, PIXI.UPDATE_PRIORITY.HIGH);
+        this.sys.pixiBoardSys.ticker.add(this.onTick, this, UPDATE_PRIORITY.HIGH);
     }
 
     onDisable(): void {

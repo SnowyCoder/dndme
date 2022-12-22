@@ -1,10 +1,10 @@
 import {Aabb} from "./aabb";
-import {Point, IPoint} from "./point";
+import {IPoint} from "./point";
 import {Line} from "./line";
 import {EPSILON} from "./visibilityPolygon";
 import {distSquared2d, polygonPointIntersect} from "../util/geometry";
 import {Obb} from "./obb";
-import * as PIXI from "pixi.js";
+import { Point } from "pixi.js";
 
 
 export function overlapAabbVsAabb(a: Aabb, b: Aabb): boolean {
@@ -159,17 +159,17 @@ export function overlapLineVsPolygon(line: Line, poly: number[]) {
     return intersectSegmentVsSegment(line, polLine) == SegmentVsSegmentRes.INTERN;
 }
 
-export function rotatePointByOrig(o: IPoint, rot: number, p: IPoint): PIXI.Point {
+export function rotatePointByOrig(o: IPoint, rot: number, p: IPoint): IPoint {
     let s = Math.sin(-rot);
     let c = Math.cos(-rot);
 
     let transX = p.x - o.x;
     let transY = p.y - o.y;
 
-    return new PIXI.Point(
-        (transX * c - transY * s) + o.x,
-        (transX * s + transY * c) + o.y
-    );
+    return {
+        x: (transX * c - transY * s) + o.x,
+        y: (transX * s + transY * c) + o.y
+    };
 }
 
 export function overlapRotatedRectVsPoint(obb: Obb, p: IPoint) {

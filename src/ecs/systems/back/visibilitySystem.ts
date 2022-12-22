@@ -19,7 +19,7 @@ import {STANDARD_GRID_OPTIONS} from "../../../game/grid";
 import {GRID_TYPE} from "../gridSystem";
 import {GridResource, Resource} from "../../resource";
 import { GameClockResource, GAME_CLOCK_TYPE, PixiBoardSystem, PIXI_BOARD_TYPE } from "./pixi/pixiBoardSystem";
-import PIXI from "@/PIXI";
+import { Graphics } from "pixi.js";
 
 // This system uses a reuqest-response pattern
 // Where there are multiple "requests" for visibility but a single answer, let's make an example.
@@ -51,7 +51,7 @@ export interface VisibilityDetailsComponent extends Component {
     // side is at least as much as the diameter
     polygon?: number[];
     aabb?: Aabb;
-    _debugPrint?: PIXI.Graphics;
+    _debugPrint?: Graphics;
     _aabbTreeId?: number;
     _blockersUsed: number[];
     _canSee: {[id: number]: Array<number>};// Visibility aware components _canSee[whoIsSeen] = Array<whocanseeit (multiid)>
@@ -230,7 +230,7 @@ export class VisibilitySystem implements System {
             } else {
                 let dbgPrint = undefined;
                 if (DEBUG_PRINT_POLYGON) {
-                    dbgPrint = new PIXI.Graphics();
+                    dbgPrint = new Graphics();
                     (this.world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem).board.addChild(dbgPrint);
                 }
                 details = {

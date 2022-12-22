@@ -3,7 +3,6 @@ import {World} from "../world";
 import {SingleEcsStorage} from "../storage";
 import {Component, HideableComponent, POSITION_TYPE, PositionComponent} from "../component";
 import {DESTROY_ALL} from "../../util/pixi";
-import PIXI from "../../PIXI";
 import {Line} from "../../geometry/line";
 import {WALL_TYPE, WallComponent, WallSystem} from "./wallSystem";
 import {rotatePointByOrig} from "../../geometry/collision";
@@ -20,6 +19,7 @@ import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE } from "./back/selectionU
 import EcsDoor from "@/ui/ecs/EcsDoor.vue";
 import { EVENT_INTERACTION_COLLIDER_UPDATE, InteractionComponent, InteractionSystem, INTERACTION_TYPE, QueryMetadata, QUERY_META_COLLIDING_ENTITY, Shape, shapeLine, shapeToAabb, ShapeType } from "./back/interactionSystem";
 import { GraphicComponent, GRAPHIC_TYPE, LineElement } from "@/graphics";
+import { Container, Graphics } from "pixi.js";
 
 
 export enum DoorType {
@@ -39,7 +39,7 @@ export interface DoorComponent extends Component, HideableComponent {
     locked: boolean;
     open: boolean;
     clientVisible: boolean;
-    _display?: PIXI.Graphics;
+    _display?: Graphics;
 
     _primal?: number[];
     _dual?: number[];// x, y, vx, vy
@@ -58,13 +58,13 @@ export class DoorSystem implements System {
     isMasterView: boolean = false;
 
     layer: Layer;
-    displayContainer: PIXI.Container;
+    displayContainer: Container;
 
     constructor(world: World) {
         this.world = world;
 
         this.layer = new Layer(new Group(LayerOrder.DETAILS, false));
-        this.displayContainer = new PIXI.Container();
+        this.displayContainer = new Container();
 
         this.pixiBoardSys = world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
         this.wallSys = world.systems.get(WALL_TYPE) as WallSystem;
@@ -288,7 +288,7 @@ export class DoorSystem implements System {
     private onComponentAdd(comp: Component): void {
         if (comp.type === DOOR_TYPE) {
             let d = comp as DoorComponent;
-            d._display = new PIXI.Graphics();
+            d._display = new Graphics();
             d._display.tint = 0x000000;
             this.displayContainer.addChild(d._display);
             // Do NOT re-open the door, if it is open it means that it has been loaded from file and the wall is

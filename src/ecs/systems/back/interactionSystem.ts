@@ -32,7 +32,7 @@ import {PointDB} from "../../../game/pointDB";
 import {GRID_TYPE, GridSystem} from "../gridSystem";
 import {SELECTION_TYPE, SelectionSystem} from "./selectionSystem";
 import { IPoint } from "@/geometry/point";
-import * as PIXI from "pixi.js";
+import { Point } from "pixi.js";
 import { arrayRemoveElem } from "@/util/array";
 
 export enum ShapeType {
@@ -294,7 +294,7 @@ function shapeClone(shape: Shape): Shape {
             let s = shape as PointShape;
             return {
                 type: ShapeType.POINT,
-                pos: new PIXI.Point(s.pos.x, s.pos.y),
+                pos: new Point(s.pos.x, s.pos.y),
             } as PointShape;
         }
         case ShapeType.AABB: return shapeAabb((shape as AabbShape).data.copy());
