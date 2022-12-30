@@ -236,10 +236,10 @@ export class ImageRenderer {
                     this.fileSys.newUse(el._owner, visibilityHash);
                     this.updateVisibility(el);
                     this.loadVisibility(el, data);
-                    if (!this.world.isMaster) {
+                    /*if (!this.world.isMaster) {
                         this.fileSys.dropUse(el._owner, visibilityHash);
                         el.visMap = undefined;
-                    }
+                    }*/
             });
         } else {
             // Point 2 or 3
@@ -361,9 +361,7 @@ export class ImageRenderer {
         }
         const set = new BitSet(new Uint32Array(visMap.buffer, visMap.byteOffset, visMap.byteLength / 4));
         const len = texData.length;
-        let sum = 0;
         for (let i = 0; i < len; i++) {
-            sum += set.get(i) ? 1 : 0;
             texData[i] = set.get(i) ? 0xFFFFFFFF : 0;
         }
 
@@ -373,15 +371,15 @@ export class ImageRenderer {
 
         const tex = new Texture(baseTexture);
         const lumSprite = new Sprite(tex);
-        lumSprite.blendMode = BLEND_MODES.SRC_IN;
 
         const entry = this.textureMap.get(c.texture.value)!;
         const mapSprite = new Sprite(entry.texture);
         if (mapSprite.width !== width || mapSprite.height !== height) {
             mapSprite.scale.set(width, height);
         }
+        mapSprite.blendMode = BLEND_MODES.SRC_IN;
         const cnt = new Container();
-        cnt.addChild(mapSprite, lumSprite);
+        cnt.addChild(lumSprite, mapSprite);
 
         this.sys.pixiBoardSystem.renderer.render(cnt, {
             renderTexture: c._renTex,
@@ -447,15 +445,22 @@ export class ImageRenderer {
         return true;
     }
 
-    private repaintVisibility(e: PixiImageElement): void {
-        const spreadData = {
-            nightVision: true,
-            aabb: Aabb.zero(),
-            lights: [],
-            players: [],
-            nightVisPlayers: [],
-        } as VisibilitySpreadData;
-        this.updateBBBVisibility(spreadData, e)
+    private repaintVisibility(c: PixiImageElement): void {
+        const [width, height] = this.getDimensions(c);
+
+        const entry = this.textureMap.get(c.texture.value)!;
+        const mapSprite = new Sprite(entry.texture);
+        if (mapSprite.width !== width || mapSprite.height !== height) {
+            mapSprite.scale.set(width, height);
+        }
+        mapSprite.blendMode = BLEND_MODES.SRC_IN;
+        const cnt = new Container();
+        cnt.addChild(mapSprite);
+
+        this.sys.pixiBoardSystem.renderer.render(cnt, {
+            renderTexture: c._renTex,
+            clear: false,
+        });
     }
 
     private onSerialize(data: SerializeData): void {
