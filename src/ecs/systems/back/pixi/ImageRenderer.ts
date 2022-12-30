@@ -10,12 +10,13 @@ import { FileIndex } from "@/map/FileDb";
 import { arrayRemoveElem } from "@/util/array";
 import { BitSet } from "@/util/bitSet";
 import { DESTROY_ALL, DESTROY_MIN, loadTexture } from "@/util/pixi";
-import { BaseTexture, BLEND_MODES, BufferResource, Container, FORMATS, Matrix, RenderTexture, RenderTexturePool, Sprite, Texture } from "pixi.js";
+import { BaseTexture, BLEND_MODES, BufferResource, Container, FORMATS, Matrix, RenderTexture, Sprite, Texture } from "pixi.js";
 import { GRID_TYPE } from "../../gridSystem";
 import { EVENT_VISIBILITY_SPREAD, VisibilitySpreadData } from "../../playerSystem";
 import { BigStorageSystem, BIG_STORAGE_TYPE } from "../files/bigStorageSystem";
 import { InteractionComponent, INTERACTION_TYPE, Shape, shapeAabb, shapeObb, shapeToAabb } from "../interactionSystem";
-import { PixiDisplayElement, PixiGraphicComponent, PixiGraphicSystem, PIXI_GRAPHIC_TYPE } from "./pixiGraphicSystem";
+import { PixiDisplayElement, PixiGraphicComponent, PixiGraphicSystem } from "./pixiGraphicSystem";
+import { DepthFunc } from "./visibility/VisibilityPolygonElement";
 
 interface TextureEntry {
     elements: PixiImageElement[];
@@ -41,8 +42,6 @@ export class ImageRenderer {
     readonly sys: PixiGraphicSystem;
     readonly fileSys: BigStorageSystem;
     readonly textureMap = new Map<FileIndex | Texture, TextureEntry>();
-
-    private readonly renderTexturePool = new RenderTexturePool();
 
     constructor(sys: PixiGraphicSystem) {
         this.world = sys.world;
@@ -528,24 +527,29 @@ export class ImageRenderer {
         // Possible (but uncommon) cases: x NV players, y normal players, z lights (with x, y, z naturals).
 
         //      Part 2. How?
-        // The initial idea is simple, render anything on the bkg._renTex and then render the original texture with
-        // blendMode = SRC_IN, any spot with alpha = 1 will then be replaced with the correct texture.
-        // The night vision players rendering is quite simple, just render the meshes before the final texture render
-        // The normal players will be a bit different since we need to intersect their meshes with the light mesh.
-        // To do that we can render all the players meshes in a framebuffer A, then render all of the lights in another
-        // frame buffer B, then render A onto B with blendMode = SRC_IN to create a sort of union of the two.
-        // Once that is done we can render B into the bkg._renTex and proceed normally.
-        // Another way to do this using only a single rendertexture is to use the stencil buffer, but it will double the
-        // mesh render calls (and since they are not buffered, it's a slow operation)
-        // I don't think that there is another way to perform this in the general case, please prove me wrong.
-        // TODO: maybe we can optimize this when only 1 player and 1 light is present (like, avoiding 1 of the 2 framebuffers).
+        // The idea is to use the depth buffer to help us.
+        // So, ideally we want to add to the renderTexture of the backgroundImage the real image only when
+        // (visibleByNighvisionPlayer || (visibleByPlayer && visibleByLight))
+        // We could do this with just 2 draws and no additional framebuffers:
+        // 0. Reset depth buffer to 1.0
+        // 1. Render all NighVisionPlayers, set depth=0.0 and copy original image to target
+        // 2. Render all Lights to depth=0.5, without writing any color
+        // 3. Render all Players to depth=0.5 and glDepthFunc(gl.EQUAL), copying the original image to the target
+        //
+        // Here we would only have 1 state change, the one in the deph function. And since all of the visibility polygon
+        // renderings are batched, we can do this by just using 2 draws:
+        // 1. draw nigh vision players and lights
+        // 2. glDepthFunc(gl.EQUAL)
+        // 3. draw players
+        // 4. ??? profit
+
 
         // Skip EVERYTHING if this entity is hidden.
         if (!this.world.getComponent(img._owner, SHARED_TYPE)) return;
+        // We can skip updating if players have no light (only if there are also no nightVisionPlayers)
+        if ((data.lights.length == 0 || data.players.length == 0) && data.nightVisPlayers.length === 0) return;
 
         //console.time('updateVisibility');
-
-        const renderer = this.sys.pixiBoardSystem.renderer;
 
         const localCnt = new Container();
         // Setup local transform
@@ -561,77 +565,58 @@ export class ImageRenderer {
         const dims = this.getDimensions(img);
         m.translate(dims[0] / 2, dims[1] / 2);
         localCnt.transform.setFromMatrix(m);
+        const entry = this.textureMap.get(img.texture.value)!;
 
         const worldCnt = new Container();
 
-        // If there are any players without night vision (and there are lights) render them (THIS IS SLOW!)
-        let tex, tex2, nightSprite;
-        if (data.players.length !== 0 && data.lights.length !== 0) {
-            tex = (this.renderTexturePool as any).getOptimalTexture(dims[0], dims[1]);
-            tex2 = (this.renderTexturePool as any).getOptimalTexture(dims[0], dims[1]);
-
-            for (let player of data.players) {
-                localCnt.addChild(player.mesh);
-            }
-
-            // Render the players visibility meshes onto tex
-            renderer.render(localCnt, {
-                renderTexture: tex,
-                clear: true,
-            });
-            localCnt.removeChildren();
-
-            for (let light of data.lights) {
-                light.mesh.blendMode = BLEND_MODES.ADD;
-                localCnt.addChild(light.mesh);
-            }
-
-            let playerSprite = new Sprite(tex);
-            playerSprite.blendMode = BLEND_MODES.SRC_IN;
-
-            // Render the lights onto tex2, then render tex as BLEND_MODE.SRC_IN to filter out where the lights were not
-            // present.
-            worldCnt.addChild(localCnt, playerSprite);
-            renderer.render(worldCnt, {
-                renderTexture: tex2,
-                clear: true
-            });
-            worldCnt.removeChildren();
-            localCnt.removeChildren();
-
-            // Add tex2 to the main phase
-            nightSprite = new Sprite(tex2);
-            nightSprite.blendMode = BLEND_MODES.ADD;
-            worldCnt.addChild(nightSprite);
-        }
-
         for (let player of data.nightVisPlayers) {
-            localCnt.addChild(player.mesh);
+            player.depth = 0;
+            player.depthTest = true;
+            player.texture = entry.texture;
+            player.program = 'const';
+            localCnt.addChild(player);
         }
 
-        const entry = this.textureMap.get(img.texture.value)!;
-        const origTex = new Sprite(entry.texture);
-        if (entry.texture.width !== dims[0] || entry.texture.height !== dims[1]) {
-            origTex.scale.set(dims[0], dims[1]);
+        // Write lights at depth 0.5 (so don't write them where the night-vision players are)
+        for (let light of data.lights) {
+            light.depth = 0.5;
+            light.depthTest = true;
+            light.tint = 0;// DO NOT WRITE IMAGE
+            light.texture = entry.texture;
+            light.program = 'const';
+            localCnt.addChild(light);
         }
-        origTex.blendMode = BLEND_MODES.SRC_IN;
 
-        worldCnt.addChild(localCnt, origTex)
+        // Write the players only where lights are written (i.e. where depth == 0.5)
+        for (let player of data.players) {
+            player.depth = 0.5;
+            player.depthTest = true;
+            player.depthFunc = DepthFunc.EQUAL;
+            player.texture = entry.texture;
+            player.program = 'const';
+            localCnt.addChild(player);
+        }
 
-        // Render everything to bkg._renTex and then redraw the original only where is alpha=1.
-        this.sys.pixiBoardSystem.renderer.render(worldCnt, {
+        worldCnt.addChild(localCnt);
+
+        const renderer = this.sys.pixiBoardSystem.renderer;
+        const {gl} = renderer;
+        if (!img._renTex?.framebuffer.depth) {
+            img._renTex?.framebuffer.enableDepth();
+        }
+
+        renderer.renderTexture.bind(img._renTex);
+        //(window as any).spector.startCapture(gl, 50);
+        gl.clear(renderer.gl.DEPTH_BUFFER_BIT);
+        renderer.render(worldCnt, {
             renderTexture: img._renTex,
             clear: false
         });
-        img._visMapChanged = true;
+        //(window as any).spector.stopCapture();
 
+        img._visMapChanged = true;
         // Cleanup time (don't worry, I'm recycling and there's a garbage cleaner, we're eco friendly!)
         worldCnt.destroy(DESTROY_MIN);
-        origTex.destroy(DESTROY_MIN);
-
-        if (tex !== undefined) this.renderTexturePool.returnTexture(tex);
-        if (tex2 !== undefined) this.renderTexturePool.returnTexture(tex2);
-        if (nightSprite !== undefined) nightSprite.destroy(DESTROY_MIN);
 
         //console.timeEnd('updateVisibility');
     }

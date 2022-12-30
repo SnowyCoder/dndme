@@ -142,7 +142,6 @@ export class VisibilityAwareSystem implements System {
         const viewerPoly = shapePolygon(polygon);
         const viewerCircles = new Map<number, CircleShape>();// circles by viewer multiId
         viewers.forEach(x => {
-            if (x.isBeingRemoved) return;
             viewerCircles.set(x.multiId, shapeCircle(viewerPos, x.range * this.gridSize));
         });
 
@@ -270,9 +269,6 @@ export class VisibilityAwareSystem implements System {
             let pos = posStorage.getComponent(entity)!;
             let canSee = new Array<number>();
             for (let vis of visStorage.getComponents(entity)) {
-                if (vis.isBeingRemoved) {
-                    continue;
-                }
                 let range = vis.range * this.gridSize;
                 if (shapeIntersect(shapeCircle(pos, range), shape)) {
                     canSee.push(vis.multiId);

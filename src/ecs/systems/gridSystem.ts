@@ -120,7 +120,7 @@ export class GridSystem implements System {
             renderTexture,
             clear: true,
         });
-        const canvas = (r.plugins.extract as Extract).canvas(renderTexture) as HTMLCanvasElement;
+        const canvas = r.extract.canvas(renderTexture) as HTMLCanvasElement;
         canvas.toBlob(blob => {
             console.log("Saving exported image!");
             this.world.events.emit('blob_save', blob, "grid.png");

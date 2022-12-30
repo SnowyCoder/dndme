@@ -1,5 +1,5 @@
 import { Buffer } from "buffer";
-import { BaseTexture, ImageResource, Renderer, Texture } from "pixi.js";
+import { BaseTexture, BLEND_MODES, ImageResource, IRenderingContext, Renderer, StateSystem, Texture } from "pixi.js";
 
 export const DESTROY_ALL = {
     children: true,
@@ -42,10 +42,10 @@ export enum CUSTOM_BLEND_MODES {
     ADD_WHERE_ALPHA_1,
 }
 
-export function addCustomBlendModes(renderer: Renderer) {
-    let gl = renderer.gl;
-    let array = (renderer.state as any).blendModes;
-    // [src_color_factor, dst_color_factor, src_alpha_factor, dst_alpha_factor]
-    array[CUSTOM_BLEND_MODES.MULTIPLY_COLOR_ONLY] = [gl.DST_COLOR, gl.ZERO, gl.ZERO, gl.ONE];// color = src*dst alpha=dst (dst=main canvas)
-    array[CUSTOM_BLEND_MODES.ADD_WHERE_ALPHA_1] = [gl.DST_ALPHA, gl.ONE, gl.ZERO, gl.ONE];
+const oldContextChange = StateSystem.prototype.contextChange;
+StateSystem.prototype.contextChange = function(gl: IRenderingContext): void {
+    oldContextChange.call(this, gl);
+    const bmodes = (this as any).blendModes as number[][];
+    bmodes[CUSTOM_BLEND_MODES.MULTIPLY_COLOR_ONLY] = [gl.DST_COLOR, gl.ZERO, gl.ZERO, gl.ONE];// color = src*dst alpha=dst (dst=main canvas)
+    bmodes[CUSTOM_BLEND_MODES.ADD_WHERE_ALPHA_1] = [gl.DST_ALPHA, gl.ONE, gl.ZERO, gl.ONE];
 }

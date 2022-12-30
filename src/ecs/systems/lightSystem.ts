@@ -1,4 +1,4 @@
-import {Component, POSITION_TYPE, PositionComponent, SHARED_TYPE} from "../component";
+import {Component, POSITION_TYPE, PositionComponent} from "../component";
 import {System} from "../system";
 import {World} from "../world";
 import {CUSTOM_BLEND_MODES, DESTROY_ALL} from "../../util/pixi";
@@ -6,9 +6,8 @@ import {SingleEcsStorage} from "../storage";
 import {IPoint} from "../../geometry/point";
 import {GridResource, Resource} from "../resource";
 import {VISIBILITY_TYPE, VisibilityComponent, VISIBILITY_DETAILS_TYPE, VisibilityDetailsComponent} from "./back/visibilitySystem";
-import * as PointLightRender from "../../game/pointLightRenderer";
 import {PLAYER_TYPE, PlayerComponent} from "./playerSystem";
-import {BLEND_MODES, Container, Mesh, Sprite, utils} from "pixi.js";
+import {BLEND_MODES, Container, Geometry, Mesh, Shader, Sprite, utils, Buffer} from "pixi.js";
 import {PixiBoardSystem, PIXI_BOARD_TYPE} from "./back/pixi/pixiBoardSystem";
 import {TOOL_TYPE, ToolSystem} from "./back/toolSystem";
 import {ToolType} from "../tools/toolType";
@@ -23,6 +22,7 @@ import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE } from "./back/selectionU
 import LightSettingsEditComponent from "@/ui/edit/LightSettingsEdit.vue";
 import EcsLight from "@/ui/ecs/EcsLight.vue";
 import { PIN_TYPE } from "./pinSystem";
+import { DepthFunc, VisibilityPolygonElement } from "./back/pixi/visibility/VisibilityPolygonElement";
 
 
 export const DEFAULT_BACKGROUND = 0x6e472c;
@@ -40,12 +40,12 @@ export interface LightComponent extends Component {
     color: number;
     range: number;
 
-    _lightDisplay?: Mesh;
+    _lightDisplay?: VisibilityPolygonElement;
     _visIndex: number;
 }
 
 export interface CustomPlayerComponent extends PlayerComponent {
-    _lightVisionDisplay?: Mesh;
+    _lightVisionDisplay?: VisibilityPolygonElement;
 }
 
 export const LIGHT_SETTINGS_TYPE = 'light_settings';
@@ -75,21 +75,18 @@ export interface LocalLightSettings extends Resource {
  * How is light rendered?
  * There are three logical passes on a separate framebuffer.
  * Then this framebuffer is pasted onto the real screen.
- * 1. Clear the RGBA channels with the ambient light.
- * 2. Draw the mesh of every player only in the ALPHA channel (achieved by setting the color to 0 in the fragment shader)
- * 3. Draw the light only where the ALPHA channel is 1 (using a custom blend mode)
+ * 1. Clear the RGB channels with the ambient light. A=0
+ * 2. Draw the mesh of every player with A=1
+ * 3. Draw the lights only where A=1
  * 4. Draw the framebuffer on the screen ignoring the ALPHA channel (using a custom blend mode)
+ *
+ * If we're in master mode skip pass. 2 and clear the buffer with A=1
  *
  * Why is this usage of the alpha channel used?
  * We need to render light only where visible, so in the RP-view the players vision polygons should be used as a
  * mask for the light (you can't see a light that no player sees). So when the RP-view is enabled the framebuffer is
  * cleared with alpha=0 and the player's vision will fill in the alpha (they should be rendered BEFORE the lights).
  * When the DM-view is enabled the framebuffer is rendered with alpha=1 and the player's view is not drawn.
- *
- * Why isn't the visibility polygon rendering batched?
- * We need uniforms in the shaders to know the distance from the light center: remember that visibility mesh is not only
- * the visibility polygon, it also calculates the distance form the center of the light (to render a proper circle).
- * So yeah, no batched uniforms in WebGL it seems. (TODO: explore more possibilities)
  */
 export class LightSystem implements System {
     readonly name = LIGHT_TYPE;
@@ -174,55 +171,47 @@ export class LightSystem implements System {
         });
     }
 
-    createLightVisMesh(): Mesh {
-        let mesh = PointLightRender.createMesh();
-
+    createLightVisMesh(): VisibilityPolygonElement {
+        const mesh = new VisibilityPolygonElement();
+        mesh.program = 'normal';
         mesh.blendMode = CUSTOM_BLEND_MODES.ADD_WHERE_ALPHA_1 as any as BLEND_MODES;
+
         this.lightContainer.addChild(mesh);
 
         return mesh;
     }
 
-    createPlayerVisMesh(): Mesh {
-        let mesh = PointLightRender.createMesh('player');
-
+    createPlayerVisMesh(): VisibilityPolygonElement {
+        const mesh = new VisibilityPolygonElement();
+        mesh.program = 'player';
         mesh.blendMode = BLEND_MODES.ADD;
+
         this.playerContainer.addChild(mesh);
 
         return mesh;
     }
 
-    updateVisMesh(mesh: Mesh, pos: IPoint, poly?: number[]) {
-        mesh.visible = true;
-        PointLightRender.updateMeshPolygons(mesh, pos, poly);
-    }
-
-    updateVisUniforms(mesh: Mesh, center: IPoint, range: number, color: number) {
-        PointLightRender.updateMeshUniforms(mesh, center, range, color);
-    }
-
-    disableVisMesh(mesh: Mesh) {
-        mesh.visible = false;
-    }
-
-    updateVisPolygon(entity: number, target: Mesh | undefined, color: number, visId: number): void {
+    updateVisPolygon(entity: number, target: VisibilityPolygonElement | undefined, color: number, visId: number): void {
         let pos = this.world.getComponent(entity, POSITION_TYPE) as PositionComponent;
         if (pos === undefined || target === undefined) return;
 
         const vis = this.world.getComponent(entity, VISIBILITY_TYPE, visId) as VisibilityComponent;
         if (vis === undefined) {
-            this.disableVisMesh(target);
+            target.visible = false;
             return;
         }
 
         const visDet = this.world.getComponent(entity, VISIBILITY_DETAILS_TYPE) as VisibilityDetailsComponent;
 
         if (visDet?.polygon === undefined) {
-            this.disableVisMesh(target);
+            target.visible = false;
         } else {
             let range = vis.range * this.gridSize;
-            this.updateVisMesh(target, pos, visDet.polygon);
-            this.updateVisUniforms(target, pos, range, color);
+            target.visible = true;
+            target.position.copyFrom(pos);
+            target.polygon = visDet.polygon;
+            target.radius = range;
+            target.tint = color;
         }
     }
 
@@ -269,8 +258,7 @@ export class LightSystem implements System {
                 let vis = this.world.getComponent(c.entity, VISIBILITY_TYPE, c._visIndex) as VisibilityComponent;
                 let visDet = this.world.getComponent(c.entity, VISIBILITY_DETAILS_TYPE, c._visIndex) as VisibilityDetailsComponent;
                 if (visDet.polygon !== undefined) {
-                    let range = vis.range * this.gridSize;
-                    this.updateVisUniforms(c._lightDisplay!, pos, range, c.color);
+                    c._lightDisplay!.radius = vis.range * this.gridSize;
                 }
             }
         } else if (comp.type === VISIBILITY_DETAILS_TYPE) {
@@ -329,28 +317,25 @@ export class LightSystem implements System {
     }
 
     enable() {
-        PointLightRender.setup();
-
         this.lightLayer.useRenderTexture = true;
         this.lightLayer.interactive = false;
         this.lightLayer.interactiveChildren = false;
 
         this.playerContainer.interactive = false;
         this.playerContainer.interactiveChildren = false;
-        let lightSystem = this.world.systems.get(LIGHT_TYPE) as LightSystem;
-        this.playerContainer.parentLayer = lightSystem.lightLayer;
+        this.playerContainer.parentLayer = this.lightLayer;
 
         this.lightContainer.interactive = false;
         this.lightContainer.interactiveChildren = false;
-        this.lightContainer.parentLayer = this.lightLayer
+        this.lightContainer.parentLayer = this.lightLayer;
 
         this.onResourceEdited(this.lightSettings, {});// Update the clearColor
 
         let lightingSprite = new Sprite(this.lightLayer.getRenderTexture());
-        lightingSprite.blendMode = CUSTOM_BLEND_MODES.MULTIPLY_COLOR_ONLY as any as BLEND_MODES;
         lightingSprite.zIndex = LayerOrder.LIGHT;
         lightingSprite.interactive = false;
         lightingSprite.interactiveChildren = false;
+        lightingSprite.blendMode = CUSTOM_BLEND_MODES.MULTIPLY_COLOR_ONLY as any;
 
         let board = this.world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
 

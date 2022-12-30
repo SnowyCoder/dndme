@@ -38,7 +38,6 @@ export interface VisibilityComponent extends MultiComponent {
     requester: string;// light or player usually
     range: number;// In grids (by default 1 grid = 128 pixels)
     trackWalls: boolean;
-    isBeingRemoved: boolean;// true
 }
 
 export const VISIBILITY_DETAILS_TYPE = 'visibility_details';
@@ -109,7 +108,6 @@ export class VisibilitySystem implements System {
         world.addStorage(this.blockerStorage);
         world.events.on('component_add', this.onComponentAdd, this);
         world.events.on('component_edited', this.onComponentEdited, this);
-        world.events.on('component_remove', this.onComponentRemove, this);
         world.events.on('component_removed', this.onComponentRemoved, this);
         world.events.on('resource_edited', this.onResourceEdited, this);
     }
@@ -203,11 +201,11 @@ export class VisibilitySystem implements System {
         }
     }
 
-    private recomputeDetails(entity: number) {
+    private recomputeDetails(entity: number): boolean{
         let range = 0;
         let trackWalls = false;
 
-        let isHidden = this.world.getComponent(entity, SHARED_TYPE) === undefined;
+        const isHidden = this.world.getComponent(entity, SHARED_TYPE) === undefined;
         let needsRemoval = !isHidden;
         if (!isHidden) {
             for (let el of this.storage.getComponents(entity)) {
@@ -250,12 +248,11 @@ export class VisibilitySystem implements System {
                 this.world.removeComponent(oldDetails);
             }
         }
+        return needsRemoval;
     }
 
     private onComponentAdd(c: Component): void {
         if (c.type === VISIBILITY_TYPE) {
-            let v = c as VisibilityComponent;
-
             this.recomputeDetails(c.entity);
         } else if (c.type === VISIBILITY_BLOCKER_TYPE) {
             let cmp = this.world.getComponent(c.entity, INTERACTION_TYPE) as InteractionComponent;
@@ -308,22 +305,19 @@ export class VisibilitySystem implements System {
         }
     }
 
-    private onComponentRemove(c: Component): void {
-        if (c.type === VISIBILITY_TYPE) {
-            (c as VisibilityComponent).isBeingRemoved = true;
-            this.recomputeDetails(c.entity);
-            let details = this.detailsStorage.getComponent(c.entity);
-            if (details !== undefined) {
-                if (DEBUG_PRINT_POLYGON) {
-                    (c as VisibilityDetailsComponent)._debugPrint?.destroy();
-                }
-                this.world.removeComponent(details);
-            }
-        }
-    }
-
     private onComponentRemoved(c: Component): void {
-        if (c.type === VISIBILITY_BLOCKER_TYPE) {
+        if (c.type === VISIBILITY_TYPE) {
+            if (this.recomputeDetails(c.entity)) {
+                // This component is the only one.
+                let details = this.detailsStorage.getComponent(c.entity);
+                if (details !== undefined) {
+                    if (DEBUG_PRINT_POLYGON) {
+                        (c as VisibilityDetailsComponent)._debugPrint?.destroy();
+                    }
+                    this.world.removeComponent(details);
+                }
+            }
+        } else if (c.type === VISIBILITY_BLOCKER_TYPE) {
             this.removeVisibilityBlocker(c as VisibilityBlocker);
         } else if (c.type === INTERACTION_TYPE && this.blockerStorage.getComponent(c.entity) !== undefined) {
             let i = c as InteractionComponent;

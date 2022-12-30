@@ -6,7 +6,6 @@ import { FOLLOW_MOUSE_TYPE, POSITION_TYPE } from "@/ecs/component";
 import { FlagEcsStorage } from "@/ecs/storage";
 import { findEntitiesAt, snapPoint } from "@/ecs/tools/utils";
 import { KEYBOARD_KEY_DOWN, KEYBOARD_TYPE, KeyboardResource } from "../keyboardSystem";
-import { addCustomBlendModes } from "@/util/pixi";
 import { DEFAULT_BACKGROUND } from "@/ecs/systems/lightSystem";
 import { LayerOrder } from "@/phase/editMap/layerOrder";
 import { Group, Layer, Stage } from "@pixi/layers";
@@ -166,7 +165,6 @@ export class PixiBoardSystem implements System {
             backgroundAlpha: 1,
             powerPreference: 'low-power',
         });
-        addCustomBlendModes(this.renderer);
         (this.renderer.view as HTMLCanvasElement).addEventListener('contextmenu', (e) => {
             e.preventDefault();
         });

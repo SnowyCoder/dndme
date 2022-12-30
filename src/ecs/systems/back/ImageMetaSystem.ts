@@ -1,12 +1,12 @@
 import { Component, HideableComponent, MultiComponent, SharedFlag, SHARED_TYPE } from "@/ecs/component";
-import { MultiEcsStorage, SingleEcsStorage } from "@/ecs/storage";
+import { SingleEcsStorage } from "@/ecs/storage";
 import { System } from "@/ecs/system";
 import { World } from "@/ecs/world";
 import { ImageMeta } from "@/graphics";
 import { FileIndex } from "@/map/FileDb";
-import { emitCommand, executeAndLogCommand } from "../command/command";
+import { emitCommand } from "../command/command";
 import { DeSpawnCommand } from "../command/despawnCommand";
-import { SpawnCommand, SpawnCommandKind } from "../command/spawnCommand";
+import { SpawnCommandKind } from "../command/spawnCommand";
 import { DeclarativeListenerSystem, DECLARATIVE_LISTENER_TYPE } from "./DeclarativeListenerSystem";
 import { BigStorageSystem, BIG_STORAGE_TYPE } from "./files/bigStorageSystem";
 
