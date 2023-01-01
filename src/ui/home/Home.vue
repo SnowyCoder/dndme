@@ -65,6 +65,11 @@ export default defineComponent({
       loadingProgress.value = 0;
       uiEvents.emit('edit', val, (x: number) => {
         loadingProgress.value = x;
+      }, (err: string) => {
+        loadingProgress.value = undefined;
+        alert(err);
+        file.value = undefined;
+        isMapLoading.value = false;
       });
       file.value = undefined;
       showFileModal.value = false;

@@ -22,12 +22,19 @@ export class HomePhase extends Phase {
     }
 
     createMap() {
-        let map = new GameMap();
+        const map = new GameMap();
         stage.setPhase(new HostEditMapPhase(map));
     }
 
-    async editMap(file: File, progress: (prog: number) => void) {
-        let map = await GameMap.loadFromFile(file, progress);
+    async editMap(file: File, progress: (prog: number) => void, onError?: (err: string) => void) {
+        let map;
+        try {
+            map = await GameMap.loadFromFile(file, progress);
+        } catch (e: any) {
+            console.error("Error loading zip file", e);
+            if (onError) onError("Error loading file, is it a zip file?");
+            return;
+        }
         stage.setPhase(new HostEditMapPhase(map));
     }
 

@@ -3,29 +3,28 @@
     <label for="map-input-form" class="form-label">
       <span style="pointer-events: none;">{{labelContent}}</span>
     </label>
-    <input type="file" accept=".dndm" class="form-control form-control-lg" id="map-input-form"
+    <input ref="input" type="file" accept=".dndm" class="form-control form-control-lg" id="map-input-form"
            @change="onChange($event as InputEvent)">
   </div>
 </template>
 
 <script lang="ts">
-import { defineComponent, PropType } from 'vue';
+import { computed, defineComponent, nextTick, onMounted, PropType, ref, shallowRef, toRef, watch } from 'vue';
 
 export default defineComponent({
   props: {
     modelValue: { default: undefined, type: Object as PropType<File | undefined> },
   },
-  data() {
-    return {
-      dragging: false,
-    };
-  },
-  methods: {
-    onChange(event: InputEvent | DragEvent) {
+  setup(props, context) {
+    const dragging = shallowRef(true);
+
+    const modelValue = toRef(props, 'modelValue');
+
+    const onChange = (event: InputEvent | DragEvent) => {
       const { dataTransfer } = event;
 
       // Always emit original event
-      this.$emit('change', event);
+      context.emit('change', event);
 
       let file;
       if (!dataTransfer) {
@@ -40,31 +39,36 @@ export default defineComponent({
       } else {
         file = dataTransfer.files[0];
       }
-      this.$emit('update:modelValue', file);
-    },
-    onDragEnter(event: DragEvent) {
-      this.dragging = true;
+      context.emit('update:modelValue', file);
+    };
+    const onDragEnter = (event: DragEvent) => {
+      dragging.value = true;
       event.dataTransfer!.dropEffect = 'copy';
-    },
-    onDragOver(event: DragEvent) {
-      this.dragging = true;
+    };
+    const onDragOver = (event: DragEvent) => {
+      dragging.value = true;
       event.dataTransfer!.dropEffect = 'copy';
-    },
-    onDragLeave() {
-      this.$nextTick(() => {
-        this.dragging = false;
+    };
+    const onDragLeave = () => {
+      nextTick(() => {
+        dragging.value = false;
       });
-    },
-    onDrop(event: DragEvent) {
-      this.dragging = false;
-      this.onChange(event);
-    },
-  },
-  computed: {
-    labelContent() {
-      return this.dragging ? "Drop it here" : "Choose a file and drop it here";
+    };
+    const onDrop = (event: DragEvent) => {
+      dragging.value = false;
+      onChange(event);
+    };
+
+    const input = ref<HTMLInputElement | null>(null);
+    onMounted(() => {
+      input.value!.value = "";
+    })
+
+    const labelContent = computed(() => dragging.value ? "Drop it here" : "Choose a file and drop it here");
+    return {
+      onDragEnter, onDragOver, onDragLeave, onDrop, onChange, labelContent, input
     }
-  }
+  },
 });
 </script>
 
