@@ -311,6 +311,7 @@ export class PixiBoardSystem implements System {
     }
 
     onPointerDown(event: PointerEvent) {
+        console.log("PointerDown id=" + event.pointerId);;
         const pos = this.htmlEventToPoint(event.clientX, event.clientY);
         if (event.pointerType === 'mouse' && event.button === 2) {
             // Right button
@@ -348,9 +349,11 @@ export class PixiBoardSystem implements System {
     }
 
     onPointerUp(event: PointerEvent): void {
+        //console.log("PointerUp id=" + event.pointerId);;
         const pos = this.htmlEventToPoint(event.clientX, event.clientY);
         const e = this.toGeneralEvent(event, pos) as PointerUpEvent;
-        e.isInside = !(pos.x < 0 || pos.y < 0 || pos.x >= this.board.width || pos.y > this.board.height);
+        //console.log("| pos=[" + pos.x + ", " + pos.y + "] boardSize=[" + this.renderer.width + ", " + this.renderer.height + "]");
+        e.isInside = !(pos.x < 0 || pos.y < 0 || pos.x >= this.renderer.width || pos.y > this.renderer.height);
 
         if (event.pointerType === 'mouse' && event.button === 2) {
             // Right button
@@ -375,6 +378,7 @@ export class PixiBoardSystem implements System {
             this.isDraggingBoard = false;
 
             let isClick = this.canBecomeClick(pdata, pos);
+            //console.log("| pointers.size = 0, click?=" + isClick);
 
             let pue = e as PointerUpEvent;
             pue.lastPosition = {
