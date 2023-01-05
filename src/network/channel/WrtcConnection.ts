@@ -1,5 +1,6 @@
 import SafeEventEmitter from "../../util/safeEventEmitter";
 import { WrtcChannel } from "./WrtcChannel";
+import { WrtcRenegotiator } from "./WrtcRenegotiator";
 
 const BASE_RTC_CONFIG = {
     iceServers: [
@@ -9,11 +10,11 @@ const BASE_RTC_CONFIG = {
                 "stun:global.stun.twilio.com:3478",
             ]
         }
-    ]
+    ],
 } as RTCConfiguration;
 
 type SignalingData = {
-    sdp: RTCSessionDescription,
+    sdp: RTCSessionDescriptionInit,
 };
 
 export interface WrtcConnectionConfig {
@@ -36,14 +37,17 @@ function filterTrickle(sdp: string | undefined): string | undefined {
     return sdp?.replace(/a=ice-options:trickle\s\n/g, '')
 }
 
+
 // TODO: Can we handle ICE restarts?
 export class WrtcConnection {
-    handle: RTCPeerConnection;
-    events: SafeEventEmitter;
+    readonly handle: RTCPeerConnection;
+    readonly events: SafeEventEmitter;
+
+    isConnected: boolean;
+
     private sdpSent: boolean;
     private sdpReceived: boolean;
     private isDestroyed: boolean;
-    private isConnected: boolean;
     private isInitiator: boolean;
 
     constructor(config: WrtcConnectionConfig) {
@@ -83,11 +87,11 @@ export class WrtcConnection {
                     break;
             }
         };
-        this.handle.createDataChannel('unused', {
-            negotiated: true,
-            id: 0,
-        });
         this.handle.ondatachannel = ev => this.events.emit('datachannel', new WrtcChannel(ev.channel));
+
+        // Creates a channel and, when possible, renegotiates the connection using the already opened connection
+        new WrtcRenegotiator(this);
+
         if (this.isInitiator) {
             this.makeOffer();
         }
@@ -121,7 +125,6 @@ export class WrtcConnection {
         }
     }
 
-
     createDataChannel(label: string, config: RTCDataChannelInit) {
         const channel = this.handle.createDataChannel(label, config);
         return new WrtcChannel(channel);
@@ -135,7 +138,7 @@ export class WrtcConnection {
         //console.log("[WrtcConnection] DESTROY", err);
         if (this.isDestroyed) return;
         this.isDestroyed = true;
-
+        this.isConnected = false;
 
         try {
             this.handle.close();

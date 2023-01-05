@@ -446,7 +446,7 @@ export class WebTorrentTracker {
         try {
             this.socket = new WebSocket(this.announceUrl);
         } catch (e) {
-            this.onSocketError(e);
+            this.onSocketError(e as any);
             return;
         }
         this.socket.binaryType = 'arraybuffer';
