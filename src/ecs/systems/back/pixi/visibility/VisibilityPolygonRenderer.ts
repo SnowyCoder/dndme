@@ -75,13 +75,13 @@ export class VisibilityPolygonRenderer extends ObjectRenderer {
     contextChange(): void {
         let programs = compilePrograms();
 
-
         this.shaders = {} as any;
         let name: LightProgramType;
         for (name in programs) {
             const uniformGroup = new UniformGroup(new Buffer(this.uniformCenterRadius, false), false, true);
             let shader = new Shader(programs[name], {
                 BatchBlock: uniformGroup,
+                projectionMatrix1: this.renderer.projection.projectionMatrix,
             });
             this.shaders[name] = shader;
         }

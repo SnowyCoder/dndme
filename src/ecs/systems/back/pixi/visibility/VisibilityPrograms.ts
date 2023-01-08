@@ -23,14 +23,16 @@ layout (std140) uniform BatchBlock {
     vec4 centerRadius[${MAX_BATCH_COUNT}];
 };
 
-uniform mat3 projectionMatrix;
+// If we call it projectionMatrix then pixi.js does its "magic", the globalUniforms get used and only
+// update the projection if we are dungeon masters (why???)
+uniform mat3 projectionMatrix1;
 
 void main() {
     vecPos = aVertexPosition;
     modelId = uint(aModelId);
     color = aColor;
     float z = centerRadius[uint(modelId)].z;
-    gl_Position = vec4((projectionMatrix * vec3(aVertexPosition, 1.0)).xy, z, 1.0);
+    gl_Position = vec4((projectionMatrix1 * vec3(aVertexPosition, 1.0)).xy, z, 1.0);
 }
 `;
 

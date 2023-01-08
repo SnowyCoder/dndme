@@ -311,7 +311,7 @@ export class PixiBoardSystem implements System {
     }
 
     onPointerDown(event: PointerEvent) {
-        console.log("PointerDown id=" + event.pointerId);;
+        //console.log("PointerDown id=" + event.pointerId);;
         const pos = this.htmlEventToPoint(event.clientX, event.clientY);
         if (event.pointerType === 'mouse' && event.button === 2) {
             // Right button

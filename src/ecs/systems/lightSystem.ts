@@ -254,7 +254,6 @@ export class LightSystem implements System {
                     range: c.range
                 }, c._visIndex);
             } else {
-                let pos = this.world.getComponent(c.entity, POSITION_TYPE) as PositionComponent;
                 let vis = this.world.getComponent(c.entity, VISIBILITY_TYPE, c._visIndex) as VisibilityComponent;
                 let visDet = this.world.getComponent(c.entity, VISIBILITY_DETAILS_TYPE, c._visIndex) as VisibilityDetailsComponent;
                 if (visDet.polygon !== undefined) {
