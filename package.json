@@ -1,7 +1,7 @@
 {
   "homepage": "https://rossilorenzo.dev/dndme/",
   "name": "drawndice",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "description": "",
   "main": "index.js",
   "scripts": {
