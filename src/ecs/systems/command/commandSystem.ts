@@ -10,7 +10,7 @@ import {NoneCommandKind} from "./noneCommand";
 import {NETWORK_TYPE, NetworkSystem} from "../back/networkSystem";
 
 export interface CommandResult {
-    inverted: Command;
+    inverted: Command | undefined;
 }
 
 interface PendingCommand {
@@ -125,7 +125,7 @@ export class CommandSystem implements System {
         }
         this.world.events.emit('command_post_execute', inv);
         return {
-            inverted: command,
+            inverted: inv,
         };
     }
 
@@ -136,6 +136,7 @@ export class CommandSystem implements System {
     private onLog(command: Command, callback?: (res: CommandResult) => void, partial: boolean = false) {
         const cb = (result: CommandResult) => {
             let inv = result.inverted;
+            if (inv === undefined) return;
             let kind = this.commands.get(inv.kind);
             if (kind === undefined) {
                 console.warn("Invalid inverted command! " + kind);
