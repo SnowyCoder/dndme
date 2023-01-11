@@ -173,6 +173,7 @@ export class SelectPart implements ToolPart {
                 this.selectionSys.toggleEntities(event.entitiesHovered());
             } else if (this.justSelected !== undefined) {
                 this.selectionSys.setOnlyEntity(this.justSelected);
+                this.justSelected = undefined;
             }
         }
 
