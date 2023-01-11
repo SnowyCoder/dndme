@@ -1,7 +1,7 @@
 import { ExtensionMetadata, extensions, ExtensionType, Buffer, ObjectRenderer, Renderer, Shader, State, Texture, UniformGroup, utils, BufferSystem } from "pixi.js";
 import { DepthFunc, VisibilityPolygonElement } from "./VisibilityPolygonElement";
 import { VisibilityPolygonGeometry } from "./VisibilityPolygonGeometry";
-import { compilePrograms, LightProgramRegistry, LightProgramType, MAX_BATCH_COUNT } from "./VisibilityPrograms";
+import { compilePrograms, LightProgramType, MAX_BATCH_COUNT } from "./VisibilityPrograms";
 
 
 export const VISIBILITY_POLYGON = 'visibility_polygon';

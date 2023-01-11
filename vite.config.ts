@@ -1,10 +1,10 @@
-import { fileURLToPath, URL } from 'url'
+import { fileURLToPath, URL } from 'url';
 
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
+import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
 import { visualizer } from "rollup-plugin-visualizer";
 
-import { execSync } from 'child_process'
+import { execSync } from 'child_process';
 
 const commitHash = execSync('git describe --always').toString();
 

@@ -11,7 +11,6 @@ import { DeclarativeListenerSystem, DECLARATIVE_LISTENER_TYPE } from "./Declarat
 import { BigStorageSystem, BIG_STORAGE_TYPE } from "./files/bigStorageSystem";
 
 
-
 export const IMAGE_META_TYPE = 'image_meta';
 export type IMAGE_META_TYPE = typeof IMAGE_META_TYPE;
 export interface ImageMetaComponent extends MultiComponent, HideableComponent {

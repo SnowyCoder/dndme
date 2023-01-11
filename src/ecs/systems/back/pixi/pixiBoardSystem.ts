@@ -97,8 +97,15 @@ export interface GameClockResource extends Resource {
     ticker: Ticker;
 }
 
-export type PIXI_BOARD_TYPE = 'pixi_board';
+export const WEBGL_CONTEXT_CHANGE_EVENT = 'webgl_context_change';
+export type WEBGL_CONTEXT_CHANGE_EVENT = typeof WEBGL_CONTEXT_CHANGE_EVENT;
+
+
+export const TICK_EVENT = 'tick';
+export type TICK_EVENT = typeof TICK_EVENT;
+
 export const PIXI_BOARD_TYPE = 'pixi_board';
+export type PIXI_BOARD_TYPE = typeof PIXI_BOARD_TYPE;
 export class PixiBoardSystem implements System {
     name = PIXI_BOARD_TYPE;
     dependencies = [] as string[];
@@ -169,6 +176,8 @@ export class PixiBoardSystem implements System {
             e.preventDefault();
         });
 
+        this.renderer.runners.contextChange.add(this);
+
         this.root = new Stage();
         this.root.interactive = false;
         this.root.interactiveChildren = false;
@@ -182,8 +191,9 @@ export class PixiBoardSystem implements System {
                 frame: this.clock.frame + 1,
                 timestampMs: Date.now(),
                 elapsedMs: this.ticker.elapsedMS,
-            })
+            });
             this.renderer.render(this.root);
+            this.world.events.emit(TICK_EVENT);
         }, UPDATE_PRIORITY.LOW);
 
         // TODO: we should create render phases, one for the world (using the projection matrix to move the camera)
@@ -202,6 +212,12 @@ export class PixiBoardSystem implements System {
         this.root.addChild(toolLayer);
 
         this.root.addChild(this.board);
+
+        this.contextChange();
+    }
+
+    private contextChange() {
+        this.world.events.emit(WEBGL_CONTEXT_CHANGE_EVENT, this.renderer.gl);
     }
 
     onKeyDown(key: string) {

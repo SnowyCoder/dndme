@@ -37,6 +37,7 @@ import { ToolbarSystem } from "@/ecs/systems/toolbarSystem";
 import { BattleSystem } from "../../ecs/systems/battleSystem";
 import { ImageMetaSyncSystem } from "@/ecs/systems/back/ImageMetaSystem";
 import { DeclarativeListenerSystem } from "@/ecs/systems/back/DeclarativeListenerSystem";
+import { LogSystem } from "@/ecs/systems/back/log/LogSystem";
 
 
 export class EditMapPhase extends EcsPhase {
@@ -57,6 +58,7 @@ export class EditMapPhase extends EcsPhase {
     registerSystems() {
         super.registerSystems();
         let w = this.world;
+        w.addSystem(new LogSystem(w));
         w.addSystem(new CommonNetworkSystem(w, this.channel));
         w.addSystem(new DeclarativeListenerSystem(w));
         w.addSystem(new WebKeyboardSystem(w));

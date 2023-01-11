@@ -15,6 +15,8 @@ import { GRID_TYPE } from "../../gridSystem";
 import { EVENT_VISIBILITY_SPREAD, VisibilitySpreadData } from "../../playerSystem";
 import { BigStorageSystem, BIG_STORAGE_TYPE } from "../files/bigStorageSystem";
 import { InteractionComponent, INTERACTION_TYPE, Shape, shapeAabb, shapeObb, shapeToAabb } from "../interactionSystem";
+import { Logger, LogLevel } from "../log/Logger";
+import { getLogger } from "../log/LogSystem";
 import { PixiDisplayElement, PixiGraphicComponent, PixiGraphicSystem } from "./pixiGraphicSystem";
 import { DepthFunc } from "./visibility/VisibilityPolygonElement";
 
@@ -43,10 +45,14 @@ export class ImageRenderer {
     readonly fileSys: BigStorageSystem;
     readonly textureMap = new Map<FileIndex | Texture, TextureEntry>();
 
+    private readonly logger: Logger;
+
     constructor(sys: PixiGraphicSystem) {
         this.world = sys.world;
         this.sys = sys;
         this.fileSys = this.world.systems.get(BIG_STORAGE_TYPE) as BigStorageSystem;
+
+        this.logger = getLogger(this.world, 'pixi.image');
 
         this.world.events.on(EVENT_VISIBILITY_SPREAD, this.onBBBVisibilitySpread, this);
         this.world.events.on('serialize', this.onSerialize, this);
@@ -348,6 +354,8 @@ export class ImageRenderer {
 
         if (visMap === undefined) return;
 
+        const profHandle = this.logger.profileStart('loadVisibility', true);
+
         const texOpts = {
             width, height,
             format: FORMATS.RGBA,
@@ -389,6 +397,7 @@ export class ImageRenderer {
         lumSprite.destroy(DESTROY_ALL);
 
         c._visMapChanged = false;
+        this.logger.profileStop(profHandle, LogLevel.INFO);
     }
 
     /**
@@ -554,6 +563,8 @@ export class ImageRenderer {
         // We can skip updating if players have no light (only if there are also no nightVisionPlayers)
         if ((data.lights.length == 0 || data.players.length == 0) && data.nightVisPlayers.length === 0) return;
 
+        const profHandle = this.logger.profileStart('updateVisibility', true);
+
         //console.time('updateVisibility');
 
         const localCnt = new Container();
@@ -622,6 +633,8 @@ export class ImageRenderer {
         img._visMapChanged = true;
         // Cleanup time (don't worry, I'm recycling and there's a garbage cleaner, we're eco friendly!)
         worldCnt.destroy(DESTROY_MIN);
+
+        this.logger.profileStop(profHandle);
 
         //console.timeEnd('updateVisibility');
     }
