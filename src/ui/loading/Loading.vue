@@ -19,7 +19,7 @@ const LOADING_PHRASES = [
   "Roll a Charisma saving throw...",
   "Long rest in progress...",
   "Fitting out the goblin army...",
-  "The last boss you killed met a 20th level chieric... The rest is up to you! ;)",
+  "The last boss you killed met a 20th level cleric... The rest is up to you! ;)",
   "This map only costs 25gp!",
   "Sorry, you'd better create a new character sheet",
 ];
