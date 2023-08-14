@@ -21,29 +21,20 @@
 </Modal>
 </template>
 
-<script lang="ts">
-import { defineComponent, inject, ShallowRef, shallowRef } from "vue";
-import { World } from "../../../ecs/world";
+<script setup lang="ts">
+import { shallowRef } from "vue";
 import Modal from "../../util/Modal.vue";
+import { useWorld } from "@/ui/vue";
 
-export default defineComponent({
-    components: { Modal },
-    setup() {
-        const world = inject<ShallowRef<World>>('world')!.value;
+const world = useWorld();
 
-        const progress = shallowRef<number | undefined>(undefined);
+const progress = shallowRef<number | undefined>(undefined);
 
-        const doExport = () => {
-            progress.value = 0;
-            world.events.emit('export_map', (prog: number) => progress.value = prog, () => {
-                progress.value = undefined;
-                console.log("Done")
-            });
-        };
-
-        return {
-            doExport, progress,
-        }
-    }
-});
+const doExport = () => {
+    progress.value = 0;
+    world.events.emit('export_map', (prog: number) => progress.value = prog, () => {
+        progress.value = undefined;
+        console.log("Done")
+    });
+};
 </script>

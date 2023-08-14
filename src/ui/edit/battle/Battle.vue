@@ -50,11 +50,10 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, inject, PropType, ref, ShallowReactive, ShallowRef, triggerRef } from "vue";
-import { World } from "../../../ecs/world";
-import { BattleComponent, BattleResource, BATTLE_TYPE, StatsComponent, STATS_TYPE } from "../../../ecs/systems/battleSystem";
-import { useComponentsOfType, useResource } from "../../vue";
-import { NameComponent, NAME_TYPE } from "../../../ecs/component";
+import { computed, defineComponent, PropType, ref, ShallowReactive, triggerRef } from "vue";
+import { BattleComponent, BattleResource, BATTLE_TYPE, STATS_TYPE } from "../../../ecs/systems/BattleSystem";
+import { useComponentsOfType, useResource, useWorld } from "../../vue";
+import { NAME_TYPE } from "../../../ecs/component";
 import AttackIcon from "../../icons/AttackIcon.vue";
 import EditableText from "../../util/EditableText.vue";
 import EditableNumber from "../../util/EditableNumber.vue";
@@ -76,9 +75,9 @@ export default defineComponent({
         }
     },
     setup() {
-        const world = inject<ShallowRef<World>>("world")!.value;
-        const battleComponents = useComponentsOfType<BattleComponent>(BATTLE_TYPE);
-        const battleRes = useResource<BattleResource>(world, BATTLE_TYPE);
+        const world = useWorld();
+        const battleComponents = useComponentsOfType(BATTLE_TYPE);
+        const battleRes = useResource(world, BATTLE_TYPE);
         const comps = computed(() => {
             const battleComps = battleComponents.value;
             const battle = battleRes.value;
@@ -87,7 +86,7 @@ export default defineComponent({
               if (b.initiative === undefined) return 1;
               return a.initiative - b.initiative;
             }).map((x, i) => {
-                const stats = world.getComponent<StatsComponent>(x.entity, STATS_TYPE)!;
+                const stats = world.getComponent(x.entity, STATS_TYPE)!;
                 const rowClass = [
                   world.getComponent(x.entity, PLAYER_TYPE) ? 'table-success' : 'table-danger',
                 ];
@@ -96,7 +95,7 @@ export default defineComponent({
                 }
                 return {
                   entity: x.entity,
-                  name: world.getComponent<NameComponent>(x.entity, NAME_TYPE)?.name ?? String(x.entity).substring(0, 5),
+                  name: world.getComponent(x.entity, NAME_TYPE)?.name ?? String(x.entity).substring(0, 5),
                   hitPoints: stats.hitPoints ?? 0,
                   armorClass: stats.armorClass ?? '',
                   speed: stats.speed ?? '',
@@ -143,7 +142,7 @@ export default defineComponent({
             const edit = [] as EditType[];
             for (let x of attacks.value) {
               if (isNaN(x.dmg) || x.dmg === -Infinity) continue;
-              const stats = world.getComponent(x.entity, STATS_TYPE) as StatsComponent;
+              const stats = world.getComponent(x.entity, STATS_TYPE);
               if (stats === undefined) continue;
               edit.push({
                 type: STATS_TYPE,

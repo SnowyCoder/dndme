@@ -1,10 +1,11 @@
-import {SerializedEntities, SerializedWorld, World} from "../../world";
+import {SerializedEntities, SerializedWorld, World} from "../../World";
 import {Component, SHARED_TYPE} from "../../component";
 import {Command, CommandKind} from "./command";
 import {DeSpawnCommand} from "./despawnCommand";
 import { componentClone } from "../../ecsUtil";
-import { FlagEcsStorage, FlagEcsStorageSerialzed, MultiEcsStorage, SingleEcsStorage } from "../../storage";
+import { EcsStorage, FlagEcsStorage, FlagEcsStorageSerialzed, MultiEcsStorage, SingleEcsStorage } from "../../Storage";
 import { objectClone, objectFilterInplace } from "../../../util/jsobj";
+import { ComponentTypes } from "@/ecs/TypeRegistry";
 
 export interface SpawnCommand extends Command {
     kind: 'spawn';
@@ -48,7 +49,7 @@ export class SpawnCommandKind implements CommandKind {
         let newStorages = objectClone(command.data.storages);
 
         objectFilterInplace(newStorages, (storName: string, data: any) => {
-            const storage = this.world.getStorage(storName);
+            const storage = this.world.getStorage(storName as any);
             if (!storage.sync) return false;
 
             storage.serializedStrip(data, entityFilter);
@@ -68,14 +69,15 @@ export class SpawnCommandKind implements CommandKind {
         if (strict) return false;
         to.data.entities.push(...from.data.entities);
         for (let storageName in from.data.storages) {
-            const fromStorage = from.data.storages[storageName];
-            const toStorage = to.data.storages[storageName];
+            const name = storageName as ComponentTypes;
+            const fromStorage = from.data.storages[name];
+            const toStorage = to.data.storages[name];
             if (toStorage === undefined) {
-                to.data.storages[storageName] = componentClone(fromStorage);
+                to.data.storages[name] = componentClone(fromStorage);
                 continue;
             }
 
-            this.world.getStorage(storageName)
+            this.world.getStorage(name)
                       .serializedMerge(toStorage, fromStorage);
         }
         return true;
@@ -108,7 +110,7 @@ export class SpawnCommandKind implements CommandKind {
             } else if (storage instanceof FlagEcsStorage) {
                 cmd.storages[storage.type] = [entity];
             } else {
-                console.warn("Unknown storage type: " + storage.type);
+                console.warn("Unknown storage type: " + (storage as EcsStorage<Component>).type);
             }
         }
         return {

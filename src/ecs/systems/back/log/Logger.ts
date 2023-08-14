@@ -21,6 +21,8 @@ declare global {
 }
 
 export class Logger {
+    static readonly EMPTY = new Logger(undefined, "", new WebGlProfiler(undefined), false);
+
     readonly parent: Logger | undefined;
 
     readonly name: string;
@@ -35,22 +37,26 @@ export class Logger {
 
     children: Map<string, Logger> = new Map();
 
-    constructor(parent: Logger | undefined, name: string, glProfiler: WebGlProfiler) {
+    constructor(parent: Logger | undefined, name: string, glProfiler: WebGlProfiler, installRootLogger: boolean = true) {
         this.parent = parent;
         this.glProfiler = glProfiler;
         if (parent === undefined) {
             this.name = '';
             this.path = '';
-            if (window.rootLogger === undefined) {
-                window.rootLogger = this;
-            } else {
-                console.warn("window.rootLogger already registered!", this);
-            }
+            if (installRootLogger) this.installRootLogger();
         } else {
             let path = parent.name;
             if (path.length !== 0) path += '.';
             this.path = path + name;
             this.name = name;
+        }
+    }
+
+    private installRootLogger() {
+        if (window.rootLogger === undefined) {
+            window.rootLogger = this;
+        } else {
+            console.warn("window.rootLogger already registered!", this);
         }
     }
 
@@ -243,4 +249,10 @@ export function parseLogLevel(name: string, rejectAction: 'ignore' | 'fail' | 'w
         console.warn("Invalid LogLevel " + name);
     }
     return def;
+}
+
+export function getLogger(path: string): Logger {
+    const res = window.rootLogger;
+    if (res === undefined) throw new Error("No log system found");
+    return res.getLogger(path.split('.'), 0);
 }

@@ -15,9 +15,9 @@ export function objectFilterInplace<T>(x: {[name: string]: T}, filter: (name: st
     }
 }
 
-export function objectClone(obj: any): any {
+export function objectClone<T>(obj: T): T {
     // Yes, really, thanks js.
-    return decode(encode(obj));
+    return decode(encode(obj)) as any;
     //return JSON.parse(JSON.stringify(obj));
 }
 

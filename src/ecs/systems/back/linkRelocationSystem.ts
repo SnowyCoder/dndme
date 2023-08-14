@@ -1,5 +1,6 @@
-import {System} from "../../system";
-import {DeserializeData, SerializeData, SerializedWorld, World} from "../../world";
+import { ComponentTypes } from "@/ecs/TypeRegistry";
+import {System} from "../../System";
+import {DeserializeData, SerializeData, SerializedWorld, World} from "../../World";
 
 
 type LinkPath = Array<string>;
@@ -12,7 +13,7 @@ export class LinkRelocationSystem implements System {
 
     private readonly world: World;
 
-    private links = new Map<string, Array<LinkPath>>();
+    private links = new Map<ComponentTypes, Array<LinkPath>>();
 
     constructor(world: World) {
         this.world = world;
@@ -21,7 +22,7 @@ export class LinkRelocationSystem implements System {
         world.events.on('deserialize', this.onDeserialize, this);
     }
 
-    addLink(storageName: string, path: string): void {
+    addLink(storageName: ComponentTypes, path: string): void {
         const paths = path.split('.');
         let storageData = this.links.get(storageName);
         if (storageData === undefined) {

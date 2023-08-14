@@ -1,17 +1,17 @@
-import {DeserializeData, World} from "../../world";
+import {DeserializeData, World} from "../../World";
 import {
     Component,
     POSITION_TYPE,
     PositionComponent
 } from "../../component";
 import {DOOR_TYPE} from "../doorSystem";
-import {System} from "../../system";
+import {System} from "../../System";
 import {ComponentEditCommand} from "../command/componentEdit";
 import {DeSpawnCommand} from "../command/despawnCommand";
 import {Command, executeAndLogCommand} from "../command/command";
 import {EVENT_COMMAND_LOG, EVENT_COMMAND_PARTIAL_END} from "../command/commandSystem";
 import {WALL_TYPE} from "../wallSystem";
-import {SingleEcsStorage} from "../../storage";
+import {SingleEcsStorage} from "../../Storage";
 
 interface TypeData {
     entities: Set<Component>;

@@ -6,9 +6,9 @@ import {
     TransformComponent,
     SHARED_TYPE
 } from "@/ecs/component";
-import {FlagEcsStorage, SingleEcsStorage} from "@/ecs/storage";
-import {ForgetData, World} from "@/ecs/world";
-import {System} from "@/ecs/system";
+import {FlagEcsStorage, SingleEcsStorage} from "@/ecs/Storage";
+import {ForgetData, World} from "@/ecs/World";
+import {System} from "@/ecs/System";
 import {
     DisplayElement,
     ElementType,
@@ -39,20 +39,20 @@ import {
     shapeLine,
     shapeCircle,
     CircleShape
-} from "../interactionSystem";
+} from "../InteractionSystem";
 import {Line} from "@/geometry/line";
 import {arrayRemoveElem} from "@/util/array";
 import {GRID_TYPE} from "../../gridSystem";
 import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
-import {TEXT_TYPE, TextSystem} from "../textSystem";
-import { VisibilityAwareSystem, VISIBILITY_AWARE_TYPE } from "../visibilityAwareSystem";
+import {TEXT_TYPE, TextSystem} from "../TextSystem";
+import { VisibilityAwareSystem, VISIBILITY_AWARE_TYPE } from "../VisibilityAwareSystem";
 import { Group } from "@pixi/layers";
 import { IPoint } from "@/geometry/point";
 import { ImageRenderer, PixiImageElement } from "./ImageRenderer";
 import { Container, DisplayObject, Graphics, Point, Sprite, Text, TextStyle } from "pixi.js";
 
 export interface PixiGraphicComponent extends GraphicComponent {
-    _selected: boolean;
+    _selected?: boolean;
     _visibListener?: VisibListenerLevel;// Default: NOT_NEEDED
     _bitByBit?: boolean;
     _layer?: Group;
@@ -104,9 +104,11 @@ export class PixiGraphicSystem implements System {
     readonly dependencies = [PIXI_BOARD_TYPE, INTERACTION_TYPE];
     readonly provides = [GRAPHIC_TYPE];
 
+    readonly components?: [PixiGraphicComponent, RememberComponent];
+
     world: World;
     storage = new SingleEcsStorage<PixiGraphicComponent>(GRAPHIC_TYPE, false, false);
-    rememberStorage = new FlagEcsStorage(REMEMBER_TYPE, true, true);
+    rememberStorage = new FlagEcsStorage<RememberComponent>(REMEMBER_TYPE, true, true);
 
     textSystem: TextSystem;
     pixiBoardSystem: PixiBoardSystem;
@@ -122,9 +124,9 @@ export class PixiGraphicSystem implements System {
     constructor(world: World) {
         this.world = world;
 
-        this.textSystem = world.systems.get(TEXT_TYPE) as TextSystem;
-        this.pixiBoardSystem = world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
-        this.interactionSystem = world.systems.get(INTERACTION_TYPE) as InteractionSystem;
+        this.textSystem = world.requireSystem(TEXT_TYPE);
+        this.pixiBoardSystem = world.requireSystem(PIXI_BOARD_TYPE);
+        this.interactionSystem = world.requireSystem(INTERACTION_TYPE);
 
         world.addStorage(this.rememberStorage);
         world.addStorage(this.storage);
@@ -145,13 +147,13 @@ export class PixiGraphicSystem implements System {
 
         if (c.type === GRAPHIC_TYPE) {
             com = c as PixiGraphicComponent;
-            let pos = this.world.getComponent(c.entity, POSITION_TYPE) as PositionComponent;
-            let trans = this.world.getComponent(c.entity, TRANSFORM_TYPE) as TransformComponent;
+            let pos = this.world.getComponent(c.entity, POSITION_TYPE)!;
+            let trans = this.world.getComponent(c.entity, TRANSFORM_TYPE)!;
             this.updateElement(com, com.display, pos, trans, true);
             this.updateInteractive(com, pos, trans);
             this.updateVisibilityListener(com);
 
-            let pv = this.world.getComponent(c.entity, PLAYER_VISIBLE_TYPE) as PlayerVisibleComponent | undefined;
+            let pv = this.world.getComponent(c.entity, PLAYER_VISIBLE_TYPE);
             let remembered = this.world.getComponent(c.entity, REMEMBER_TYPE) !== undefined;
             this.updateElementVisibility(com, com.display, true, !!pv?.visible, remembered);
             com._bitByBit = this.needsBitByBit(com, com.display);
@@ -159,7 +161,7 @@ export class PixiGraphicSystem implements System {
         } else if (c.type === TRANSFORM_TYPE) {
             com = this.storage.getComponent(c.entity);
             if (com === undefined) return;
-            let pos = this.world.getComponent(c.entity, POSITION_TYPE) as PositionComponent;
+            let pos = this.world.getComponent(c.entity, POSITION_TYPE)!;
             let trans = c as TransformComponent;
             this.updateElement(com, com.display, pos, trans, true);
             spreadVis = !!com._bitByBit;
@@ -171,7 +173,7 @@ export class PixiGraphicSystem implements System {
             let com = this.storage.getComponent(c.entity);
             if (com === undefined || !com._bitByBit) return;
             // Now you're visible! say hello
-            let pv = this.world.getComponent(c.entity, PLAYER_VISIBLE_TYPE) as PlayerVisibleComponent | undefined;
+            let pv = this.world.getComponent(c.entity, PLAYER_VISIBLE_TYPE);
             let remembered = this.world.getComponent(c.entity, REMEMBER_TYPE) !== undefined;
             this.updateElementVisibility(com, com.display, true, !!pv?.visible, remembered);
             this.renImage.updateBBBVisAround(com);
@@ -188,12 +190,12 @@ export class PixiGraphicSystem implements System {
 
         if (c.type === GRAPHIC_TYPE) {
             com = c as PixiGraphicComponent;
-            let pos = this.world.getComponent(c.entity, POSITION_TYPE) as PositionComponent;
-            let trans = this.world.getComponent(c.entity, TRANSFORM_TYPE) as TransformComponent;
+            let pos = this.world.getComponent(c.entity, POSITION_TYPE)!;
+            let trans = this.world.getComponent(c.entity, TRANSFORM_TYPE)!;
             this.runMethods(com, com.display);// run delayed methods (like _childrenAdd, _childrenReplace & co).
             this.updateInteractive(com, pos, trans);
             this.updateElement(com, com.display, pos, trans, true);
-            let pv = this.world.getComponent(c.entity, PLAYER_VISIBLE_TYPE) as PlayerVisibleComponent | undefined;
+            let pv = this.world.getComponent(c.entity, PLAYER_VISIBLE_TYPE);
             let remembered = this.rememberStorage.getComponent(c.entity) !== undefined;
             this.updateElementVisibility(com, com.display, true, pv?.visible ?? true, remembered);
             com._bitByBit = this.needsBitByBit(com, com.display);
@@ -202,13 +204,13 @@ export class PixiGraphicSystem implements System {
             com = this.storage.getComponent(c.entity);
             if (com === undefined) return;
             let pos = c as PositionComponent;
-            let trans = this.world.getComponent(c.entity, TRANSFORM_TYPE) as TransformComponent;
+            let trans = this.world.getComponent(c.entity, TRANSFORM_TYPE)!;
             this.updateElement(com, com.display, pos, trans, true);
             spreadVis = !!com._bitByBit;
         } else if (c.type === TRANSFORM_TYPE) {
             com = this.storage.getComponent(c.entity);
             if (com === undefined) return;
-            let pos = this.world.getComponent(c.entity, POSITION_TYPE) as PositionComponent;
+            let pos = this.world.getComponent(c.entity, POSITION_TYPE)!;
             let trans = c as TransformComponent;
             this.updateElement(com, com.display, pos, trans, true);
             spreadVis = !!com._bitByBit;
@@ -244,7 +246,7 @@ export class PixiGraphicSystem implements System {
         } else if (c.type === TRANSFORM_TYPE) {
             let com = this.storage.getComponent(c.entity);
             if (com === undefined) return;
-            let pos = this.world.getComponent(c.entity, POSITION_TYPE) as PositionComponent;
+            let pos = this.world.getComponent(c.entity, POSITION_TYPE)!;
             this.updateElement(com, com.display, pos, (c as TransformComponent), true);
         } else if (c.type === SHARED_TYPE) {
             const com = this.storage.getComponent(c.entity);
@@ -259,10 +261,10 @@ export class PixiGraphicSystem implements System {
                 this.playerSystem!.addPlayerVisListener(comp.entity, comp.isWall);
                 // The wall is already there so we don't need to recompute visibility polygons
                 // We just need to see if it's already being counted on.
-                (this.world.systems.get(VISIBILITY_AWARE_TYPE) as VisibilityAwareSystem)?.manualRecomputeWall(comp.entity);
+                this.world.getSystem(VISIBILITY_AWARE_TYPE)?.manualRecomputeWall(comp.entity);
             }
 
-            let pv = this.world.getComponent(c.entity, PLAYER_VISIBLE_TYPE) as PlayerVisibleComponent | undefined;
+            let pv = this.world.getComponent(c.entity, PLAYER_VISIBLE_TYPE)!;
             let remembered = this.world.getComponent(c.entity, REMEMBER_TYPE) !== undefined;
             this.updateElementVisibility(comp, comp.display, true, !!pv?.visible, remembered);
         }
@@ -281,7 +283,7 @@ export class PixiGraphicSystem implements System {
             } else if (set.visionType === 'rp') {
                 this.masterVisibility = false;
                 for (let c of this.storage.allComponents()) {
-                    let pv = this.world.getComponent(c.entity, PLAYER_VISIBLE_TYPE) as PlayerVisibleComponent;
+                    let pv = this.world.getComponent(c.entity, PLAYER_VISIBLE_TYPE)!;
                     let rem = this.rememberStorage.getComponent(c.entity);
                     this.updateElementVisibility(c, c.display, true, pv?.visible, rem !== undefined);
                 }
@@ -315,8 +317,8 @@ export class PixiGraphicSystem implements System {
         let c = this.storage.getComponent(entity);
         if (c !== undefined) {
             c._selected = true;
-            let pos = this.world.getComponent(entity, POSITION_TYPE) as PositionComponent;
-            let trans = this.world.getComponent(entity, TRANSFORM_TYPE) as TransformComponent;
+            let pos = this.world.getComponent(entity, POSITION_TYPE)!;
+            let trans = this.world.getComponent(entity, TRANSFORM_TYPE)!;
             this.updateElement(c, c.display, pos, trans, true);
         }
     }
@@ -325,8 +327,8 @@ export class PixiGraphicSystem implements System {
         let c = this.storage.getComponent(entity);
         if (c !== undefined) {
             c._selected = false;
-            let pos = this.world.getComponent(entity, POSITION_TYPE) as PositionComponent;
-            let trans = this.world.getComponent(entity, TRANSFORM_TYPE) as TransformComponent;
+            let pos = this.world.getComponent(entity, POSITION_TYPE)!;
+            let trans = this.world.getComponent(entity, TRANSFORM_TYPE)!;
             this.updateElement(c, c.display, pos, trans, true);
         }
     }
@@ -341,7 +343,7 @@ export class PixiGraphicSystem implements System {
                 // We remember this!
                 this.world.removeComponent(rem);
 
-                /*let pv = this.world.getComponent(comp.entity, PLAYER_VISIBLE_TYPE) as PlayerVisibleComponent | undefined;
+                /*let pv = this.world.getComponent(comp.entity, PLAYER_VISIBLE_TYPE);
                 let remembered = this.rememberStorage.getComponent(comp.entity) !== undefined;
                 this.updateElementVisibility(comp, comp.display, true, pv?.visible ?? true, remembered);
 
@@ -364,14 +366,14 @@ export class PixiGraphicSystem implements System {
     }
 
     forceShapeUpdate(comp: PixiGraphicComponent) {
-        const pos = this.world.getComponent(comp.entity, POSITION_TYPE) as PositionComponent;
-        const trans = this.world.getComponent(comp.entity, TRANSFORM_TYPE) as TransformComponent | undefined;
+        const pos = this.world.getComponent(comp.entity, POSITION_TYPE)!;
+        const trans = this.world.getComponent(comp.entity, TRANSFORM_TYPE);
         this.updateInteractive(comp, pos, trans, true);
     }
     // -------------------------- LISTENERS DONE --------------------------
 
     private updateInteractive(comp: PixiGraphicComponent, pos: IPoint, trans: TransformComponent | undefined, forceRecreate: boolean = false) {
-        let interactiveCmp = this.world.getComponent(comp.entity, INTERACTION_TYPE) as InteractionComponent;
+        let interactiveCmp = this.world.getComponent(comp.entity, INTERACTION_TYPE)!;
 
         if (comp.interactive && (interactiveCmp === undefined || forceRecreate)) {
             const newComp = {
@@ -398,7 +400,7 @@ export class PixiGraphicSystem implements System {
                     this.world.editComponent(comp.entity, INTERACTION_TYPE, {shape: this.createShape(el, pos, trans)});
                 }
             } else if (elem.type === ElementType.POINT) {
-                const shape = this.world.getComponent<InteractionComponent>(comp.entity, INTERACTION_TYPE)!.shape as CircleShape;
+                const shape = this.world.getComponent(comp.entity, INTERACTION_TYPE)!.shape as CircleShape;
                 const el = elem as PointElement;
                 const newRad = el.scale * (trans?.scale ?? 1) * POINT_RADIUS;
                 if (Math.abs(shape.radius - newRad) > Number.EPSILON) {
@@ -738,9 +740,9 @@ export class PixiGraphicSystem implements System {
 
 
     enable(): void {
-        this.playerSystem = this.world.systems.get(PLAYER_TYPE) as PlayerSystem;
-        this.masterVisibility = (this.world.systems.get(LIGHT_TYPE) as LightSystem).localLightSettings.visionType === 'dm';
-        this.gridSize = (this.world.getResource(GRID_TYPE) as GridResource).size;
+        this.playerSystem = this.world.requireSystem(PLAYER_TYPE);
+        this.masterVisibility = this.world.requireSystem(LIGHT_TYPE).localLightSettings.visionType === 'dm';
+        this.gridSize = this.world.getResource(GRID_TYPE)!.size;
     }
 
     destroy(): void {

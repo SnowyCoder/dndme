@@ -9,62 +9,61 @@
 </tr>
 </template>
 
-<script lang="ts">
-import { defineComponent, ref, toRefs, watch } from "vue";
+<script setup lang="ts">
+import { ref, toRefs, watch } from "vue";
 import { diceComputeExpr } from "../../../util/diceCalc";
 import EditableText from "../../util/EditableText.vue";
 
+export type Props = {
+  dmg: number,
+  name: string,
+};
 
-export default defineComponent({
-  components: { EditableText },
-  props: {
-    dmg: { type: Number, default: 0 },
-    name: { type: String, required: true },
-  },
-  setup(props, context) {
-    const { dmg } = toRefs(props);
-    const dmgExpr = ref("");
-    const outcome = ref<HTMLElement | undefined>(undefined);
+const props = withDefaults(defineProps<Props>(), {
+  dmg: 0
+});
 
-    const computeDmgExpr = (expr?: string) => {
-      if (expr !== undefined) {
-        dmgExpr.value = expr;
-      }
-      let computedDmg = -Infinity;// -Infinity = error
-      try {
-        computedDmg = diceComputeExpr(dmgExpr.value);
-      } catch(_) {}
+const emit = defineEmits<{
+  (event: 'update:dmg', dmg: number): void
+}>();
 
-      context.emit('update:dmg', computedDmg);
-    };
+const { dmg } = toRefs(props);
+const dmgExpr = ref("");
+const outcome = ref<HTMLElement | undefined>(undefined);
 
-    const toStr = (x: number) => isNaN(x) ? '0' : (x == -Infinity ? 'Err' : String(x));
+const computeDmgExpr = (expr?: string) => {
+  if (expr !== undefined) {
+    dmgExpr.value = expr;
+  }
+  let computedDmg = -Infinity;// -Infinity = error
+  try {
+    computedDmg = diceComputeExpr(dmgExpr.value);
+  } catch(_) {}
 
-    let pending = null as number | null;
-    const rdmg = ref(toStr(dmg.value));
-    watch(dmg, (newValue) => {
-      if (pending != null) {
-        pending = newValue;
-        return;
-      }
-      pending = newValue;
+  emit('update:dmg', computedDmg);
+};
 
-      setTimeout(() => {
-        rdmg.value = toStr(pending!);
-        pending = null;
-      }, 150);
+const toStr = (x: number) => isNaN(x) ? '0' : (x == -Infinity ? 'Err' : String(x));
 
-      const elem = outcome.value!;
-      elem.classList.add('battle-outcome');
-      elem.addEventListener('animationend', () => {
-        elem.classList.remove('battle-outcome');
-      }, { once: true, });
-    });
+let pending = null as number | null;
+const rdmg = ref(toStr(dmg.value));
+watch(dmg, (newValue) => {
+  if (pending != null) {
+    pending = newValue;
+    return;
+  }
+  pending = newValue;
 
-    return {
-      dmgExpr, computeDmgExpr, outcome, rdmg
-    };
-  },
+  setTimeout(() => {
+    rdmg.value = toStr(pending!);
+    pending = null;
+  }, 150);
+
+  const elem = outcome.value!;
+  elem.classList.add('battle-outcome');
+  elem.addEventListener('animationend', () => {
+    elem.classList.remove('battle-outcome');
+  }, { once: true, });
 });
 </script>
 

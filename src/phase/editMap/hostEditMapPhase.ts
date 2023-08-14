@@ -69,7 +69,7 @@ export class HostEditMapPhase extends EditMapPhase {
         // so if you have firefox and linux (this seems to be the wrong stack) and have spare time, pls debug this.
         // Could be caused by: https://bugzilla.mozilla.org/show_bug.cgi?id=505521#c80
         let p = new Point(x, y);
-        let pixiBoard = this.world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
+        let pixiBoard = this.world.requireSystem(PIXI_BOARD_TYPE);
         pixiBoard.board.updateTransform();
         pixiBoard.board.transform.worldTransform.applyInverse(p, p);
 
@@ -130,7 +130,7 @@ export class HostEditMapPhase extends EditMapPhase {
     enable() {
         super.enable();
 
-        const canvas = (this.world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem).renderer.view as HTMLCanvasElement;
+        const canvas = this.world.requireSystem(PIXI_BOARD_TYPE).renderer.view as HTMLCanvasElement;
         canvas.ondrop = this.onDrop.bind(this);
         canvas.ondragover = this.onDragOver.bind(this);
 

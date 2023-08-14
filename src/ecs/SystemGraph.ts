@@ -1,15 +1,17 @@
-import {System} from "./system";
+import {System} from "./System";
+import { RegisteredSystem, SystemForName, SystemNames } from "./TypeRegistry";
 
 export class SystemGraph {
     private systemsByName = new Map<string, System>();
     private systems = new Array<System>();
     private unfulfilledDeps = new Set<string>();
 
-    get(name: string): System | undefined {
-        return this.systemsByName.get(name);
+    get<N extends SystemNames>(name: N): SystemForName<N> | undefined {
+        return this.systemsByName.get(name) as SystemForName<N>;
     }
 
-    register(system: System): void {
+    register(system_: RegisteredSystem): void {
+        const system = system_ as System;
         let depName = system.name;
         let unfulfilled = this.unfulfilledDeps.has(system.name);
 

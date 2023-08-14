@@ -56,7 +56,8 @@ export function createConsoleLogger(root: Logger, stubConsole: boolean): LogRece
         } else if (level == LogLevel.DEBUG) {
             fn = fns.debug;
         } else if (level == LogLevel.TRACE) {
-            fn = fns.trace;
+            // trace in console means sssssomething different
+            fn = fns.debug;
         } else {
             return;
         }

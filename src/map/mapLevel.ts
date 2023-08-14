@@ -1,4 +1,4 @@
-import {SerializedWorld, World} from "../ecs/world";
+import {SerializedWorld, World} from "../ecs/World";
 import { FileDb } from "./FileDb";
 
 export interface SerializedMapLevel {

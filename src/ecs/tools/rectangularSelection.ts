@@ -1,10 +1,10 @@
 import {Aabb} from "../../geometry/aabb";
-import {World} from "../world";
-import {INTERACTION_TYPE, InteractionSystem, shapeAabb, shapeIntersect} from "../systems/back/interactionSystem";
+import {World} from "../World";
+import {INTERACTION_TYPE, InteractionSystem, shapeAabb, shapeIntersect} from "../systems/back/InteractionSystem";
 import {aabbSameOriginDifference} from "../../util/geometry";
 import {RECTANGULAR_SELECTION_TYPE, RectangularSelectionResource} from "../resource";
-import {SELECTION_TYPE, SelectionSystem} from "../systems/back/selectionSystem";
-import {KEYBOARD_TYPE, KeyboardResource} from "../systems/back/keyboardSystem";
+import {SELECTION_TYPE, SelectionSystem} from "../systems/back/SelectionSystem";
+import {KEYBOARD_TYPE, KeyboardResource} from "../systems/back/KeyboardSystem";
 import { IPoint } from "@/geometry/point";
 import { Graphics, Point } from "pixi.js";
 
@@ -26,10 +26,10 @@ export class RectangularSelection {
 
     constructor(world: World) {
         this.world = world;
-        this.keyboard = world.getResource(KEYBOARD_TYPE) as KeyboardResource;
+        this.keyboard = world.getResource(KEYBOARD_TYPE)!;
         this.display = new Graphics();
 
-        this.selectionSys = world.systems.get(SELECTION_TYPE) as SelectionSystem;
+        this.selectionSys = world.requireSystem(SELECTION_TYPE);
     }
 
     begin(pos: IPoint) {
@@ -97,7 +97,7 @@ export class RectangularSelection {
 
 
     addRect(aabb: Aabb) {
-        let sys = this.world.systems.get(INTERACTION_TYPE) as InteractionSystem;
+        let sys = this.world.requireSystem(INTERACTION_TYPE);
         let ents = sys.queryVisible(shapeAabb(aabb), c => {
             if (this.entitiesInside.has(c.entity)) return false;
             return this.predicate(c.entity);
@@ -109,7 +109,7 @@ export class RectangularSelection {
     }
 
     removeRect(aabb: Aabb, newAabb: Aabb) {
-        let sys = this.world.systems.get(INTERACTION_TYPE) as InteractionSystem;
+        let sys = this.world.requireSystem(INTERACTION_TYPE);
         let ents = sys.queryVisible(shapeAabb(aabb), c => {
             return this.entitiesInside.has(c.entity) &&
                     !shapeIntersect(shapeAabb(newAabb), c.shape);

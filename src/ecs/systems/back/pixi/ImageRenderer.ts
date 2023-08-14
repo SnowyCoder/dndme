@@ -1,6 +1,6 @@
 import { SHARED_TYPE, TransformComponent, TRANSFORM_TYPE } from "@/ecs/component";
 import { GridResource } from "@/ecs/resource";
-import { SerializeData, World } from "@/ecs/world";
+import { SerializeData, World } from "@/ecs/World";
 import { STANDARD_GRID_OPTIONS } from "@/game/grid";
 import { Aabb } from "@/geometry/aabb";
 import { Obb } from "@/geometry/obb";
@@ -14,7 +14,7 @@ import { BaseTexture, BLEND_MODES, BufferResource, Container, FORMATS, Matrix, R
 import { GRID_TYPE } from "../../gridSystem";
 import { EVENT_VISIBILITY_SPREAD, VisibilitySpreadData } from "../../playerSystem";
 import { BigStorageSystem, BIG_STORAGE_TYPE } from "../files/bigStorageSystem";
-import { InteractionComponent, INTERACTION_TYPE, Shape, shapeAabb, shapeObb, shapeToAabb } from "../interactionSystem";
+import { InteractionComponent, INTERACTION_TYPE, Shape, shapeAabb, shapeObb, shapeToAabb } from "../InteractionSystem";
 import { Logger, LogLevel } from "../log/Logger";
 import { getLogger } from "../log/LogSystem";
 import { PixiDisplayElement, PixiGraphicComponent, PixiGraphicSystem } from "./pixiGraphicSystem";
@@ -50,7 +50,7 @@ export class ImageRenderer {
     constructor(sys: PixiGraphicSystem) {
         this.world = sys.world;
         this.sys = sys;
-        this.fileSys = this.world.systems.get(BIG_STORAGE_TYPE) as BigStorageSystem;
+        this.fileSys = this.world.requireSystem(BIG_STORAGE_TYPE);
 
         this.logger = getLogger(this.world, 'pixi.image');
 
@@ -129,10 +129,10 @@ export class ImageRenderer {
             el._pixi!.scale.set(1, 1);
             newEntry.pending = false;
             this.updateImage(
-                this.world.getComponent(el._owner, GRAPHIC_TYPE) as PixiGraphicComponent,
+                this.world.getComponent(el._owner, GRAPHIC_TYPE)!,
                 el,
                 el.anchor,// This should be the real position, but we don't use it :3
-                this.world.getComponent(el._owner, TRANSFORM_TYPE) as TransformComponent
+                this.world.getComponent(el._owner, TRANSFORM_TYPE)
             );
         } else {
             // Download texture and load
@@ -182,7 +182,7 @@ export class ImageRenderer {
             this.updateVisibility(el);
             el._pixi!.scale.set(1, 1);
             this.repaintVisibility(el);
-            this.sys.forceShapeUpdate(this.world.getComponent(el._owner, GRAPHIC_TYPE) as PixiGraphicComponent);
+            this.sys.forceShapeUpdate(this.world.getComponent(el._owner, GRAPHIC_TYPE)!);
         }
     }
 
@@ -267,7 +267,7 @@ export class ImageRenderer {
     }
 
     static async preloadTexture(world: World, index: FileIndex | Uint8Array, dataType: string): Promise<FileIndex> {
-        const bss = world.systems.get(BIG_STORAGE_TYPE) as BigStorageSystem;
+        const bss = world.requireSystem(BIG_STORAGE_TYPE);
 
         let data;
         if (typeof index === 'string') {
@@ -306,7 +306,7 @@ export class ImageRenderer {
 
         if (c.scale == ImageScaleMode.GRID) {
             const gsize = this.requireGridSize(c);
-            let grid = this.world.getResource(GRID_TYPE) as GridResource;
+            const grid = this.world.getResource(GRID_TYPE)!;
             sx = gsize.x * grid.size * sx;
             sy = gsize.y * grid.size * sy;
         }
@@ -523,7 +523,7 @@ export class ImageRenderer {
     }
 
     updateBBBVisAround(com: PixiGraphicComponent) {
-        let inter = this.world.getComponent(com.entity, INTERACTION_TYPE) as InteractionComponent;
+        let inter = this.world.getComponent(com.entity, INTERACTION_TYPE)!;
         let aabb = shapeToAabb(inter.shape);
         this.sys.playerSystem!.getSpreadDataForAabb(aabb, data => {
             this.doOnBitByBit(com, com.display, (img) => this.updateBBBVisibility(data, img));

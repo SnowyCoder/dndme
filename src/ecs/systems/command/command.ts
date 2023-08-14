@@ -1,4 +1,4 @@
-import {World} from "../../world";
+import {World} from "../../World";
 import {
     CommandResult,
     EVENT_COMMAND_ADD_POST_CONSEQUENCE,

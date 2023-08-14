@@ -1,7 +1,7 @@
-import {System} from "../system";
-import {World} from "../world";
+import {System} from "../System";
+import {World} from "../World";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
-import {SingleEcsStorage} from "../storage";
+import {SingleEcsStorage} from "../Storage";
 import {
     Component,
     FOLLOW_MOUSE_TYPE,
@@ -15,9 +15,9 @@ import {
     SERIALIZED_TYPE,
     SerializedFlag
 } from "../component";
-import {INTERACTION_TYPE, InteractionComponent, InteractionSystem, shapePoint} from "./back/interactionSystem";
+import {INTERACTION_TYPE, InteractionComponent, InteractionSystem, shapePoint} from "./back/InteractionSystem";
 import {Assets, Spritesheet, Texture} from "pixi.js";
-import {PinComponent} from "./pinSystem";
+import {PIN_TYPE, PinComponent} from "./pinSystem";
 import {
     ElementType,
     GRAPHIC_TYPE,
@@ -26,19 +26,19 @@ import {
     ImageScaleMode,
     VisibilityType
 } from "../../graphics";
-import {TOOL_TYPE, ToolPart, ToolSystem} from "./back/toolSystem";
+import {TOOL_TYPE, ToolPart, ToolSystem} from "./back/ToolSystem";
 import {PointerClickEvent, PointerEvents, PointerUpEvent} from "./back/pixi/pixiBoardSystem";
-import {SELECTION_TYPE, SelectionSystem} from "./back/selectionSystem";
+import {SELECTION_TYPE, SelectionSystem} from "./back/SelectionSystem";
 import {ToolType} from "../tools/toolType";
 import {SpawnCommandKind} from "./command/spawnCommand";
 import {executeAndLogCommand} from "./command/command";
 import {componentEditCommand, EditType} from "./command/componentEdit";
-import {findForeground, LAYER_TYPE, LayerSystem} from "./back/layerSystem";
+import {findForeground, LAYER_TYPE, LayerSystem} from "./back/LayerSystem";
 import {LinkRelocationSystem, LINK_RELOCATION_TYPE} from "./back/linkRelocationSystem";
 import SafeEventEmitter from "../../util/safeEventEmitter";
 import { CreationInfoResource, CREATION_INFO_TYPE } from "../resource";
 import { StandardToolbarOrder } from "@/phase/editMap/standardToolbarOrder";
-import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE } from "./back/selectionUiSystem";
+import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE } from "./back/SelectionUiSystem";
 
 import EcsProp from "@/ui/ecs/EcsProp.vue";
 import EcsPropTeleport from "@/ui/ecs/EcsPropTeleport.vue";
@@ -68,6 +68,7 @@ export class PropSystem implements System {
     readonly name = PROP_TYPE;
     readonly dependencies = [GRAPHIC_TYPE, INTERACTION_TYPE, SELECTION_TYPE, LAYER_TYPE];
     readonly optionalDependencies = [LINK_RELOCATION_TYPE];
+    readonly components?: [PropComponent, PropTeleport];
 
     readonly world: World;
     readonly interactionSys: InteractionSystem;
@@ -85,7 +86,7 @@ export class PropSystem implements System {
         this.world = world;
 
         if (world.isMaster) {
-            const toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
+            const toolSys = world.requireSystem(TOOL_TYPE);
             toolSys.addToolPart(new CreatePropToolPart(this));
             toolSys.addCreationTool({
                 name: ToolType.CREATE_PROP,
@@ -131,14 +132,14 @@ export class PropSystem implements System {
             } as ComponentInfoPanel);
         });
 
-        let linkReloc = this.world.systems.get(LINK_RELOCATION_TYPE) as LinkRelocationSystem | undefined;
+        let linkReloc = this.world.getSystem(LINK_RELOCATION_TYPE);
         if (linkReloc !== undefined) {
             linkReloc.addLink(PROP_TELEPORT_TYPE, 'targetProp');
         }
 
-        this.interactionSys = world.systems.get(INTERACTION_TYPE) as InteractionSystem;
-        this.selectionSys = world.systems.get(SELECTION_TYPE) as SelectionSystem;
-        this.layerSys = world.systems.get(LAYER_TYPE) as LayerSystem;
+        this.interactionSys = world.requireSystem(INTERACTION_TYPE);
+        this.selectionSys = world.requireSystem(SELECTION_TYPE);
+        this.layerSys = world.requireSystem(LAYER_TYPE);
 
         this.propTypes = new Map<string, PropType>();
 
@@ -216,7 +217,7 @@ export class PropSystem implements System {
             let prop = c as PropComponent;
 
             let pType = this.getPropType(prop);
-            let display = (this.world.getComponent(c.entity, GRAPHIC_TYPE) as GraphicComponent).display as ImageElement;
+            let display = (this.world.getComponent(c.entity, GRAPHIC_TYPE)!).display as ImageElement;
             (display.texture as any).value = pType.texture;
             this.world.editComponent(c.entity, GRAPHIC_TYPE, { display }, undefined, false);
         }
@@ -239,14 +240,14 @@ export class PropSystem implements System {
             return;
         }
 
-        let positions = this.world.storages.get(POSITION_TYPE) as SingleEcsStorage<PositionComponent>;
+        let positions = this.world.getStorage(POSITION_TYPE);
         let posFrom = positions.getComponent(entity)!;
         let posTo = positions.getComponent(teleport.targetProp)!;
         let diffX = posTo.x - posFrom.x;
         let diffY = posTo.y - posFrom.y;
 
-        let shape = (this.world.getComponent(entity, INTERACTION_TYPE) as InteractionComponent).shape;
-        let pinStorage = this.world.storages.get('pin') as SingleEcsStorage<PinComponent>;
+        let shape = (this.world.getComponent(entity, INTERACTION_TYPE)!).shape;
+        let pinStorage = this.world.getStorage(PIN_TYPE);
 
         let foreground = findForeground(this.world);
         let query = this.interactionSys.query(shape, x => {
@@ -345,8 +346,8 @@ export class CreatePropToolPart implements ToolPart {
 
         const id = this.createProp;
         const world = this.sys.world;
-        let loc = world.getComponent(id, POSITION_TYPE) as PositionComponent;
-        let tran = world.getComponent(id, TRANSFORM_TYPE) as TransformComponent;
+        let loc = world.getComponent(id, POSITION_TYPE)!;
+        let tran = world.getComponent(id, TRANSFORM_TYPE)!;
         world.despawnEntity(id);
         this.createProp = -1;
 
@@ -373,7 +374,7 @@ export class CreatePropToolPart implements ToolPart {
             } as PropComponent,
         ]);
 
-        const creationInfo = this.sys.world.getResource(CREATION_INFO_TYPE) as CreationInfoResource | undefined;
+        const creationInfo = this.sys.world.getResource(CREATION_INFO_TYPE);
 
         if (creationInfo?.exitAfterCreation ?? true) {
             this.sys.world.editResource(TOOL_TYPE, {
@@ -462,7 +463,7 @@ export class PropTeleportLinkToolPart implements ToolPart {
     onPointerClick(event: PointerClickEvent) {
         let point = event.boardPos;
 
-        let interactionSystem = this.sys.world.systems.get(INTERACTION_TYPE) as InteractionSystem;
+        let interactionSystem = this.sys.world.requireSystem(INTERACTION_TYPE);
         let query = interactionSystem.query(shapePoint(point), x => {
             return this.sys.world.getComponent(x.entity, 'prop') !== undefined;
         });

@@ -1,6 +1,6 @@
-import {System} from "../system";
-import {World} from "../world";
-import {MultiEcsStorage, SingleEcsStorage} from "../storage";
+import {System} from "../System";
+import {World} from "../World";
+import {MultiEcsStorage, SingleEcsStorage} from "../Storage";
 import {
     Component,
     FOLLOW_MOUSE_TYPE,
@@ -18,25 +18,25 @@ TRANSFORM_TYPE
 import {ElementType, GRAPHIC_TYPE, GraphicComponent, PointElement, VisibilityType, ImageElement, ContainerElement} from "../../graphics";
 import {POINT_RADIUS} from "./back/pixi/pixiGraphicSystem";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
-import {TOOL_TYPE, ToolSystem, ToolPart} from "./back/toolSystem";
+import {TOOL_TYPE, ToolSystem, ToolPart} from "./back/ToolSystem";
 import {PointerEvents, PointerUpEvent} from "./back/pixi/pixiBoardSystem";
 import {ToolType} from "../tools/toolType";
 import {SpawnCommandKind} from "./command/spawnCommand";
 import {executeAndLogCommand} from "./command/command";
-import {findForeground, PARENT_LAYER_TYPE, ParentLayerComponent} from "./back/layerSystem";
-import { NameAsLabelComponent, NAME_AS_LABEL_TYPE } from "./back/nameAsLabelSystem";
+import {findForeground, PARENT_LAYER_TYPE, ParentLayerComponent} from "./back/LayerSystem";
+import { NameAsLabelComponent, NAME_AS_LABEL_TYPE } from "./back/NameAsLabelSystem";
 import SafeEventEmitter from "../../util/safeEventEmitter";
 import { CreationInfoResource, CREATION_INFO_TYPE, GridResource, Resource } from "../resource";
 import { GRID_TYPE } from "./gridSystem";
 import { STANDARD_GRID_OPTIONS } from "../../game/grid";
 
 import { StandardToolbarOrder } from "@/phase/editMap/standardToolbarOrder";
-import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE, SELECTION_UI_TYPE } from "./back/selectionUiSystem";
+import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE, SELECTION_UI_TYPE } from "./back/SelectionUiSystem";
 
 
 import PinCreationOptions from "@/ui/edit/PinCreationOptions.vue";
 import EcsPin from "@/ui/ecs/EcsPin.vue";
-import { CircleShape, InteractionComponent, INTERACTION_TYPE } from "./back/interactionSystem";
+import { CircleShape, InteractionComponent, INTERACTION_TYPE } from "./back/InteractionSystem";
 import { Container } from "pixi.js";
 import { FileIndex } from "@/map/FileDb";
 
@@ -64,6 +64,8 @@ export interface PinResource extends Resource {
 export class PinSystem implements System {
     readonly name = PIN_TYPE;
     readonly dependencies = [TOOL_TYPE, GRAPHIC_TYPE, SELECTION_UI_TYPE, NAME_AS_LABEL_TYPE];
+    readonly components?: [PinComponent];
+    readonly resources?: [PinResource];
 
     readonly world: World;
 
@@ -76,7 +78,7 @@ export class PinSystem implements System {
         this.world = world;
 
         if (world.isMaster) {
-            let toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
+            let toolSys = world.requireSystem(TOOL_TYPE);
             toolSys.addToolPart(new CreatePinToolPart(this));
             toolSys.addCreationTool({
                 name: ToolType.CREATE_PIN,
@@ -101,7 +103,7 @@ export class PinSystem implements System {
             } as ComponentInfoPanel);
         });
 
-        this.gridSize = (this.world.getResource(GRID_TYPE) as GridResource ?? STANDARD_GRID_OPTIONS).size / STANDARD_GRID_OPTIONS.size;
+        this.gridSize = (this.world.getResource(GRID_TYPE) ?? STANDARD_GRID_OPTIONS).size / STANDARD_GRID_OPTIONS.size;
 
         world.addResource({
             type: PIN_TYPE,
@@ -109,7 +111,7 @@ export class PinSystem implements System {
             _save: true,
             _sync: true,
         } as PinResource, 'ignore');
-        this.res = world.getResource(PIN_TYPE)! as PinResource;
+        this.res = world.getResource(PIN_TYPE)!;
 
         world.addStorage(this.storage);
         world.events.on('component_add', this.onComponentAdd, this);
@@ -120,10 +122,10 @@ export class PinSystem implements System {
     private onComponentAdd(c: Component): void {
         if (c.type !== PIN_TYPE) return;
         let pin = c as PinComponent;
-        let pos = this.world.getComponent(c.entity, POSITION_TYPE) as PositionComponent;
+        let pos = this.world.getComponent(c.entity, POSITION_TYPE);
         if (pos === undefined) return;
 
-        let display = this.world.getComponent(c.entity, GRAPHIC_TYPE) as GraphicComponent;
+        let display = this.world.getComponent(c.entity, GRAPHIC_TYPE);
         if (display === undefined) {
             display = {
                 type: GRAPHIC_TYPE,
@@ -207,7 +209,7 @@ export class PinSystem implements System {
     }
 
     private redrawComponent(pin: PinComponent): void {
-        const gc = this.world.getComponent(pin.entity, GRAPHIC_TYPE) as GraphicComponent;
+        const gc = this.world.getComponent(pin.entity, GRAPHIC_TYPE)!;
         const scale = (pin.size || this.res.defaultSize) * this.gridSize;
         const display = gc.display as ContainerElement;
         if (pin.imageId !== undefined) {
@@ -306,8 +308,8 @@ export class CreatePinToolPart implements ToolPart {
 
         const world = this.sys.world;
         let id = this.createPin;
-        let g = world.getComponent(id, GRAPHIC_TYPE) as GraphicComponent;
-        let loc = world.getComponent(id, POSITION_TYPE) as PositionComponent;
+        let g = world.getComponent(id, GRAPHIC_TYPE)!;
+        let loc = world.getComponent(id, POSITION_TYPE)!;
         world.despawnEntity(id);
 
         const cmd = SpawnCommandKind.from(world, [
@@ -333,7 +335,7 @@ export class CreatePinToolPart implements ToolPart {
         ]);
 
         this.createPin = -1;
-        const creationInfo = this.sys.world.getResource(CREATION_INFO_TYPE) as CreationInfoResource | undefined;
+        const creationInfo = this.sys.world.getResource(CREATION_INFO_TYPE);
         if (creationInfo?.exitAfterCreation ?? true) {
             this.sys.world.editResource(TOOL_TYPE, {
                 tool: ToolType.INSPECT,
@@ -361,7 +363,7 @@ export class CreatePinToolPart implements ToolPart {
 
     onResourceEdited(res: Resource) {
         if (res.type == PIN_TYPE && this.createPin !== -1) {
-            const comp = this.sys.world.getComponent(this.createPin, GRAPHIC_TYPE) as GraphicComponent;
+            const comp = this.sys.world.getComponent(this.createPin, GRAPHIC_TYPE)!;
             (comp.display as PointElement).scale = (res as PinResource).defaultSize;
             this.sys.world.editComponent(this.createPin, GRAPHIC_TYPE, { display: comp.display }, undefined, false);
         }

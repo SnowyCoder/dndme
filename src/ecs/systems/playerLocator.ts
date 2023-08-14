@@ -1,6 +1,6 @@
-import { System } from "../system";
-import { World } from "../world";
-import { SingleEcsStorage } from "../storage";
+import { System } from "../System";
+import { World } from "../World";
+import { SingleEcsStorage } from "../Storage";
 import { Component, POSITION_TYPE, PositionComponent } from "../component";
 import { UnionFindSet } from "../../util/UnionFindSet";
 import { BoardSizeResource, BoardTransformResource, BOARD_SIZE_TYPE, BOARD_TRANSFORM_TYPE, PIXI_BOARD_TYPE } from "./back/pixi/pixiBoardSystem";
@@ -61,8 +61,8 @@ export class PlayerLocatorSystem implements System {
         const cluster = arrayRandomElement(clusters);
         const center = cluster.getCenter();
 
-        const trans = this.world.getResource(BOARD_TRANSFORM_TYPE) as BoardTransformResource;
-        const size = this.world.getResource(BOARD_SIZE_TYPE) as BoardSizeResource;
+        const trans = this.world.getResource(BOARD_TRANSFORM_TYPE)!;
+        const size = this.world.getResource(BOARD_SIZE_TYPE)!;
 
         let changes = {
             posX: -center.x * trans.scaleX + size.width / 2,
@@ -79,8 +79,8 @@ export class PlayerLocatorSystem implements System {
     buildClusters(): void {
         this.clusters = [];
 
-        const playerStorage = this.world.getStorage(PLAYER_TYPE) as SingleEcsStorage<PlayerComponent>;
-        const posStorage = this.world.getStorage(POSITION_TYPE) as SingleEcsStorage<PositionComponent>;
+        const playerStorage = this.world.getStorage(PLAYER_TYPE);
+        const posStorage = this.world.getStorage(POSITION_TYPE);
 
         // I expect there to be a low number of players (<<30) and of clusters (<<10),
         // so any algorithm will do with some cache.

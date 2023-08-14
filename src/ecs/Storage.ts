@@ -1,8 +1,9 @@
 import {Component, HideableComponent, MultiComponent} from "./component";
-import {DeserializeData, DeserializeOptions, SerializeData, SerializeOptions, World} from "./world";
+import {DeserializeData, SerializeData, World} from "./World";
 import {generateRandomId} from "./ecsUtil";
 import { arrayFilterInPlace } from "../util/array";
 import { objectFilterInplace, objectMerge } from "../util/jsobj";
+import { RegisteredComponent } from "./TypeRegistry";
 
 
 export function serializeObj(obj: Component, removeClientVisible: boolean): any {
@@ -16,7 +17,7 @@ export function serializeObj(obj: Component, removeClientVisible: boolean): any 
 }
 
 export interface EcsStorage<C extends Component> {
-    readonly type: string;
+    readonly type: C['type'];
     readonly sync: boolean;
     readonly save: boolean;
     readonly isMulti: boolean;
@@ -42,14 +43,14 @@ export interface EcsStorage<C extends Component> {
 
 export type MultiEcsStorageSerialized = {[entity: number]: any[]};
 export class MultiEcsStorage<C extends MultiComponent> implements EcsStorage<C> {
-    readonly type: string;
+    readonly type: C['type'];
     readonly sync: boolean;
     readonly save: boolean;
     readonly isMulti = true;
 
     private data = new Map<number, Array<C>>();
 
-    constructor(type: string, sync: boolean = true, save: boolean = true) {
+    constructor(type: C['type'], sync: boolean = true, save: boolean = true) {
         this.type = type;
         this.sync = sync;
         this.save = save;
@@ -226,14 +227,14 @@ export class MultiEcsStorage<C extends MultiComponent> implements EcsStorage<C> 
 
 export type SingleEcsStorageSerialzed = {[entity: number]: any};
 export class SingleEcsStorage<C extends Component> implements EcsStorage<C> {
-    readonly type: string;
+    readonly type: C['type'];
     readonly sync: boolean;
     readonly save: boolean;
     readonly isMulti = false;
 
     private data = new Map<number, C>();
 
-    constructor(type: string, sync: boolean = true, save: boolean = true) {
+    constructor(type: C['type'], sync: boolean = true, save: boolean = true) {
         this.type = type;
         this.sync = sync;
         this.save = save;
@@ -346,29 +347,29 @@ export class SingleEcsStorage<C extends Component> implements EcsStorage<C> {
 }
 
 export type FlagEcsStorageSerialzed = number[];
-export class FlagEcsStorage implements EcsStorage<Component> {
-    readonly type: string;
+export class FlagEcsStorage<C extends Component> implements EcsStorage<C> {
+    readonly type: C['type'];
     readonly sync: boolean;
     readonly save: boolean;
     readonly isMulti = false;
 
-    private data = new Map<number, Component>();
+    private data = new Map<number, C>();
 
-    constructor(type: string, sync: boolean = true, save: boolean = true) {
+    constructor(type: C['type'], sync: boolean = true, save: boolean = true) {
         this.type = type;
         this.sync = sync;
         this.save = save;
     }
 
-    getComponent(entity: number): Component | undefined {
+    getComponent(entity: number): C | undefined {
         return this.data.get(entity);
     }
 
-    getFirstComponent(entity: number): Component | undefined {
+    getFirstComponent(entity: number): C | undefined {
         return this.getComponent(entity);
     }
 
-    getComponents(entity?: number): Iterable<Component> {
+    getComponents(entity?: number): Iterable<C> {
         if (entity !== undefined) {
             let res = this.getComponent(entity);
             if (res === undefined) return [];
@@ -378,16 +379,16 @@ export class FlagEcsStorage implements EcsStorage<Component> {
         }
     }
 
-    allComponents(): IterableIterator<Component> {
+    allComponents(): IterableIterator<C> {
         return this.data.values();
     }
 
-    register(component: Component): void {
+    register(component: C): void {
         if (this.data.has(component.entity)) throw new Error('Component of same type already registered');
         this.data.set(component.entity, component);
     }
 
-    unregister(component: Component): void {
+    unregister(component: C): void {
         this.data.delete(component.entity);
     }
 
@@ -425,7 +426,7 @@ export class FlagEcsStorage implements EcsStorage<Component> {
             ecs.addComponent(dsData.entityMapping(entity), {
                 type: this.type,
                 entity: -1
-            } as Component);
+            } as RegisteredComponent);
         }
     }
 

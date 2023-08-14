@@ -4,7 +4,7 @@
 
 <script lang="ts">
 import { defineComponent, PropType } from "vue";
-import { ParentLayerComponent } from "../../ecs/systems/back/layerSystem";
+import { ParentLayerComponent } from "../../ecs/systems/back/LayerSystem";
 
 export default defineComponent({
   props: {

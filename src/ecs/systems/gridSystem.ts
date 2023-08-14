@@ -2,11 +2,11 @@ import {distSquared2d} from "../../util/geometry";
 import {DESTROY_ALL} from "../../util/pixi";
 import {GridGraphicalOptions, GridType, STANDARD_GRID_OPTIONS} from "../../game/grid";
 import {GridResource, Resource} from "../resource";
-import {World} from "../world";
-import {System} from "../system";
+import {World} from "../World";
+import {System} from "../System";
 import {BOARD_TRANSFORM_TYPE, BoardTransformResource, PIXI_BOARD_TYPE, PixiBoardSystem} from "./back/pixi/pixiBoardSystem";
-import {TOOL_TYPE, ToolSystem} from "./back/toolSystem";
-import {SELECTION_TYPE} from "./back/selectionSystem";
+import {TOOL_TYPE, ToolSystem} from "./back/ToolSystem";
+import {SELECTION_TYPE} from "./back/SelectionSystem";
 import {ToolType} from "../tools/toolType";
 import {LayerOrder} from "../../phase/editMap/layerOrder";
 
@@ -41,14 +41,14 @@ export class GridSystem implements System {
 
     constructor(world: World) {
         this.world = world;
-        this.boardSys = world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
+        this.boardSys = world.requireSystem(PIXI_BOARD_TYPE);
         let screen = this.boardSys.renderer.screen;
 
         this.sprite = new TilingSprite(Texture.EMPTY, screen.width, screen.height);
         this.sprite.zIndex = LayerOrder.GRID;
 
         if (world.isMaster) {
-            let toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
+            let toolSys = world.requireSystem(TOOL_TYPE);
             toolSys.addToolAsCopy(ToolType.GRID, ToolType.INSPECT, {
                 sideBar: GridEditComponent as any as VueComponent,
                 sideBarProps: {},

@@ -1,5 +1,5 @@
 import {Phase} from "./phase";
-import {World} from "../ecs/world";
+import {World} from "../ecs/World";
 import {registerCommonStorage} from "../ecs/component";
 
 export class EcsPhase extends Phase {
@@ -8,7 +8,6 @@ export class EcsPhase extends Phase {
     constructor(name: string, isMaster: boolean) {
         super(name);
         this.world = new World(isMaster);
-
     }
 
     ecsSetup(): void {

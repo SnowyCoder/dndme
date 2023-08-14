@@ -25,6 +25,9 @@
         <i class="fas fa-eraser"></i>
       </button>
     </div>
+    <!--div>
+      {{ data.selectedEntities }}
+    </div-->
 
     <ecs-component-wrapper v-for="comp of data.components" v-bind:key="comp.type + ((comp as any).multiId || '')"
                            v-bind:component="comp"
@@ -34,28 +37,27 @@
 
 <script lang="ts">
 import EcsComponentWrapper from "./CompWrapper.vue";
-import { World } from "../../ecs/world";
 
 import {
   SELECTION_UI_TYPE,
   SelectionUiData,
   SelectionUiSystem,
-} from "../../ecs/systems/back/selectionUiSystem";
+} from "../../ecs/systems/back/SelectionUiSystem";
 
 import { defineComponent, inject, ShallowRef, shallowRef } from "vue";
-import { uniqueId, useResource } from "../vue";
+import { uniqueId, useResource, useWorld } from "../vue";
 
 export default defineComponent({
   components: { EcsComponentWrapper },
   setup() {
-    const world = inject('world') as ShallowRef<World>;
+    const world = useWorld();
 
     const dropdownId = uniqueId('dropdown');
 
-    const data = useResource<SelectionUiData>(world.value, SELECTION_UI_TYPE);
+    const data = useResource(world, SELECTION_UI_TYPE);
 
     const onEcsPropertyChange = (type: string, property: string, value: any, multiId?: number) => {
-      let selSys = world.value.systems.get(SELECTION_UI_TYPE) as SelectionUiSystem;
+      let selSys = world.getSystem(SELECTION_UI_TYPE)!;
       selSys.setProperty(data.value.selectedEntities, type, property, value, multiId);
     }
 

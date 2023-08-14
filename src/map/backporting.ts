@@ -4,12 +4,12 @@ import { loadTextureHTML } from "@/util/pixi";
 import { decode } from "@msgpack/msgpack";
 import JSZip from "jszip";
 import { SHARED_TYPE } from "../ecs/component";
-import {  MultiEcsStorageSerialized, SingleEcsStorageSerialzed } from "../ecs/storage";
+import {  MultiEcsStorageSerialized, SingleEcsStorageSerialzed } from "../ecs/Storage";
 import { BIG_STORAGE_TYPE } from "../ecs/systems/back/files/bigStorageSystem";
 import { BACKGROUND_IMAGE_TYPE } from "../ecs/systems/backgroundImageSystem";
 import { GRID_TYPE } from "../ecs/systems/gridSystem";
 import { PIN_TYPE } from "../ecs/systems/pinSystem";
-import { SerializedWorld } from "../ecs/world";
+import { SerializedWorld } from "../ecs/World";
 import { STANDARD_GRID_OPTIONS } from "../game/grid";
 import { arrayRemoveElem } from "../util/array";
 import { FileDb } from "./FileDb";
@@ -77,8 +77,10 @@ export async function rewriteCompatibility(zip: JSZip, filedb: FileDb, progress:
                 // TODO: remove BigStorage entity from SHARED (since it does not exist anymore)
                 // delete entry from array
                 arrayRemoveElem(level.ecs.entities, entity);
-                const bigEntries = (level.ecs.storages[BIG_STORAGE_TYPE] as MultiEcsStorageSerialized)[entity];
-                delete level.ecs.storages[BIG_STORAGE_TYPE];
+
+                const storages = level.ecs.storages as any;
+                const bigEntries = (storages[BIG_STORAGE_TYPE] as MultiEcsStorageSerialized)[entity];
+                delete storages[BIG_STORAGE_TYPE];
                 console.log("Porting " + bigEntries.length + " files");
                 for (const entry of bigEntries) {
                     console.log("Saving big entry...");

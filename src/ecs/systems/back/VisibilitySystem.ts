@@ -1,11 +1,11 @@
 import {Component, POSITION_TYPE, PositionComponent, MultiComponent, SHARED_TYPE} from "../../component";
 import {Aabb} from "../../../geometry/aabb";
-import {MultiEcsStorage, SingleEcsStorage} from "../../storage";
+import {FlagEcsStorage, MultiEcsStorage, SingleEcsStorage} from "../../Storage";
 import {DynamicTree} from "../../../geometry/dynamicTree";
-import {World} from "../../world";
+import {World} from "../../World";
 import {Line} from "../../../geometry/line";
 import {computeViewport} from "../../../geometry/visibilityPolygon";
-import {System} from "../../system";
+import {System} from "../../System";
 import {
     INTERACTION_TYPE,
     InteractionComponent,
@@ -14,7 +14,7 @@ import {
     shapeAabb,
     shapeToAabb,
     ShapeType
-} from "./interactionSystem";
+} from "./InteractionSystem";
 import {STANDARD_GRID_OPTIONS} from "../../../game/grid";
 import {GRID_TYPE} from "../gridSystem";
 import {GridResource, Resource} from "../../resource";
@@ -84,12 +84,13 @@ export interface VisibilityBlocker extends Component {
 export class VisibilitySystem implements System {
     readonly name = VISIBILITY_TYPE;
     readonly dependencies = [INTERACTION_TYPE];
+    readonly components?: [VisibilityComponent, VisibilityDetailsComponent, VisibilityBlocker];
 
     readonly world: World;
 
     storage = new MultiEcsStorage<VisibilityComponent>(VISIBILITY_TYPE, false, false);
     detailsStorage = new SingleEcsStorage<VisibilityDetailsComponent>(VISIBILITY_DETAILS_TYPE, false, false);
-    blockerStorage = new SingleEcsStorage<VisibilityBlocker>(VISIBILITY_BLOCKER_TYPE, false, false);
+    blockerStorage = new FlagEcsStorage<VisibilityBlocker>(VISIBILITY_BLOCKER_TYPE, false, false);
 
     interactionSystem: InteractionSystem;
     gridSize: number;
@@ -98,10 +99,10 @@ export class VisibilitySystem implements System {
 
     constructor(world: World) {
         this.world = world;
-        this.interactionSystem = this.world.systems.get(INTERACTION_TYPE) as InteractionSystem;
+        this.interactionSystem = this.world.requireSystem(INTERACTION_TYPE);
 
-        this.clock = this.world.getResource(GAME_CLOCK_TYPE) as GameClockResource;
-        this.gridSize = (this.world.getResource(GRID_TYPE) as GridResource ?? STANDARD_GRID_OPTIONS).size;
+        this.clock = this.world.getResource(GAME_CLOCK_TYPE)!;
+        this.gridSize = (this.world.getResource(GRID_TYPE) ?? STANDARD_GRID_OPTIONS).size;
 
         world.addStorage(this.storage);
         world.addStorage(this.detailsStorage);
@@ -120,7 +121,7 @@ export class VisibilitySystem implements System {
     }
 
     updatePolygon(c: VisibilityDetailsComponent): void {
-        let pos = this.world.getComponent(c.entity, POSITION_TYPE) as PositionComponent;
+        let pos = this.world.getComponent(c.entity, POSITION_TYPE);
         if (pos === undefined) return;
 
         // We will recreate it later (if necessary)
@@ -129,7 +130,6 @@ export class VisibilitySystem implements System {
         if (c.range <= 0) {
             this.world.editComponent(c.entity, c.type, {
                 polygon: undefined,
-                polygonAabb: undefined,
                 aabb: undefined,
             });
             return;
@@ -229,7 +229,7 @@ export class VisibilitySystem implements System {
                 let dbgPrint = undefined;
                 if (DEBUG_PRINT_POLYGON) {
                     dbgPrint = new Graphics();
-                    (this.world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem).board.addChild(dbgPrint);
+                    this.world.requireSystem(PIXI_BOARD_TYPE).board.addChild(dbgPrint);
                 }
                 details = {
                     entity,
@@ -255,7 +255,7 @@ export class VisibilitySystem implements System {
         if (c.type === VISIBILITY_TYPE) {
             this.recomputeDetails(c.entity);
         } else if (c.type === VISIBILITY_BLOCKER_TYPE) {
-            let cmp = this.world.getComponent(c.entity, INTERACTION_TYPE) as InteractionComponent;
+            let cmp = this.world.getComponent(c.entity, INTERACTION_TYPE);
             if (cmp !== undefined) {
                 this.recomputeArea(shapeToAabb(cmp.shape));
             }
@@ -270,7 +270,7 @@ export class VisibilitySystem implements System {
 
             let blo = this.blockerStorage.getComponent(c.entity);
             if (blo !== undefined) {
-                let cmp = this.world.getComponent(c.entity, INTERACTION_TYPE) as InteractionComponent;
+                let cmp = this.world.getComponent(c.entity, INTERACTION_TYPE);
                 if (cmp !== undefined) {
                     this.recomputeArea(shapeToAabb(cmp.shape));
                 }
@@ -295,7 +295,7 @@ export class VisibilitySystem implements System {
             }
             let blk = this.blockerStorage.getComponent(c.entity);
             if (blk !== undefined) {
-                let inter = this.world.getComponent(blk.entity,INTERACTION_TYPE) as InteractionComponent;
+                let inter = this.world.getComponent(blk.entity,INTERACTION_TYPE)!;
                 this.recomputeArea(shapeToAabb(inter.shape));
             }
         } else if (c.type === INTERACTION_TYPE && 'shape' in changes && this.blockerStorage.getComponent(c.entity) !== undefined) {
@@ -352,7 +352,7 @@ export class VisibilitySystem implements System {
     }
 
     private removeVisibilityBlocker(c: VisibilityBlocker) {
-        let cmp = this.world.getComponent(c.entity, INTERACTION_TYPE) as InteractionComponent;
+        let cmp = this.world.getComponent(c.entity, INTERACTION_TYPE);
         if (cmp !== undefined) {
             this.recomputeArea(shapeToAabb(cmp.shape));
         }

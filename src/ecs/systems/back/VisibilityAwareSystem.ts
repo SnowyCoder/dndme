@@ -1,8 +1,8 @@
 import {Component, POSITION_TYPE, PositionComponent} from "../../component";
-import {System} from "../../system";
-import {World} from "../../world";
-import {VISIBILITY_TYPE, VisibilityComponent, VisibilitySystem, VisibilityDetailsComponent, VISIBILITY_DETAILS_TYPE} from "./visibilitySystem";
-import {MultiEcsStorage, SingleEcsStorage} from "../../storage";
+import {System} from "../../System";
+import {World} from "../../World";
+import {VISIBILITY_TYPE, VisibilityComponent, VisibilitySystem, VisibilityDetailsComponent, VISIBILITY_DETAILS_TYPE} from "./VisibilitySystem";
+import {MultiEcsStorage, SingleEcsStorage} from "../../Storage";
 import {arrayRemoveElem} from "../../../util/array";
 import {
     INTERACTION_TYPE,
@@ -12,7 +12,7 @@ import {
     shapeIntersect,
     shapePolygon,
     CircleShape
-} from "./interactionSystem";
+} from "./InteractionSystem";
 import {Aabb} from "../../../geometry/aabb";
 import {GRID_TYPE} from "../gridSystem";
 import {GridResource, Resource} from "../../resource";
@@ -41,6 +41,7 @@ export function newVisibilityAwareComponent(isWall: boolean = false): Visibility
 export class VisibilityAwareSystem implements System {
     readonly name = VISIBILITY_AWARE_TYPE;
     readonly dependencies = [VISIBILITY_TYPE, INTERACTION_TYPE];
+    readonly components?: [VisibilityAwareComponent];
 
     private world: World;
     private visibilitySys: VisibilitySystem;
@@ -66,11 +67,11 @@ export class VisibilityAwareSystem implements System {
     constructor(world: World) {
         this.world = world;
 
-        this.visibilitySys = this.world.systems.get(VISIBILITY_TYPE) as VisibilitySystem;
-        this.interactionSys = this.world.systems.get(INTERACTION_TYPE) as InteractionSystem;
+        this.visibilitySys = this.world.requireSystem(VISIBILITY_TYPE);
+        this.interactionSys = this.world.requireSystem(INTERACTION_TYPE);
         world.addStorage(this.storage);
 
-        this.gridSize = (this.world.getResource(GRID_TYPE) as GridResource ?? STANDARD_GRID_OPTIONS).size;
+        this.gridSize = (this.world.getResource(GRID_TYPE) ?? STANDARD_GRID_OPTIONS).size;
 
         world.events.on('component_add', this.onComponentAdd, this);
         world.events.on('component_edited', this.onComponentEdited, this);
@@ -227,7 +228,7 @@ export class VisibilityAwareSystem implements System {
         let visDetStorage = this.world.storages.get(VISIBILITY_DETAILS_TYPE) as SingleEcsStorage<VisibilityDetailsComponent>;
 
         let pos = posStorage.getComponent(aware.entity)!;
-        let shape = (this.world.getComponent(aware.entity, INTERACTION_TYPE) as InteractionComponent).shape;
+        let shape = this.world.getComponent(aware.entity, INTERACTION_TYPE)!.shape;
 
         let oldVisibleBy = aware.visibleBy;
         aware.visibleBy = [];
@@ -299,11 +300,11 @@ export class VisibilityAwareSystem implements System {
 
         const oldWalls = viewer._canSeeWalls || {};
         viewer._canSeeWalls = {};
-        const viewRanges = (this.world.getStorage(VISIBILITY_TYPE) as MultiEcsStorage<VisibilityComponent>).getComponents(viewer.entity);
+        const viewRanges = this.world.getStorage(VISIBILITY_TYPE).getComponents(viewer.entity);
         const ranges = [...viewRanges]
                 .map(x => [x.range, x.multiId])
                 .sort((a, b) => b[0] - a[0]);
-        const pos = this.world.getComponent(viewer.entity, POSITION_TYPE) as PositionComponent;
+        const pos = this.world.getComponent(viewer.entity, POSITION_TYPE)!;
 
         if (blockersUsed.length === 0) {
             // Player visibility null
@@ -340,7 +341,7 @@ export class VisibilityAwareSystem implements System {
                 //console.log("| ^" + e);
                 continue;
             }
-            const blockerShape = (this.world.getComponent(e, INTERACTION_TYPE) as InteractionComponent).shape;
+            const blockerShape = this.world.getComponent(e, INTERACTION_TYPE)!.shape;
 
             let multiIds = [ranges[0][1]];
             for (let i = 1; i < ranges.length; i++) {
@@ -422,7 +423,7 @@ export class VisibilityAwareSystem implements System {
 
         const newWalls: number[] = [];
 
-        const inter = this.world.getComponent(c.entity, INTERACTION_TYPE) as InteractionComponent;
+        const inter = this.world.getComponent(c.entity, INTERACTION_TYPE);
         if (inter === undefined || inter.shape.type !== ShapeType.LINE) return;
         const aabb = shapeToAabb(inter.shape);
         for (let node of [...this.visibilitySys.aabbTree.query(aabb)]) {

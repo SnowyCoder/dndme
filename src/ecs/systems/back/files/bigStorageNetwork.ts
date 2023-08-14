@@ -1,6 +1,6 @@
 import { FileDb, FileIndex } from "@/map/FileDb";
 import { WrtcChannel } from "@/network/channel/WrtcChannel";
-import { ExtraChannelInit } from "@/network/webtorrent/WTChannel";
+import { ExtraChannelInit } from "@/network/Channel";
 import { BigStorageSystem } from "./bigStorageSystem";
 import { Buffer } from "buffer";
 
@@ -263,11 +263,7 @@ export class BigStorageNetworkServer {
         });
 
         netSys.channel.events.on('device_leave', (id: number) => {
-            const channel = this.clients.get(id);
-            if (this.clients.has(id)) {
-                console.error("File server: Double join!");
-                return;
-            }
+            this.clients.delete(id);
         });
     }
 

@@ -1,4 +1,4 @@
-import {World} from "../../world";
+import {World} from "../../World";
 import {Command, CommandKind} from "./command";
 
 export interface EventCall {

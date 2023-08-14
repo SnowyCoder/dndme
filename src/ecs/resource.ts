@@ -1,9 +1,10 @@
 import {GridOptions} from "../game/grid";
 import {GRID_TYPE} from "./systems/gridSystem";
 import {Aabb} from "../geometry/aabb";
+import { ResourceType } from "./TypeRegistry";
 
 export interface Resource {
-    type: string;
+    type: ResourceType;
     _save: boolean;
     _sync: boolean;
 }
@@ -47,3 +48,5 @@ export interface CreationInfoResource extends Resource {
     _save: true;
     _sync: false;
 }
+
+export type DEFAULT_RESOURCES = GridResource | RectangularSelectionResource | MeasureResource | CreationInfoResource;

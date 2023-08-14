@@ -1,11 +1,11 @@
-import { System } from "@/ecs/system";
+import { System } from "@/ecs/System";
 import { Container, Point, Renderer, settings, Ticker, UPDATE_PRIORITY } from "pixi.js";
-import { World } from "@/ecs/world";
+import { World } from "@/ecs/World";
 import { Resource } from "@/ecs/resource";
 import { FOLLOW_MOUSE_TYPE, POSITION_TYPE } from "@/ecs/component";
-import { FlagEcsStorage } from "@/ecs/storage";
+import { FlagEcsStorage } from "@/ecs/Storage";
 import { findEntitiesAt, snapPoint } from "@/ecs/tools/utils";
-import { KEYBOARD_KEY_DOWN, KEYBOARD_TYPE, KeyboardResource } from "../keyboardSystem";
+import { KEYBOARD_KEY_DOWN, KEYBOARD_TYPE, KeyboardResource } from "../KeyboardSystem";
 import { DEFAULT_BACKGROUND } from "@/ecs/systems/lightSystem";
 import { LayerOrder } from "@/phase/editMap/layerOrder";
 import { Group, Layer, Stage } from "@pixi/layers";
@@ -107,8 +107,9 @@ export type TICK_EVENT = typeof TICK_EVENT;
 export const PIXI_BOARD_TYPE = 'pixi_board';
 export type PIXI_BOARD_TYPE = typeof PIXI_BOARD_TYPE;
 export class PixiBoardSystem implements System {
-    name = PIXI_BOARD_TYPE;
-    dependencies = [] as string[];
+    readonly name = PIXI_BOARD_TYPE;
+    readonly dependencies = [] as string[];
+    readonly resources?: [BoardTransformResource, GameClockResource, BoardSizeResource];
 
     world: World;
 
@@ -221,7 +222,7 @@ export class PixiBoardSystem implements System {
     }
 
     onKeyDown(key: string) {
-        let keyboard = this.world.getResource(KEYBOARD_TYPE) as KeyboardResource | undefined;
+        let keyboard = this.world.getResource(KEYBOARD_TYPE);
         if (keyboard === undefined) return;
 
         let ctrl = keyboard.ctrl;
@@ -501,7 +502,7 @@ export class PixiBoardSystem implements System {
     }
 
     updatePointerFollowers(point: IPoint) {
-        for (let c of (this.world.storages.get(FOLLOW_MOUSE_TYPE) as FlagEcsStorage).allComponents()) {
+        for (let c of this.world.getStorage(FOLLOW_MOUSE_TYPE).allComponents()) {
             this.world.editComponent(c.entity, POSITION_TYPE, {
                 x: point.x,
                 y: point.y,

@@ -1,6 +1,6 @@
 import { Resource } from "@/ecs/resource";
-import { System } from "@/ecs/system";
-import { World } from "@/ecs/world";
+import { System } from "@/ecs/System";
+import { World } from "@/ecs/World";
 import { TICK_EVENT, WEBGL_CONTEXT_CHANGE_EVENT } from "../pixi/pixiBoardSystem";
 import { createConsoleLogger, unregisterConsoleLogger } from "./ConsoleLogReceiver";
 import { DEFAULT_LOG_LEVEL, Logger, LogLevel, LogReceiver } from "./Logger";
@@ -19,6 +19,7 @@ export interface LoggerResource extends Resource {
 export class LogSystem implements System {
     readonly name = LOG_TYPE;
     readonly dependencies = [];
+    readonly resources?: [LoggerResource];
 
     readonly consoleLogger: LogReceiver;
 
@@ -60,7 +61,7 @@ export class LogSystem implements System {
 }
 
 export function getLogger(world: World, path: string): Logger {
-    const res = world.getResource(LOG_TYPE) as LoggerResource | undefined;
+    const res = world.getResource(LOG_TYPE);
     if (res === undefined) throw new Error("No log system found");
     return res.root.getLogger(path.split('.'), 0);
 }

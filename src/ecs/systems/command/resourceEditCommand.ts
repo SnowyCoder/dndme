@@ -1,12 +1,13 @@
+import { ResourceForType, ResourceType } from "@/ecs/TypeRegistry";
 import {Resource} from "../../resource";
-import {AnyMapType, World} from "../../world";
+import {AnyMapType, World} from "../../World";
 import {Command, CommandKind} from "./command";
 
 export interface ResourceEditCommand extends Command {
     kind: 'redit';
     add: Resource[];
-    edit: {[type: string]: any};
-    remove: string[];
+    edit: {[T in ResourceType]?: Partial<ResourceForType<T>>};
+    remove: ResourceType[];
 }
 
 export class ResourceEditCommandKind implements CommandKind {
@@ -28,17 +29,19 @@ export class ResourceEditCommandKind implements CommandKind {
             inv.remove.push(c.type);
             this.world.addResource(c);
         }
-        for (let name in cmd.edit) {
+        for (let n in cmd.edit) {
+            const name = n as ResourceType;
             // Data gets swapped with the changes
-            let data = cmd.edit[name];
+            let data = cmd.edit[name] as any;
             this.world.editResource(name, data);
         }
         inv.edit = cmd.edit;
         for (let c of cmd.remove) {
-            let res = this.world.getResource(c);
+            const name = c as ResourceType;
+            let res = this.world.getResource(name);
             if (res === undefined) continue;
             inv.add.push(res);
-            this.world.removeResource(c);
+            this.world.removeResource(name);
         }
         return inv;
     }
@@ -53,9 +56,9 @@ export class ResourceEditCommandKind implements CommandKind {
 
         let editc = 0;
         for (let type in cmd.edit) {
-            if (this.world.getResource(type)?._sync) {
+            if (this.world.getResource(type as ResourceType)?._sync) {
                 editc += 1;
-                edit[type] = cmd.edit[type];
+                edit[type] = cmd.edit[type as ResourceType];
             }
         }
 
@@ -80,18 +83,20 @@ export class ResourceEditCommandKind implements CommandKind {
             }
             for (let k in to.edit) {
                 if (!(k in to.edit)) return false;
-                const fromKeys = Object.keys(from.edit[k]);
-                const toKeys = Object.keys(to.edit[k]);
+                const key = k as ResourceType;
+                const fromKeys = Object.keys(from.edit[key] as any);
+                const toKeys = Object.keys(to.edit[key] as any);
                 if (fromKeys.length !== toKeys.length || !fromKeys.every(x => toKeys.includes(x))) return false;
             }
         }
         to.add.push(...from.add)
         to.remove.push(...from.remove)
         for (let type in from.edit) {
+            const name = type as ResourceType;
             if (type in to.edit) {
-                Object.assign(to.edit[type], from.edit[type]);
+                Object.assign(to.edit[name] as any, from.edit[name]);
             } else {
-                to.edit[type] = from.edit[type];
+                to.edit[name] = from.edit[name] as any;
             }
         }
         return true;
@@ -100,7 +105,7 @@ export class ResourceEditCommandKind implements CommandKind {
     isNull(command: ResourceEditCommand): boolean {
         if (command.add.length + command.remove.length !== 0) return false;
         for (let type in command.edit) {
-            for (let _change in command.edit[type]) {
+            for (let _change in command.edit[type as ResourceType]) {
                 return false;
             }
         }

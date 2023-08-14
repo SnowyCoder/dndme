@@ -1,6 +1,6 @@
-import {System} from "../system";
-import {World} from "../world";
-import {SingleEcsStorage} from "../storage";
+import {System} from "../System";
+import {World} from "../World";
+import {FlagEcsStorage, SingleEcsStorage} from "../Storage";
 import {Component, HideableComponent, POSITION_TYPE, PositionComponent} from "../component";
 import {DESTROY_ALL} from "../../util/pixi";
 import {Line} from "../../geometry/line";
@@ -14,10 +14,10 @@ import {ComponentEditCommand, singleEditCommand} from "./command/componentEdit";
 import {emitCommand, executeAndLogCommand} from "./command/command";
 import {LayerOrder} from "../../phase/editMap/layerOrder";
 import { Group, Layer } from "@pixi/layers";
-import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE } from "./back/selectionUiSystem";
+import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE } from "./back/SelectionUiSystem";
 
 import EcsDoor from "@/ui/ecs/EcsDoor.vue";
-import { EVENT_INTERACTION_COLLIDER_UPDATE, InteractionComponent, InteractionSystem, INTERACTION_TYPE, QueryMetadata, QUERY_META_COLLIDING_ENTITY, Shape, shapeLine, shapeToAabb, ShapeType } from "./back/interactionSystem";
+import { EVENT_INTERACTION_COLLIDER_UPDATE, InteractionComponent, InteractionSystem, INTERACTION_TYPE, QueryMetadata, QUERY_META_COLLIDING_ENTITY, Shape, shapeLine, shapeToAabb, ShapeType } from "./back/InteractionSystem";
 import { GraphicComponent, GRAPHIC_TYPE, LineElement } from "@/graphics";
 import { Container, Graphics } from "pixi.js";
 
@@ -50,6 +50,7 @@ export class DoorSystem implements System {
     readonly world: World;
     readonly name = DOOR_TYPE;
     readonly dependencies = [PIXI_BOARD_TYPE, WALL_TYPE];
+    readonly components?: [DoorComponent];
 
     storage = new SingleEcsStorage<DoorComponent>(DOOR_TYPE, true, true);
 
@@ -66,8 +67,8 @@ export class DoorSystem implements System {
         this.layer = new Layer(new Group(LayerOrder.DETAILS, false));
         this.displayContainer = new Container();
 
-        this.pixiBoardSys = world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
-        this.wallSys = world.systems.get(WALL_TYPE) as WallSystem;
+        this.pixiBoardSys = world.requireSystem(PIXI_BOARD_TYPE);
+        this.wallSys = world.requireSystem(WALL_TYPE);
 
         this.world.addStorage(this.storage);
         this.world.events.on('component_add', this.onComponentAdd, this);
@@ -105,8 +106,8 @@ export class DoorSystem implements System {
     }
 
     redrawComponent(door: DoorComponent): void {
-        let wall = this.world.getComponent(door.entity, WALL_TYPE) as WallComponent;
-        let pos = this.world.getComponent(door.entity, POSITION_TYPE) as PositionComponent;
+        let wall = this.world.getComponent(door.entity, WALL_TYPE)!;
+        let pos = this.world.getComponent(door.entity, POSITION_TYPE)!;
 
         let visible = this.isMasterView ||
             (this.world.getComponent(door.entity, REMEMBER_TYPE) !== undefined && door.clientVisible !== false);
@@ -156,8 +157,8 @@ export class DoorSystem implements System {
     }
 
     private updatePrimal(door: DoorComponent, checkPos: boolean = true, checkVec: boolean = true): boolean {
-        const pos = this.world.getComponent(door.entity, POSITION_TYPE) as PositionComponent;
-        const wall = this.world.getComponent(door.entity, WALL_TYPE) as WallComponent;
+        const pos = this.world.getComponent(door.entity, POSITION_TYPE)!;
+        const wall = this.world.getComponent(door.entity, WALL_TYPE)!;
 
         const p = door._primal;
         const q = [pos.x, pos.y, wall.vec[0], wall.vec[1]];
@@ -298,7 +299,7 @@ export class DoorSystem implements System {
             this.world.events.emit(EVENT_DOOR_DUAL_UPDATE, d);
             this.redrawComponent(d);
 
-            let wall = this.world.getComponent(comp.entity, WALL_TYPE) as WallComponent;
+            let wall = this.world.getComponent(comp.entity, WALL_TYPE);
             if (wall !== undefined) wall._dontMerge++;
         } else if (comp.type === REMEMBER_TYPE) {
             let door = this.storage.getComponent(comp.entity);
@@ -351,7 +352,7 @@ export class DoorSystem implements System {
 
             d._display?.destroy(DESTROY_ALL);
 
-            let wall = this.world.getComponent(comp.entity, WALL_TYPE) as WallComponent;
+            let wall = this.world.getComponent(comp.entity, WALL_TYPE)!;
             wall._dontMerge--;
         }
     }
@@ -390,7 +391,7 @@ export class DoorSystem implements System {
         this.displayContainer.interactiveChildren = false;
         this.pixiBoardSys.board.addChild(this.displayContainer);
 
-        this.isMasterView = (this.world.getResource(LOCAL_LIGHT_SETTINGS_TYPE) as LocalLightSettings)?.visionType !== 'rp';
+        this.isMasterView = this.world.getResource(LOCAL_LIGHT_SETTINGS_TYPE)?.visionType !== 'rp';
     }
 
     destroy(): void {
@@ -416,6 +417,7 @@ export class DoorConflictDetector implements System {
     readonly world: World;
     readonly name = DOOR_CONFLICT_DETECTOR_TYPE;
     readonly dependencies = [DOOR_TYPE, INTERACTION_TYPE];
+    readonly components?: [DoorStuckComponent];
 
     readonly storage = new SingleEcsStorage<DoorStuckComponent>(DOOR_STUCK, false, false);
     readonly dualToPrimal = new Map<number, number>();
@@ -525,7 +527,7 @@ export class DoorConflictDetector implements System {
         const entity = stuckCmp.entity;
         const newColor = (this.isMasterView && stuckCmp.isStuck) ? 0xFF0000 : 0x000000;
 
-        const graphics = this.world.getComponent(entity, GRAPHIC_TYPE) as GraphicComponent;
+        const graphics = this.world.getComponent(entity, GRAPHIC_TYPE)!;
         const line = graphics.display as LineElement;
 
         if (line.color != newColor) {
@@ -551,7 +553,7 @@ export class DoorConflictDetector implements System {
     }
 
     enable(): void {
-        this.isMasterView = (this.world.getResource(LOCAL_LIGHT_SETTINGS_TYPE) as LocalLightSettings)?.visionType !== 'rp';
+        this.isMasterView = this.world.getResource(LOCAL_LIGHT_SETTINGS_TYPE)?.visionType !== 'rp';
     }
     destroy(): void {
     }

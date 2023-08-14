@@ -1,16 +1,16 @@
 
 import { VueComponent } from "@/ui/vue";
 import { Component, MultiComponent, NameComponent, NAME_TYPE, NoteComponent, NOTE_TYPE, POSITION_TYPE, SHARED_TYPE, TRANSFORM_TYPE } from "@/ecs/component";
-import { System } from "../../system";
-import { World } from "../../world";
-import { SelectionSystem, SELECTION_TYPE } from "./selectionSystem";
+import { System } from "../../System";
+import { World } from "../../World";
+import { SelectionSystem, SELECTION_TYPE } from "./SelectionSystem";
 import { Resource } from "../../resource";
 import { PixiBoardSystem, PIXI_BOARD_TYPE } from "./pixi/pixiBoardSystem";
 import { componentEditCommand, ComponentEditCommand } from "../command/componentEdit";
 import { DeSpawnCommand } from "../command/despawnCommand";
 import { emitCommand } from "../command/command";
 import { EventCommand } from "../command/eventCommand";
-import { EcsStorage, SingleEcsStorage } from "../../storage";
+import { EcsStorage, SingleEcsStorage } from "../../Storage";
 import { generateRandomId } from "../../ecsUtil";
 
 import EcsName from "@/ui/ecs/EcsName.vue";
@@ -74,6 +74,8 @@ export class SelectionUiSystem implements System {
     private readonly world: World;
     readonly name = SELECTION_UI_TYPE;
     readonly dependencies = [PIXI_BOARD_TYPE, SELECTION_TYPE] as string[];
+    readonly components?: [ComponentInfoPanel];
+    readonly resources?: [SelectionUiData];
 
     private readonly selectionSys: SelectionSystem;
 
@@ -87,8 +89,8 @@ export class SelectionUiSystem implements System {
 
         this.world.addStorage(this.storage);
 
-        const boardSys = world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
-        this.selectionSys = world.systems.get(SELECTION_TYPE) as SelectionSystem;
+        const boardSys = world.requireSystem(PIXI_BOARD_TYPE);
+        this.selectionSys = world.requireSystem(SELECTION_TYPE);
 
         boardSys.ticker.add(this.onRender, this, UPDATE_PRIORITY.LOW);
 

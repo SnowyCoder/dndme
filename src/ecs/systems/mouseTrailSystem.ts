@@ -1,6 +1,6 @@
-import {System} from "../system";
-import {World} from "../world";
-import {SingleEcsStorage} from "../storage";
+import {System} from "../System";
+import {World} from "../World";
+import {SingleEcsStorage} from "../Storage";
 import {
     Component,
     FOLLOW_MOUSE_TYPE,
@@ -8,7 +8,7 @@ import {
     PositionComponent,
     FollowMouseFlag
 } from "../component";
-import {TOOL_TYPE, ToolSystem, ToolPart} from "./back/toolSystem";
+import {TOOL_TYPE, ToolSystem, ToolPart} from "./back/ToolSystem";
 import {
     BOARD_TRANSFORM_TYPE,
     BoardTransformResource,
@@ -21,14 +21,14 @@ import {
     NETWORK_STATUS_TYPE,
     NETWORK_TYPE, NetworkEntityComponent,
     NetworkStatusResource, NetworkSystem,
-} from "./back/networkSystem";
+} from "./back/NetworkSystem";
 import {LayerOrder} from "../../phase/editMap/layerOrder";
 
 import TrailImage from "@/assets/trail.png";
 import {Resource} from "../resource";
 import * as P from "../../protocol/game";
 import SafeEventEmitter from "../../util/safeEventEmitter";
-import { PacketInfo } from "../../network/webtorrent/WTChannel";
+import { PacketInfo } from "../../network/Channel";
 import { Group, Layer } from "@pixi/layers";
 
 import MouseTrailIcon from "@/ui/icons/MouseTrailIcon.vue";
@@ -70,6 +70,7 @@ export interface MouseTrailComponent extends Component {
 export class MouseTrailSystem implements System {
     readonly name = MOUSE_TRAIL_TYPE;
     readonly dependencies = [TOOL_TYPE, PIXI_BOARD_TYPE, NETWORK_TYPE];
+    readonly components?: [MouseTrailComponent];
 
     readonly world: World;
     readonly pixiBoardSys: PixiBoardSystem;
@@ -95,14 +96,14 @@ export class MouseTrailSystem implements System {
     constructor(world: World) {
         this.world = world;
 
-        this.pixiBoardSys = this.world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
-        this.networkSys = this.world.systems.get(NETWORK_TYPE) as NetworkSystem;
+        this.pixiBoardSys = this.world.requireSystem(PIXI_BOARD_TYPE);
+        this.networkSys = this.world.requireSystem(NETWORK_TYPE);
 
         this.layer = new Layer(new Group(LayerOrder.TOOLS, false));
         this.container = new Container();
 
         // Add system
-        let toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
+        let toolSys = world.requireSystem(TOOL_TYPE);
         toolSys.addToolPart(new MouseTrailToolPart(this));
         toolSys.addTool(ToolType.MOUSE_TRAIL, {
             parts: ['space_pan', 'mouse_trail'],
@@ -211,7 +212,7 @@ export class MouseTrailSystem implements System {
 
         geom.updateVertices();
         if (netwEntity === undefined) {
-            netwEntity = this.world.getComponent(c.entity, NETWORK_ENTITY_TYPE) as NetworkEntityComponent;
+            netwEntity = this.world.getComponent(c.entity, NETWORK_ENTITY_TYPE)!;
         }
         rope.tint = netwEntity.color;
         rope.visible = true;
@@ -359,7 +360,7 @@ export class MouseTrailSystem implements System {
         this.container.interactiveChildren = false;
         this.container.parentLayer = this.layer;
 
-        this.networkStatusResource = this.world.getResource(NETWORK_STATUS_TYPE) as NetworkStatusResource;
+        this.networkStatusResource = this.world.getResource(NETWORK_STATUS_TYPE);
 
 
         this.pixiBoardSys.ticker.add(this.safeOnTick, this);
@@ -406,7 +407,7 @@ export class MouseTrailToolPart implements ToolPart {
     }
 
     private onTick() {
-        const pos = this.sys.world.getComponent(this.follower, POSITION_TYPE) as PositionComponent;
+        const pos = this.sys.world.getComponent(this.follower, POSITION_TYPE)!;
         if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y)) return;
         this.sys.onSelfInput(pos.x, pos.y);
     }

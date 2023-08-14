@@ -1,10 +1,50 @@
-import SafeEventEmitter from "../../util/safeEventEmitter";
-import { WTDiscovery } from "./WTDiscovery";
+import SafeEventEmitter from "../util/safeEventEmitter";
 import { encode, decode } from "@msgpack/msgpack";
-import { base64UrlToBuffer, bufferToBase64Url, randombytes } from "../../util/jsobj";
+import { base64UrlToBuffer, bufferToBase64Url, randombytes } from "../util/jsobj";
 import { Buffer } from "buffer";
-import { WrtcConnection } from "../channel/WrtcConnection";
-import { WrtcChannel } from "../channel/WrtcChannel";
+import { WrtcConnection } from "./channel/WrtcConnection";
+import { WrtcChannel } from "./channel/WrtcChannel";
+import { ServerSignaler } from "./discovery/ServerSignaler";
+import { PeerConnector } from "./discovery/PeerConnector";
+import { NetworkIdentity } from "./Identity";
+
+// The network subsystem, welcome!!
+// You just payed your subription to a history course about this project, enjoy your stay while I describe my
+// slow decend into madness and why the current networking system is the way it is today.
+//
+// WebRTC is unreliable, not in the sense that it can lose packets, but it can lose connections strangely or even not create them entirely (thanks firewalls).
+// Not only that, but signaling services are few and, you've guessed it?? Unreliable!!
+// Until recently we had relied on a single, masterfully devious discovery system:
+//
+// 0. PeerJs
+// | Yes, can you believe it? for one little moment in time we were almost normal.
+// | We used PeerJs with a free server instance.
+// | Was it working? Yes
+// | Was it working WELL? No, fuck not
+// | It has serious reliability problems
+//
+// 1. WebTorrent Trackers
+// | Signaling is a stupid problem that everyone needs to manage, and as you guessed it, WebTorrent Trackers are the signaling service of WebTorrent.
+// | WebTorrent uses Tracker servers to connect peers intrested in the same torrent.
+// | There are only 2 public WebTorrent Trackers, both have misconfigured gateways and disconnect every minute or so, recently they also had SLA problems.
+// | You could find old code using WebTorrent trackers in the "webtorrent" directory, they are the first trackers we supported but they aren't the most reliable means of connection.
+// | Even after various rewrites the reliability is hard to improve.
+// | As WebTorrent seems to slowly fall out of interest, I understood that relying on an external project, while being completely free, is not the best plan.
+//
+// 1.5 WDHT:
+// | I hate centralization as the next white cis tech guy, so in my bachelor's thesis I explored another way.
+// | Desktop apps solved this problem using DHTs right? This solution can EASILY be ported on the web.
+// | And thus WDHT was born, a DHT using WebRTC.
+// | How is it?
+// | Still working, but not completely reliable, if someone had time to iron out all of the bugs (both in my part and in the browser part) we would live in a
+// | slightly better word, but no-one is.
+// | I initially thought to use WDHT in dndme, but seeing how weak its reliability is, I don't feel as secure.
+//
+// 2. Custom Centralized Server
+// | Wait, what is that "signaling" folder at the top level, is that a custom blazingly-fast high-performance signaling server??
+// | This lets us have better stability and (thanks to rust) it lets me be less anxious.
+// | For now the plan is to use only 1 server, and I'll self-host it because I don't want to spend 5 dollars a month in a project nobody uses.
+// | I've worked hard to solve the signaling part for everybody in a decentralized manner, but maybe federation is the only real solution for now.
 
 /**
  * Header structure:
@@ -12,7 +52,6 @@ import { WrtcChannel } from "../channel/WrtcChannel";
  * from: 4 bytes
  * to: 4 bytes (-1 = broadcast)
  * partial_size: 4 bytes (only if flags contains PARTIAL)
- *
  */
 enum ChunkFlags {
     PARTIAL     = 1 << 0,
@@ -67,10 +106,13 @@ export interface PacketInfo {
 const MAX_MESSAGE_LENGTH = 65535;
 
 export class WTChannel {
-    readonly discovery: WTDiscovery;
-    readonly events: SafeEventEmitter = new SafeEventEmitter();
-    readonly packets: SafeEventEmitter = new SafeEventEmitter();
-    connectedSecret: Buffer;
+    private readonly signaler: ServerSignaler
+    private readonly connector: PeerConnector;
+
+    readonly events = new SafeEventEmitter();
+    readonly packets = new SafeEventEmitter();
+    roomName: string | undefined;
+    isMaster: boolean = false;
 
     connections = new Map<number, PeerData>();
     private nextId: number = -1;
@@ -80,11 +122,24 @@ export class WTChannel {
     private extraChannels: {[key: symbol]: ExtraChannel} = {};
     private extraChannelNextId = 2;
 
-    constructor() {
-        this.connectedSecret = Buffer.from([]);
-        this.discovery = new WTDiscovery();
-        this.discovery.onPeerCallback = this.onPeer.bind(this);
-        this.discovery.onTrackerConnectionCountEdit = (c: number) => this.events.emit('tracker_connections', c);
+    constructor(connector: PeerConnector, signaler: ServerSignaler) {
+        this.connector = connector;
+        this.signaler = signaler;
+        this.connector.events.on('on_peer', this.onPeer.bind(this));
+
+        this.signaler.events.on('room_created', (name) => {
+            this.roomName = name;
+            this.isMaster = true;
+            this.myId = 0;
+            this.nextId = 1;
+        });
+        this.signaler.events.on('room_left', () => {
+            this.roomName = undefined;
+            this.isMaster = false;
+        })
+        this.signaler.events.on('room_joined', () => {
+            this.isMaster = false;
+        })
     }
 
     addExtraChannel(channel: ExtraChannelInit): symbol {
@@ -110,25 +165,6 @@ export class WTChannel {
         return ch;
     }
 
-    startMaster(): void {
-        this.connectedSecret = randombytes(20);
-        this.discovery.start(true, this.connectedSecret.toString('hex'));
-        this.myId = 0;
-        this.nextId = 1;
-    }
-
-    startClient(connectTo: Buffer | string): void {
-        if (typeof connectTo == 'string') {
-            connectTo = base64UrlToBuffer(connectTo);
-        }
-        this.connectedSecret = connectTo;
-        this.discovery.start(false, connectTo.toString('hex'));
-    }
-
-    getConnectSecret(): string {
-        return bufferToBase64Url(this.connectedSecret);
-    }
-
     send(data: object, to: number): void {
         const receiver = this.connections.get(to);
         if (receiver === undefined) {
@@ -143,7 +179,6 @@ export class WTChannel {
     }
 
     destroy(): void {
-        this.discovery.stop();
         for (let p of this.peers.values()) {
             p.socket.close();
         }
@@ -216,7 +251,7 @@ export class WTChannel {
 
     private onPeer(peer: WrtcConnection, peerId: string): void {
         console.log('[WTChannel] Connecting peer...');
-        const isMaster = this.discovery.isMaster;
+        const isMaster = this.isMaster;
         const socket = peer.createDataChannel('main', {
             negotiated: true,
             id: 1,
@@ -248,10 +283,8 @@ export class WTChannel {
         if (socket.handle.readyState !== 'connecting') throw Error("Already connected");
         socket.events.once('open', () => {
             console.log("[WTChannel] Connecton open");
-            if (this.discovery.isMaster) {
+            if (this.isMaster) {
                 socket.send('' + data.id, postBootstrap);
-            } else {
-                this.discovery.pause();
             }
         });
 
@@ -264,7 +297,7 @@ export class WTChannel {
             });
         }
 
-        if (!this.discovery.isMaster) {
+        if (!this.isMaster) {
             socket.events.once('data', (chunk: string) => {
                 this.myId = parseInt(chunk);
                 postBootstrap();
@@ -277,8 +310,6 @@ export class WTChannel {
             this.connections.delete(data.id);
             this.peers.delete(peerId);
             this.events.emit('device_left', data.id);
-            // Re-listen for master
-            this.discovery.resume();
         });
 
         peer.events.on('error', (e: Error) => {
@@ -318,7 +349,7 @@ export class WTChannel {
         }
 
         if (needsForward) {
-            if (!this.discovery.isMaster) {
+            if (!this.isMaster) {
                 console.warn("Asket a non-master to forward");
                 return;
             }
@@ -335,7 +366,7 @@ export class WTChannel {
             return;
         }
 
-        if (this.discovery.isMaster && pktInfo.isBroadcast) {
+        if (this.isMaster && pktInfo.isBroadcast) {
             this.sendPacketRaw(chunk, undefined, false, peer);
         }
 

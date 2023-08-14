@@ -1,5 +1,5 @@
-import {System} from "../../system";
-import {World} from "../../world";
+import {System} from "../../System";
+import {World} from "../../World";
 import {Resource} from "../../resource";
 
 export const KEYBOARD_KEY_UP = 'keyboard_key_up';
@@ -23,6 +23,7 @@ export class WebKeyboardSystem implements System {
     readonly dependencies = [];
     readonly name = WEB_KEYBOARD_TYPE;
     readonly provides = [KEYBOARD_TYPE];
+    readonly resources?: [KeyboardResource];
 
     private world: World;
 

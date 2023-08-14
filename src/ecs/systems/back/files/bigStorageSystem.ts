@@ -1,8 +1,8 @@
-import { System } from "../../../system";
-import { SingleEcsStorage } from "../../../storage";
+import { System } from "../../../System";
+import { SingleEcsStorage } from "../../../Storage";
 import { Component } from "../../../component";
-import { World } from "../../../world";
-import { NetworkSystem, NETWORK_TYPE } from "../networkSystem";
+import { World } from "../../../World";
+import { NetworkSystem, NETWORK_TYPE } from "../NetworkSystem";
 import { FileDb, FileIndex } from "../../../../map/FileDb";
 import { BigStorageNetworkClient, BigStorageNetworkServer } from "./bigStorageNetwork";
 
@@ -22,6 +22,7 @@ export class BigStorageSystem implements System {
     readonly name = BIG_STORAGE_TYPE;
     readonly dependencies = [];
     readonly optionalDependencies = [NETWORK_TYPE];
+    readonly components?: [BigEntryRefComponent];
 
     readonly world: World;
     readonly netSys?: NetworkSystem;
@@ -41,7 +42,7 @@ export class BigStorageSystem implements System {
         });
         world.events.on('component_removed', this.onComponentRemoved, this);
 
-        this.netSys = world.systems.get(NETWORK_TYPE) as NetworkSystem | undefined;
+        this.netSys = world.getSystem(NETWORK_TYPE);
         if (world.isMaster) {
            this.adapter = new ServerAdapter(this);
         } else {

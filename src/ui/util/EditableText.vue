@@ -1,6 +1,6 @@
 <template>
   <div class="util_editable-text_div w-fit-content">
-    <input type="text" :value="modelValue"
+    <input :type="isPassword ? 'password' : 'text'" :value="modelValue"
            @input="onEvent('input', $event as InputEvent)" @change="onEvent('change', $event as InputEvent)"
            :size="size" :readonly="readonly" :placeholder="placeholder"
            class="form-control-plaintext hprior util_editable-text_input">
@@ -17,6 +17,7 @@ export default defineComponent({
     modelValue: { type: String, required: true },
     modelModifiers: { type: Object, default: () => {} },
     readonly: { type: Boolean, default: false },
+    isPassword: { type: Boolean, default: false },
     placeholder: { type: String, default: '' },
     size: { type: Number },
     filter: { type: Function, default: undefined},// (text: string) => String

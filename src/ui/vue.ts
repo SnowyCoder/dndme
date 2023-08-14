@@ -1,13 +1,13 @@
 import { Component as VComponent, customRef, DefineComponent, getCurrentInstance, inject, onUnmounted, proxyRefs, reactive, ShallowReactive, shallowRef, ShallowRef, toRef, triggerRef, watch } from "vue";
 import { Component, MultiComponent } from "../ecs/component";
-import { Resource } from "../ecs/resource";
-import { World } from "../ecs/world";
+import { World } from "../ecs/World";
 import { arrayRemoveElem } from "../util/array";
 import { ListenerFn } from "../util/safeEventEmitter";
 
 import { objectClone, randombytes } from "../util/jsobj";
-import { EcsStorage } from "../ecs/storage";
+import { EcsStorage } from "../ecs/Storage";
 import { utils } from "pixi.js";
+import { ComponentForType, ComponentTypes, RegisteredResource, ResourceForType, ResourceType } from "@/ecs/TypeRegistry";
 
 export type VueComponent = VComponent | DefineComponent;
 
@@ -49,21 +49,24 @@ export function useEvent(world: World, eventName: string, callback: ListenerFn, 
     });
 }
 
-export function useResource<T extends Resource>(world: World, name: string): ShallowRef<T> {
+export function useResource<T extends ResourceType>(world: World, name: T): ShallowRef<ResourceForType<T>> {
     const res = stupidRef(world.getResource(name));
+    const sys = world.requireSystem('declarative_listener');
+    const listener = (rold: any, rnew: any) => {
+        res.value = rnew;
+    };
+    sys.onResource(name, '' as any, listener);
+    onUnmounted(() => {
+        sys.offResource(name, '' as any, listener);
+    })
 
-    useEvent(world, 'resource_edited', (r: Resource) => {
-        if (r.type === name) {
-            res.value = r;
-        }
-    });
-    return res as ShallowRef<T>;
+    return res as ShallowRef<ResourceForType<T>>;
 }
 
-export function useResourceReactive<T extends {[key: string]: any}>(world: World, resName: string, properties: T): ShallowReactive<T & {[isNull]: boolean}> {
+export function useResourceReactive<R extends ResourceType, P extends Partial<ResourceForType<R>>>(world: World, resName: R, properties: P): ShallowReactive<ResourceForType<R> & P & {[isNull]: boolean}> {
     // This, my friends, is how we create abstraction.
     // This is how we teach stones to think, processors to have multiple programs and javascript to do useful shit
-    // Ok, enough with that, how does this do?
+    // Ok, enough with that, how does this work?
     // It creates a Proxy with all of the properties inside of "properties", when you get an item from that proxy it gets an item from
     //   the resource, when you set an item to that proxy it gets set to the resource
     // This is glued to the spiky and reactive ECS world, where everything is an event
@@ -106,7 +109,9 @@ export function useResourceReactive<T extends {[key: string]: any}>(world: World
     })
     const reactiveRes = proxyRefs(obj);
 
-    useEvent(world, 'resource_add', (r: Resource) => {
+    // TODO: migrate to DeclarativeListener?
+
+    useEvent(world, 'resource_add', (r: ResourceForType<R>) => {
         if (r.type === resName) {
             res.value = r;
             triggerRef(obj[isNull]);
@@ -116,7 +121,7 @@ export function useResourceReactive<T extends {[key: string]: any}>(world: World
         }
     });
 
-    useEvent(world, 'resource_edited', (r: Resource, changed: any) => {
+    useEvent(world, 'resource_edited', (r: ResourceForType<R>, changed: any) => {
         if (r.type === resName) {
             res.value = r;
             for (let x in changed) {
@@ -125,7 +130,7 @@ export function useResourceReactive<T extends {[key: string]: any}>(world: World
         }
     });
 
-    useEvent(world, 'resource_removed', (r: Resource, changed: any) => {
+    useEvent(world, 'resource_removed', (r: ResourceForType<R>, changed: any) => {
         if (r.type === resName) {
             res.value = undefined;
             triggerRef(obj[isNull]);
@@ -137,7 +142,7 @@ export function useResourceReactive<T extends {[key: string]: any}>(world: World
     return reactiveRes as any;// more or less
 }
 
-export function useResourcePiece<T>(name: string, attrName: string, defValue: T):  ShallowRef<T> {
+export function useResourcePiece<T extends ResourceType, K extends keyof ResourceForType<T>>(name: T, attrName: K, defValue: ResourceForType<T>[K]):  ShallowRef<ResourceForType<T>[K]> {
     const world = (inject('world') as ShallowRef<World>).value;
 
     const properties = {} as any;
@@ -198,32 +203,40 @@ export function uhex2str(hex: number | undefined) {
     return hex === undefined ? '' : utils.hex2string(hex);
 }
 
-export function useComponentsOfType<T extends Component>(type: string): ShallowRef<T[]> {
+export function useComponentsOfType<T extends ComponentTypes>(type: T): ShallowRef<ComponentForType<T>[]> {
     const world = (inject('world') as ShallowRef<World>).value;
 
-    const res = shallowRef(new Array<T>());
+    const res = shallowRef(new Array<ComponentForType<T>>());
 
-    useEvent(world, 'component_add', (c: Component) => {
-        if (c.type === type) {
-            res.value.push(c as T);
-            triggerRef(res);
+    const sys = world.requireSystem('declarative_listener');
+
+    const listener = (cold: ComponentForType<T>, cnew: ComponentForType<T>) => {
+        if (cold === undefined) {
+            res.value.push(cnew);
+        } else if (cnew === undefined) {
+            arrayRemoveElem(res.value, cold);
         }
+        triggerRef(res);
+    }
+
+    sys.onComponent(type, '' as any, listener as any);
+
+    onUnmounted(() => {
+        sys.offComponent(type, '' as any, listener as any);
     });
-    useEvent(world, 'component_removed', (c: Component) => {
-        if (c.type === type) {
-            arrayRemoveElem(res.value, c as T);
-            triggerRef(res);
-        }
-    });
-    useEvent(world, 'component_edited', (c: Component) => {
-        if (c.type === type) {
-            triggerRef(res);
-        }
-    });
-    const sto = world.getStorage(type) as EcsStorage<T>;
+
+    const sto = world.getStorage(type) as any as EcsStorage<ComponentForType<T>>;
     for (let x of sto.getComponents()) {
         res.value.push(x);
     }
 
     return res;
+}
+
+export function useWorld(): World {
+    const res = inject<ShallowRef<World>>("world");
+    if (res == undefined) {
+        throw new Error("World is undefined!");
+    }
+    return res.value;
 }

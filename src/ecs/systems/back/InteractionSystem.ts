@@ -21,16 +21,16 @@ import {
 import {Aabb} from "../../../geometry/aabb";
 import {polygonPointIntersect} from "../../../util/geometry";
 import {Obb} from "../../../geometry/obb";
-import {World} from "../../world";
+import {World} from "../../World";
 import {DynamicTree} from "../../../geometry/dynamicTree";
-import {SingleEcsStorage} from "../../storage";
-import {System} from "../../system";
+import {SingleEcsStorage} from "../../Storage";
+import {System} from "../../System";
 import {Line} from "../../../geometry/line";
 import {GeomertyQueryType, QueryHitEvent} from "../../interaction";
 import {PlayerVisibleComponent} from "../playerSystem";
 import {PointDB} from "../../../game/pointDB";
 import {GRID_TYPE, GridSystem} from "../gridSystem";
-import {SELECTION_TYPE, SelectionSystem} from "./selectionSystem";
+import {SELECTION_TYPE, SelectionSystem} from "./SelectionSystem";
 import { IPoint } from "@/geometry/point";
 import { Point } from "pixi.js";
 import { arrayRemoveElem } from "@/util/array";
@@ -338,6 +338,7 @@ export class InteractionSystem implements System {
     readonly world: World;
     readonly name = INTERACTION_TYPE;
     readonly dependencies = [GRID_TYPE, SELECTION_TYPE];
+    readonly components?: [InteractionComponent];
 
     private readonly selectionSys: SelectionSystem;
 
@@ -350,8 +351,8 @@ export class InteractionSystem implements System {
 
     constructor(world: World) {
         this.world = world;
-        this.selectionSys = this.world.systems.get(SELECTION_TYPE) as SelectionSystem;
-        this.snapDb = new PointDB(this.world.systems.get(GRID_TYPE) as GridSystem);
+        this.selectionSys = this.world.requireSystem(SELECTION_TYPE);
+        this.snapDb = new PointDB(this.world.requireSystem(GRID_TYPE));
 
         world.addStorage(this.storage);
         world.events.on('component_add', this.onComponentAdd, this);
@@ -577,7 +578,7 @@ export class InteractionSystem implements System {
     private onToolMoveEnd(): void {
         this.isTranslating = false;
         for (let entity of this.translatingEntities) {
-            let c = this.world.getComponent(entity, INTERACTION_TYPE) as InteractionComponent | undefined;
+            let c = this.world.getComponent(entity, INTERACTION_TYPE);
             if (c !== undefined) {
                 this.updateComponent(c);
             }

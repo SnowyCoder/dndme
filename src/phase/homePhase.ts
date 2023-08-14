@@ -6,6 +6,7 @@ import {GameMap} from "../map/gameMap";
 import {HostEditMapPhase} from "./editMap/hostEditMapPhase";
 import { App, createApp } from "vue";
 import SafeEventEmitter from "../util/safeEventEmitter";
+import { resetPhase } from "@/secondPhase";
 
 export class HomePhase extends Phase {
 
@@ -43,9 +44,11 @@ export class HomePhase extends Phase {
         super.enable();
         this.uiEvents.on('create_map', this.createMap, this);
         this.uiEvents.on('edit', this.editMap, this);
+        window.onhashchange = resetPhase;
     }
 
     disable() {
+        window.onhashchange = null;
         this.uiEvents.off('edit', this.editMap, this);
         this.uiEvents.off('create_map', this.createMap, this);
         super.disable();

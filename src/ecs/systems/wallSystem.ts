@@ -1,17 +1,17 @@
-import {System} from "../system";
-import {World} from "../world";
+import {System} from "../System";
+import {World} from "../World";
 import {DESTROY_ALL} from "../../util/pixi";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
-import {SingleEcsStorage} from "../storage";
+import {SingleEcsStorage} from "../Storage";
 import {Component, POSITION_TYPE, PositionComponent, SerializedFlag, SERIALIZED_TYPE, SHARED_TYPE, SharedFlag} from "../component";
 import {distSquared2d, RPoint} from "../../util/geometry";
 import {Aabb} from "../../geometry/aabb";
 import {Line} from "../../geometry/line";
 import {intersectSegmentVsSegment, lineSameSlope, SegmentVsSegmentRes} from "../../geometry/collision";
-import {INTERACTION_TYPE, InteractionSystem, LineShape, shapeAabb, shapeLine} from "./back/interactionSystem";
-import {VISIBILITY_BLOCKER_TYPE, VisibilityBlocker} from "./back/visibilitySystem";
+import {INTERACTION_TYPE, InteractionSystem, LineShape, shapeAabb, shapeLine} from "./back/InteractionSystem";
+import {VISIBILITY_BLOCKER_TYPE, VisibilityBlocker} from "./back/VisibilitySystem";
 import {ElementType, GRAPHIC_TYPE, GraphicComponent, LineElement, VisibilityType} from "../../graphics";
-import {TOOL_TYPE, ToolPart, ToolSystem} from "./back/toolSystem";
+import {TOOL_TYPE, ToolPart, ToolSystem} from "./back/ToolSystem";
 import {
     PIXI_BOARD_TYPE,
     PixiBoardSystem,
@@ -20,7 +20,7 @@ import {
     PointerRightDownEvent,
     PointerEvents
 } from "./back/pixi/pixiBoardSystem";
-import {SELECTION_TYPE, SelectionSystem} from "./back/selectionSystem";
+import {SELECTION_TYPE, SelectionSystem} from "./back/SelectionSystem";
 import {ToolType} from "../tools/toolType";
 import {executeAndLogCommand} from "./command/command";
 import {SpawnCommand, SpawnCommandKind} from "./command/spawnCommand";
@@ -30,11 +30,12 @@ import SafeEventEmitter from "../../util/safeEventEmitter";
 import { snapPoint } from "../tools/utils";
 import { IPoint } from "@/geometry/point";
 import { StandardToolbarOrder } from "@/phase/editMap/standardToolbarOrder";
-import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE } from "./back/selectionUiSystem";
+import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE } from "./back/SelectionUiSystem";
 
 import WallIcon from "@/ui/icons/WallIcon.vue";
 import EcsWall from "@/ui/ecs/EcsWall.vue";
 import { Graphics, Point } from "pixi.js";
+import { RegisteredComponent } from "../TypeRegistry";
 
 export const WALL_TYPE = 'wall';
 export type WALL_TYPE = typeof WALL_TYPE;
@@ -53,6 +54,7 @@ export class WallSystem implements System {
     readonly world: World;
     readonly interactionSys: InteractionSystem;
     readonly selectionSys: SelectionSystem;
+    readonly components?: [WallComponent];
 
     readonly storage = new SingleEcsStorage<WallComponent>(WALL_TYPE);
 
@@ -63,7 +65,7 @@ export class WallSystem implements System {
 
         // Only masters can create walls
         if (this.world.isMaster) {
-            let toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
+            let toolSys = world.requireSystem(TOOL_TYPE);
             toolSys.addToolPart(new CreateWallToolPart(this));
             toolSys.addTool(ToolType.CREATE_WALL, {
                 parts: ['space_pan', ToolType.CREATE_WALL],
@@ -85,8 +87,8 @@ export class WallSystem implements System {
             } as ComponentInfoPanel);
         });
 
-        this.interactionSys = world.systems.get(INTERACTION_TYPE) as InteractionSystem;
-        this.selectionSys = world.systems.get(SELECTION_TYPE) as SelectionSystem;
+        this.interactionSys = world.requireSystem(INTERACTION_TYPE);
+        this.selectionSys = world.requireSystem(SELECTION_TYPE);
 
         world.addStorage(this.storage);
         world.events.on('component_add', this.onComponentAdd, this);
@@ -96,10 +98,10 @@ export class WallSystem implements System {
         world.events.on('tool_move_end', this.onToolMoveEnd, this);
     }
 
-    private onComponentAdd(component: Component): void {
+    private onComponentAdd(component: RegisteredComponent): void {
         if (component.type !== WALL_TYPE) return;
-        let wall = component as WallComponent;
-        let pos = this.world.getComponent(wall.entity, POSITION_TYPE) as PositionComponent;
+        let wall = component;
+        let pos = this.world.getComponent(wall.entity, POSITION_TYPE);
         if (pos === undefined) {
             console.warn("Found wall without position, please add first the position, then the wall");
             return;
@@ -271,7 +273,7 @@ export class WallSystem implements System {
         let wall, position;
         if (comp.type === WALL_TYPE) {
             wall = comp as WallComponent;
-            position = this.world.getComponent(comp.entity, POSITION_TYPE) as PositionComponent;
+            position = this.world.getComponent(comp.entity, POSITION_TYPE);
         } else {
             wall = this.storage.getComponent(comp.entity);
             position = comp as PositionComponent;
@@ -290,7 +292,7 @@ export class WallSystem implements System {
     }
 
     private redrawWall(wall: WallComponent): void {
-        let display = (this.world.getComponent(wall.entity, GRAPHIC_TYPE) as GraphicComponent).display as LineElement;
+        let display = this.world.getComponent(wall.entity, GRAPHIC_TYPE)!.display as LineElement;
         display.vec = { x: wall.vec[0], y: wall.vec[1] };
         this.world.editComponent(wall.entity, GRAPHIC_TYPE, {display}, undefined, false);
     }
@@ -440,7 +442,7 @@ export class CreateWallToolPart implements ToolPart {
     constructor(sys: WallSystem) {
         this.sys = sys;
         this.createLastLineDisplay = new Graphics();
-        this.pixiBoardSys = sys.world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
+        this.pixiBoardSys = sys.world.requireSystem(PIXI_BOARD_TYPE);
         sys.world.events.on('component_add', (c: Component) => {
             if (this.isActive && c.type === 'wall') {
                 this.createdIds.push(c.entity);

@@ -7,8 +7,7 @@
 
 <script lang="ts">
 import { computed, ComputedRef, defineComponent, inject, PropType, ShallowRef, toRefs } from "vue";
-import { World } from "../../../ecs/world";
-import { VueComponent } from "../../vue";
+import { useWorld, VueComponent } from "../../vue";
 
 export default defineComponent({
     props: {
@@ -31,14 +30,14 @@ export default defineComponent({
     emits: ['click'],
     setup(props, context) {
         const { toolName, icon, customClass } = toRefs(props);
-        const world = inject('world') as ShallowRef<World>;
+        const world = useWorld();
         const currentTool = inject('currentTool') as ComputedRef<string>;
 
         const onClick = () => {
             const clickUseful = currentTool.value !== toolName.value;
             context.emit('click', clickUseful);
             if (currentTool.value !== toolName.value) {
-                world.value.editResource('tool', { tool: toolName.value });
+                world.editResource('tool', { tool: toolName.value });
             }
         };
 
@@ -59,7 +58,7 @@ export default defineComponent({
         });
 
         return {
-            onClick, 
+            onClick,
             isComponent, buttonClass,
         };
     },

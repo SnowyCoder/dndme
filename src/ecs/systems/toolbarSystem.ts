@@ -1,6 +1,6 @@
-import {System} from "../system";
-import {World} from "../world";
-import {SingleEcsStorage} from "../storage";
+import {System} from "../System";
+import {World} from "../World";
+import {SingleEcsStorage} from "../Storage";
 import {Component} from "../component";
 import { Resource } from "../resource";
 import { VueComponent } from "@/ui/vue";
@@ -38,6 +38,8 @@ export class ToolbarSystem implements System {
     readonly world: World;
     readonly name = TOOLBAR_TYPE;
     readonly dependencies = [];
+    readonly components?: [ToolbarItemComponent];
+    readonly resources?: [SidebarResource];
 
     storage = new SingleEcsStorage<ToolbarItemComponent>(TOOLBAR_ITEM_TYPE, false, false);
 

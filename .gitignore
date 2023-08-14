@@ -1,3 +1,4 @@
+.env
 
 .idea
 
@@ -6,3 +7,5 @@ node_modules
 
 dist
 stats.html
+
+/signaling/target/

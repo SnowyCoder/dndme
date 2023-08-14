@@ -1,10 +1,11 @@
 import {Component, HideableComponent, MultiComponent, SHARED_TYPE} from "../../component";
-import {AnyMapType, MultiEditType, World} from "../../world";
+import {AnyMapType, MultiEditType, World} from "../../World";
 import {Command, CommandKind} from "./command";
 import {DeSpawnCommand} from "./despawnCommand";
 import {SpawnCommand} from "./spawnCommand";
-import {filterComponent, filterComponentKeepEntity} from "../../ecsUtil";
+import { filterComponentKeepEntity } from "../../ecsUtil";
 import { objectClone } from "../../../util/jsobj";
+import { ComponentTypes } from "@/ecs/TypeRegistry";
 
 export function componentEditCommand(
     add?: Component[],
@@ -27,7 +28,7 @@ export function singleEditCommand(edit: EditType) {
 
 export interface EditType {
     entity: number;
-    type: string;
+    type: ComponentTypes;
     multiId?: number;
     changes: AnyMapType,
 }
@@ -60,7 +61,7 @@ export class ComponentEditCommandKind implements CommandKind {
                 type: c.type,
                 multiId: (c as MultiComponent).multiId,
             } as MultiComponent);
-            this.world.addComponent(c.entity, c);
+            this.world.addComponent(c.entity, c as any);
         }
         if (!cmd.multi) {
             for (let c of cmd.edit ?? []) {
@@ -117,7 +118,7 @@ export class ComponentEditCommandKind implements CommandKind {
         // if the old component is hidden and the new edits do not change that, the component is filtered
         // if the old component is hidden and the new edits might change it, it's not hidden
         // if the old component is not hidden, it's not hidden
-        let partialPredicate = (entity: number, type: string, multiId: number | undefined, changes: AnyMapType) => {
+        let partialPredicate = (entity: number, type: ComponentTypes, multiId: number | undefined, changes: AnyMapType) => {
             let real = this.world.getComponent(entity, type, multiId)!;
             if ((real as HideableComponent).clientVisible === false && !('clientVisible' in changes)) return false;
             return predicate({ entity });

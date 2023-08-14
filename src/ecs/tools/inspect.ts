@@ -1,10 +1,10 @@
-import {World} from "../world";
-import {SELECTION_TYPE, SelectionSystem} from "../systems/back/selectionSystem";
+import {World} from "../World";
+import {SELECTION_TYPE, SelectionSystem} from "../systems/back/SelectionSystem";
 import {PointerClickEvent, PointerDownEvent, PointerEvents, PointerMoveEvent, PointerUpEvent} from "../systems/back/pixi/pixiBoardSystem";
-import {ToolPart} from "../systems/back/toolSystem";
+import {ToolPart} from "../systems/back/ToolSystem";
 import {RectangularSelection} from "./rectangularSelection";
-import {LAYER_TYPE, LayerSystem} from "../systems/back/layerSystem";
-import {KEYBOARD_TYPE, KeyboardResource} from "../systems/back/keyboardSystem";
+import {LAYER_TYPE, LayerSystem} from "../systems/back/LayerSystem";
+import {KEYBOARD_TYPE, KeyboardResource} from "../systems/back/KeyboardSystem";
 import SafeEventEmitter from "../../util/safeEventEmitter";
 import { Point } from "pixi.js";
 
@@ -114,9 +114,9 @@ export class SelectPart implements ToolPart {
 
     constructor(world: World) {
         this.world = world;
-        this.layerSys = world.systems.get(LAYER_TYPE) as LayerSystem;
-        this.selectionSys = world.systems.get(SELECTION_TYPE) as SelectionSystem;
-        this.keyboard = this.world.getResource(KEYBOARD_TYPE) as KeyboardResource;
+        this.layerSys = world.requireSystem(LAYER_TYPE);
+        this.selectionSys = world.requireSystem(SELECTION_TYPE)!;
+        this.keyboard = this.world.getResource(KEYBOARD_TYPE)!;
         this.rectSelection = new RectangularSelection(world);
         this.rectSelection.predicate = id => !this.layerSys.getEntityLayer(id).locked;
     }

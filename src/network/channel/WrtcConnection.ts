@@ -1,6 +1,6 @@
 import SafeEventEmitter from "../../util/safeEventEmitter";
 import { WrtcChannel } from "./WrtcChannel";
-import { WrtcRenegotiator } from "./WrtcRenegotiator";
+import { Logger, getLogger } from "@/ecs/systems/back/log/Logger";
 
 const BASE_RTC_CONFIG = {
     iceServers: [
@@ -13,16 +13,7 @@ const BASE_RTC_CONFIG = {
     ],
 } as RTCConfiguration;
 
-type SignalingData = {
-    sdp: RTCSessionDescriptionInit,
-};
-
-export interface WrtcConnectionConfig {
-    rtcConfig?: RTCConfiguration,
-    initiator: boolean,
-}
-
-export type WebRTCErrorCause = 'ICE_FAILED';
+export type WebRTCErrorCause = 'ICE_FAILED' | 'SIGNALER_FAILED';
 
 export class WebRTCError extends Error {
     cause: WebRTCErrorCause;
@@ -33,8 +24,25 @@ export class WebRTCError extends Error {
     }
 }
 
-function filterTrickle(sdp: string | undefined): string | undefined {
-    return sdp?.replace(/a=ice-options:trickle\s\n/g, '')
+function extractFingerprint(sdp: string): string {
+    const index = sdp.indexOf("a=fingerprint:");
+    if (index < 0) throw new Error("SDP contains no fingerprint");
+    const newLine = sdp.indexOf("\n", index);
+
+    return sdp.substring(index, newLine).trim();
+}
+
+// In WebRTC negotiation is quite strange, we're using the "Perfect Negotiation"
+// protocol to avoid deadlocks, to do this we must first decide a polite and an impolite peer.
+// We decide the peer based on SDPs, who has the "lower" fingerprint will be impolite.
+// Can this be used by a malicious peer to attack us and decide wether it should be polite or impolite? yes
+// can we fix this? yeah probably, deciding with some random oracle like hash(totalOrdering(descriptions))
+// Do we really care? no, not really.
+function decideRole(localDescription: string, remoteDescription: string): "polite" | "impolite" {
+    const fingLocal = extractFingerprint(localDescription);
+    const fingRemote = extractFingerprint(remoteDescription);
+
+    return fingLocal < fingRemote ? "impolite" : "polite";
 }
 
 
@@ -42,86 +50,140 @@ function filterTrickle(sdp: string | undefined): string | undefined {
 export class WrtcConnection {
     readonly handle: RTCPeerConnection;
     readonly events: SafeEventEmitter;
+    readonly signaler: Signaler;
+
+    private readonly logger: Logger;
 
     isConnected: boolean;
 
-    private sdpSent: boolean;
-    private sdpReceived: boolean;
+    private isMakingOffer: boolean;
+    private isIgnoringOffer: boolean;
     private isDestroyed: boolean;
-    private isInitiator: boolean;
 
-    constructor(config: WrtcConnectionConfig) {
+    constructor(config: RTCConfiguration, signaler: Signaler) {
         this.events = new SafeEventEmitter();
+        this.logger = getLogger('connection.wrtc');
 
-        const rtcConfig = Object.assign({}, BASE_RTC_CONFIG, config.rtcConfig);
+        const rtcConfig = Object.assign({}, BASE_RTC_CONFIG, config);
         this.handle = new RTCPeerConnection(rtcConfig);
-        this.sdpSent = false;
-        this.sdpReceived = false;
+        this.signaler = signaler;
+
+        this.signaler.onmessage = this.onSignalMessage.bind(this);
+        this.signaler.onerror = this.onSignalerError.bind(this);
+
+        this.isMakingOffer = false;
+        this.isIgnoringOffer = false;
         this.isDestroyed = false;
         this.isConnected = false;
-        this.isInitiator = !!config.initiator;
 
-        this.handle.onicegatheringstatechange = () => {
-            const state = this.handle.iceGatheringState;
-            //console.log("[WrtcConnection] ice-gathering-state ", state);
-            if (state === 'complete' && !this.sdpSent) {
-                this.sdpSent = true;
-                //console.log("[WC] Local gathering complete");
-                this.events.emit('signal', {
-                    sdp: this.handle.localDescription,
-                } as SignalingData);
-                this.checkConnected();
-            }
-        };
-        // this.handle.onicecandidate = (e)  => console.log("[WrtcConnection] ice candidate", e.candidate);
         this.handle.oniceconnectionstatechange = () => {
             const state = this.handle.iceConnectionState;
-            //console.log("[WrtcConnection] ice-connection-state " + state);
+            this.logger.debug("ice-connection-state", state);
 
             switch (state) {
                 case 'disconnected':
                     this.onDestroy();
                     break;
                 case 'failed':
-                    this.onDestroy(new WebRTCError("ICE Connection failed", 'ICE_FAILED'));
+                    this.handle.restartIce();
+                    // TODO: use counter? use TURN? idk
+                    // this.onDestroy(new WebRTCError("ICE Connection failed", 'ICE_FAILED'));
                     break;
             }
         };
+        this.handle.onicecandidate = ({ candidate }) => {
+            this.logger.debug('ice-candidate', candidate);
+            this.signaler.signal({ candidate });
+        };
+        this.handle.onnegotiationneeded = () => {
+            this.logger.debug('negotiation-needed')
+            this.makeOffer();
+        }
+        this.handle.onconnectionstatechange = () => {
+            const state = this.handle.connectionState;
+
+            this.logger.debug("connection-state", state);
+            switch (state) {
+                case 'connected':
+                    this.checkConnected();
+                    break;
+                case 'failed':
+                    this.onDestroy(new WebRTCError("ICE Connection failed", 'ICE_FAILED'));
+                    break;
+                case 'disconnected':
+                    this.onDestroy();
+                    break;
+            }
+        }
         this.handle.ondatachannel = ev => this.events.emit('datachannel', new WrtcChannel(ev.channel));
 
         // Creates a channel and, when possible, renegotiates the connection using the already opened connection
-        new WrtcRenegotiator(this);
-
-        if (this.isInitiator) {
-            this.makeOffer();
-        }
+        // TODO: renegotiate using the open channel instead of passing through the signaler.
     }
 
-    private async makeOffer() {
-        const offer = await this.handle.createOffer();
-        offer.sdp = filterTrickle(offer.sdp);
-        await this.handle.setLocalDescription(offer);
-    }
-
-    async signal(message: SignalingData) {
-        this.sdpReceived = true;
-        //console.log("[WC] SET REMOTE");
-        await this.handle.setRemoteDescription(message.sdp);
-        if (message.sdp.type == 'offer') {
-            this.sdpSent = false;
-            const offer = await this.handle.createAnswer();
-            offer.sdp = filterTrickle(offer.sdp);
-            //console.log("[WC] SET LOCAL");
-            await this.handle.setLocalDescription(offer);
+    async makeOffer() {
+        this.isMakingOffer = true;
+        try {
+            await this.handle.setLocalDescription();
+            this.signaler.signal({
+                description: this.handle.localDescription!,
+            });
+        } finally {
+            this.isMakingOffer = false;
         }
-        this.checkConnected();
     }
 
     private checkConnected() {
-        if (!this.sdpSent || !this.sdpReceived) return;
         if (!this.isConnected) {// handle ICE restarts
             this.isConnected = true;
             this.events.emit('connect');
+        }
+    }
+
+    private onSignalerError(e: string) {
+        this.logger.error("signaler error reported", e);
+        this.onDestroy(new WebRTCError(e, "SIGNALER_FAILED"));
+    }
+
+    async onSignalMessage(data: SignalData) {
+        this.logger.trace('onSignalMessage', data);
+        try {
+            if ('description' in data) {
+                this.logger.debug("Description received!", data.description);
+                const description = data.description;
+                const offerCollision = data.description.type === 'offer' && (this.isMakingOffer || this.handle.signalingState !== 'stable');
+                if (offerCollision) {
+                    if (decideRole(description.sdp, this.handle.localDescription!.sdp) == 'impolite') {
+                        this.logger.debug("Ignored offer because role=impolite!");
+                        this.isIgnoringOffer = true;
+                        return;
+                    }
+                }
+                this.isIgnoringOffer = false;
+                await this.handle.setRemoteDescription(description);
+                if (description.type == 'offer') {
+                    await this.handle.setLocalDescription();
+                    this.signaler.signal({
+                        description: this.handle.localDescription!
+                    });
+                }
+            } else if ('candidate' in data) {
+                this.logger.debug("Candidate received!", data.candidate);
+                try {
+                    // why as any? I have no idea, WebRTC is weird magic and so is javascript
+                    await this.handle.addIceCandidate(data.candidate as any);
+                } catch (err) {
+                    if (!this.isIgnoringOffer) {
+                        throw err;
+                    } else {
+                        this.logger.debug("Offer is about old request, ignoring!");
+                    }
+                }
+            } else {
+                this.logger.warning("Unknown signaling message received", data);
+            }
+        } catch(e) {
+            this.logger.error("Error while processing signaling message", e);
         }
     }
 
@@ -135,7 +197,6 @@ export class WrtcConnection {
     }
 
     private onDestroy(err?: Error | undefined) {
-        //console.log("[WrtcConnection] DESTROY", err);
         if (this.isDestroyed) return;
         this.isDestroyed = true;
         this.isConnected = false;
@@ -146,4 +207,17 @@ export class WrtcConnection {
         if (err !== undefined) this.events.emit('error', err);
         this.events.emit('close');
     }
+}
+
+export type SignalData = {
+    description: RTCSessionDescription
+} | {
+    candidate: RTCIceCandidate | null
+}
+
+export interface Signaler {
+    signal(data: SignalData): void;
+
+    onmessage: (data: SignalData) => void;
+    onerror: (error: string) => void;
 }

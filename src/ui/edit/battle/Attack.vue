@@ -6,10 +6,9 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, inject, ref, ShallowRef } from "vue";
-import { World } from "../../../ecs/world";
-import { useResourceReactive, isNull } from "../../vue";
-import { BATTLE_TYPE } from "../../../ecs/systems/battleSystem";
+import { computed, defineComponent, ref } from "vue";
+import { useResourceReactive, isNull, useWorld } from "../../vue";
+import { BATTLE_TYPE } from "../../../ecs/systems/BattleSystem";
 
 import Battle from "./Battle.vue";
 import BattleEditPartecipants from "./BattleEditPartecipants.vue";
@@ -17,7 +16,7 @@ import BattleEditPartecipants from "./BattleEditPartecipants.vue";
 export default defineComponent({
   components: { Battle, BattleEditPartecipants },
   setup() {
-    const world = inject<ShallowRef<World>>('world')!.value;
+    const world = useWorld();
 
     const battleRes = useResourceReactive(world, BATTLE_TYPE, {
       turnOf: undefined,

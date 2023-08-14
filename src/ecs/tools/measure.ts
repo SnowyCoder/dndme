@@ -1,7 +1,7 @@
-import {World} from "../world";
+import {World} from "../World";
 import {PointerDownEvent, PointerEvents, PointerMoveEvent, PointerUpEvent} from "../systems/back/pixi/pixiBoardSystem";
-import {ToolPart} from "../systems/back/toolSystem";
-import {KEYBOARD_TYPE, KeyboardResource} from "../systems/back/keyboardSystem";
+import {ToolPart} from "../systems/back/ToolSystem";
+import {KEYBOARD_TYPE, KeyboardResource} from "../systems/back/KeyboardSystem";
 import {MeasureResource} from "../resource";
 import SafeEventEmitter from "../../util/safeEventEmitter";
 import { snapPoint } from "./utils";
@@ -22,7 +22,7 @@ export class MeasureToolPart implements ToolPart {
 
     constructor(world: World) {
         this.world = world;
-        this.keyboard = world.getResource(KEYBOARD_TYPE)! as KeyboardResource;
+        this.keyboard = world.getResource(KEYBOARD_TYPE)!;
     }
 
     pushRes() {

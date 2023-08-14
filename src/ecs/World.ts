@@ -5,13 +5,14 @@
 // What's more? every entity might have multiple names and only some of them might be public
 // so we also have something similar to a "multiple component".
 
-import {EcsStorage, SingleEcsStorage} from "./storage";
-import {Component, SerializedFlag, SERIALIZED_TYPE, SharedFlag, SHARED_TYPE} from "./component";
+import {EcsStorage, FlagEcsStorage, MultiEcsStorage, SingleEcsStorage} from "./Storage";
+import {SerializedFlag, SERIALIZED_TYPE, SharedFlag, SHARED_TYPE, Component, MultiComponent, IsFlagComponent} from "./component";
 import {Resource} from "./resource";
-import {SystemGraph} from "./systemGraph";
-import {System} from "./system";
+import {SystemGraph} from "./SystemGraph";
 import SafeEventEmitter from "../util/safeEventEmitter";
 import {generateRandomId} from "./ecsUtil";
+import type { ComponentForType, ComponentTypes, RegisteredComponent, RegisteredSystem, ResourceForType, ResourceType, SystemForName, SystemNames } from "./TypeRegistry";
+
 
 export interface ForgetData {
     entities: Set<number>;
@@ -19,7 +20,7 @@ export interface ForgetData {
 
 export type SerializedEntities = {
     entities: number[];
-    storages: {[type: string]: any};
+    storages: {[type in ComponentTypes]: any};
 };
 
 export type SerializedResources = {
@@ -34,7 +35,7 @@ export interface EcsEntityLinked {
 
 export type AnyMapType = {[key: string]: any};
 export type MultiEditType = Array<{
-    type: string,
+    type: ComponentTypes,
     changes: AnyMapType,
     multiId?: number,
     clearChanges?: boolean,
@@ -101,10 +102,13 @@ const DEFAULT_DESERIALIZE_OPTIONS = {
     addShare: false,
 } as DeserializeOptions;
 
+type StorageForComponent<C extends RegisteredComponent> = C extends MultiComponent ? MultiEcsStorage<C> : (
+    IsFlagComponent<C> extends 1 ? FlagEcsStorage<C> : SingleEcsStorage<C>);
+
 export class World {
     systems = new SystemGraph();
-    storages = new Map<string, EcsStorage<any>>();
-    storageList = new Array<EcsStorage<any>>();
+    storages = new Map<string, EcsStorage<RegisteredComponent>>();
+    storageList = new Array<EcsStorage<RegisteredComponent>>();
     entities = new Set<number>();
     resources = new Map<string, Resource>();
 
@@ -151,16 +155,17 @@ export class World {
     //     (but we should edit quite heavily SafeEventEmitter)
 
 
+
     constructor(isMaster: boolean) {
         this.isMaster = isMaster;
     }
 
-    getStorage<T extends Component>(name: string): EcsStorage<T> {
+    getStorage<T extends ComponentTypes>(name: T): StorageForComponent<ComponentForType<T>> {
         let s = this.storages.get(name);
         if (s === undefined) {
             throw new Error("Cannot find storage " + name);
         }
-        return s;
+        return s as any;
     }
 
     allocateId(): number {
@@ -173,7 +178,7 @@ export class World {
         return id;
     }
 
-    spawnEntity(...components: Array<Omit<Component, 'entity'>>): number {
+    spawnEntity(...components: Array<Omit<RegisteredComponent, 'entity'>>): number {
         let id = this.allocateId();
 
         this.spawnEntityManual(id, components);
@@ -181,7 +186,7 @@ export class World {
         return id;
     }
 
-    spawnEntityManual(id: number, components: Array<Omit<Component, 'entity'>>): void {
+    spawnEntityManual(id: number, components: Array<Omit<RegisteredComponent, 'entity'>>): void {
         this.entities.add(id);
 
         this.events.emit('entity_spawn', id);
@@ -215,7 +220,7 @@ export class World {
         this.events.emit('entity_despawned', entity);
     }
 
-    addSystem(system: System): void {
+    addSystem<S extends RegisteredSystem>(system: S): void {
         if (this.systemsFinalized) throw new Error('Too late to add a system');
         try {
             this.systems.register(system);
@@ -224,19 +229,31 @@ export class World {
         }
     }
 
-    hasAllComponents(entity: number, ...types: string[]): boolean {
+    requireSystem<N extends SystemNames>(name: N): SystemForName<N> {
+        const sys =  this.systems.get(name);
+        if (sys === undefined) {
+            throw new Error("Required system " + name + " but not present!");
+        }
+        return sys;
+    }
+
+    getSystem<N extends SystemNames>(name: N): SystemForName<N> | undefined {
+        return this.systems.get(name);
+    }
+
+    hasAllComponents(entity: number, ...types: ComponentTypes[]): boolean {
         for (let t of types) {
             if (this.getComponent(entity, t) === undefined) return false;
         }
         return true;
     }
 
-    addComponent(entity: number, cmp: Omit<Component, 'entity'>): void {
+    addComponent(entity: number, cmp: Omit<RegisteredComponent, 'entity'>): void {
         if (!this.entities.has(entity)) {
             console.error("Entity not present " + entity);
             return;
         }
-        let c = cmp as Component;
+        let c = cmp as RegisteredComponent;
         c.entity = entity;
         let storage = this.storages.get(c.type);
         if (storage === undefined) {
@@ -247,31 +264,31 @@ export class World {
         this.events.emit('component_add', c);
     }
 
-    removeComponent(cmp: Component): void {
+    removeComponent<P extends RegisteredComponent>(cmp: P): void {
         this.events.emit('component_remove', cmp);
-        let storage = this.getStorage(cmp.type);
+        let storage = this.getStorage(cmp.type) as EcsStorage<RegisteredComponent>;
         storage.unregister(cmp);
         this.events.emit('component_removed', cmp);
     }
 
-    removeComponentType(entity: number, type: string): void {
+    removeComponentType(entity: number, type: ComponentTypes): void {
         for (let c of this.getStorage(type).getComponents(entity)) {
-            this.removeComponent(c);
+            this.removeComponent(c as RegisteredComponent);
         }
     }
 
-    addStorage(storage: EcsStorage<any>): void {
+    addStorage<C extends RegisteredComponent>(storage: EcsStorage<C>): void {
         this.storages.set(storage.type, storage);
         this.storageList.push(storage);
     }
 
-    getComponent<T extends Component>(entity: number, type: string, multiId?: number): T | undefined {
-        let storage = this.getStorage<T>(type);
-        return storage.getFirstComponent(entity, multiId);
+    getComponent<T extends ComponentTypes>(entity: number, type: T, multiId?: number): ComponentForType<T> | undefined {
+        let storage = this.getStorage(type) as EcsStorage<RegisteredComponent>;
+        return storage.getFirstComponent(entity, multiId) as any;
     }
 
-    getAllComponents(entity: number): Component[] {
-        let res = new Array<Component>();
+    getAllComponents(entity: number): RegisteredComponent[] {
+        let res = new Array<RegisteredComponent>();
 
         for (let storage of this.storages.values()) {
             res.push(...storage.getComponents(entity));
@@ -280,7 +297,7 @@ export class World {
         return res;
     }
 
-    editComponent(entity: number, type: string, changes: AnyMapType, multiId?: number, clearCh: boolean = true): void {
+    editComponent<T extends ComponentTypes>(entity: number, type: T, changes: Partial<ComponentForType<T>>, multiId?: number, clearCh: boolean = true): void {
         let c = this.getComponent(entity, type, multiId);
         if (c === undefined) {
             throw new Error('Cannot find component ' + type + ' of entity: ' + entity);
@@ -332,7 +349,7 @@ export class World {
         if (this.resources.has(resource.type)) {
             switch (ifPresent) {
                 case 'ignore': break;
-                case 'update': this.editResource(resource.type, resource); break;
+                case 'update': this.editResource(resource.type, resource as any); break;
                 default: throw new Error('Resource type already present');
             }
             return
@@ -344,11 +361,11 @@ export class World {
         this.events.emit('resource_added', resource);
     }
 
-    getResource(type: string): Resource | undefined {
-        return this.resources.get(type);
+    getResource<R extends ResourceType>(type: R): ResourceForType<R> | undefined {
+        return this.resources.get(type) as any;
     }
 
-    editResource(type: string, changes: AnyMapType): void {
+    editResource<R extends ResourceType>(type: R, changes: Partial<ResourceForType<R>>): void {
         let res = this.getResource(type);
         if (res === undefined) {
             throw new Error('Cannot find resource ' + type);
@@ -360,7 +377,7 @@ export class World {
         this.events.emit('resource_edited', res, changes);
     }
 
-    removeResource(type: string, failIfNotPresent: boolean = true): void {
+    removeResource(type: ResourceType, failIfNotPresent: boolean = true): void {
         let resource = this.resources.get(type);
         if (resource === undefined) {
             if (failIfNotPresent) throw new Error('Resource type not found');
@@ -394,7 +411,7 @@ export class World {
             entities = [...options.only];
         }
 
-        const serializedFlag = this.getStorage(SERIALIZED_TYPE) as SingleEcsStorage<SerializedFlag>;
+        const serializedFlag = this.getStorage(SERIALIZED_TYPE);
 
         let shouldIgnore = (x: number) => serializedFlag.getFirstComponent(x) === undefined;
         if (options.stripClient && !options.ignoreShared) {

@@ -73,7 +73,6 @@ import EditableText from "../util/EditableText.vue";
 
 import { GridType } from "../../game/grid";
 import { GridResource, Resource } from "../../ecs/resource";
-import { World } from "../../ecs/world";
 
 import { ResourceEditCommand } from "../../ecs/systems/command/resourceEditCommand";
 import { defineComponent, inject, ref, shallowRef, ShallowRef, watch } from "vue";
@@ -81,6 +80,7 @@ import EditableRange from "../util/EditableRange.vue";
 import EditableColor from "../util/EditableColor.vue";
 import EditableNumber from "../util/EditableNumber.vue";
 import Modal from "../util/Modal.vue";
+import { useWorld } from "../vue";
 
 type RenderGridOpts = {
   type: string;
@@ -101,13 +101,13 @@ const DEFAULT_GRID_SIZE = {
 export default defineComponent({
   components: { HexagonIcon, EditableText, EditableRange, EditableColor, EditableNumber, Modal },
   setup() {
-    const world = inject('world') as ShallowRef<World>;
+    const world = useWorld();
 
     const isExporting = shallowRef(false);
     const exportSize = ref(Object.assign({}, DEFAULT_GRID_SIZE));
 
     const onExport = () => {
-      world.value.events.emit('grid_export', exportSize.value.width, exportSize.value.height);
+      world.events.emit('grid_export', exportSize.value.width, exportSize.value.height);
       isExporting.value = false;
     };
     watch(isExporting, newVal => {
@@ -191,7 +191,7 @@ export default defineComponent({
     reloadGrid() {
       this.disableWatchSave = true;
 
-      let grid = this.world.getResource('grid') as GridResource;
+      let grid = this.world.getResource('grid')!;
       switch (grid.gridType) {
         case GridType.HEXAGON:
           this.grid.type = 'hex'

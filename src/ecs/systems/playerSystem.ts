@@ -1,15 +1,15 @@
-import {System} from "../system";
-import {World} from "../world";
-import {MultiEcsStorage, SingleEcsStorage} from "../storage";
+import {System} from "../System";
+import {World} from "../World";
+import {MultiEcsStorage, SingleEcsStorage} from "../Storage";
 import {Component, POSITION_TYPE, PositionComponent, SHARED_TYPE} from "../component";
-import {VISIBILITY_TYPE, VisibilityComponent, VisibilitySystem, VISIBILITY_DETAILS_TYPE, VisibilityDetailsComponent} from "./back/visibilitySystem";
+import {VISIBILITY_TYPE, VisibilityComponent, VisibilitySystem, VISIBILITY_DETAILS_TYPE, VisibilityDetailsComponent} from "./back/VisibilitySystem";
 import {DESTROY_ALL} from "../../util/pixi";
 import {
     newVisibilityAwareComponent,
     VISIBILITY_AWARE_TYPE,
     VisibilityAwareComponent,
     VisibilityAwareSystem
-} from "./back/visibilityAwareSystem";
+} from "./back/VisibilityAwareSystem";
 import {LIGHT_SETTINGS_TYPE, LIGHT_TYPE, LightComponent, LightSettings} from "./lightSystem";
 import {Aabb} from "../../geometry/aabb";
 import {GridResource, Resource} from "../resource";
@@ -17,7 +17,7 @@ import {PIN_TYPE} from "./pinSystem";
 import {GRID_TYPE} from "./gridSystem";
 import {STANDARD_GRID_OPTIONS} from "../../game/grid";
 import { IPoint } from "@/geometry/point";
-import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE } from "./back/selectionUiSystem";
+import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE } from "./back/SelectionUiSystem";
 
 import EcsPlayer from "@/ui/ecs/EcsPlayer.vue";
 import { VisibilityPolygonElement } from "./back/pixi/visibility/VisibilityPolygonElement";
@@ -60,6 +60,7 @@ export type EVENT_VISIBILITY_SPREAD = typeof EVENT_VISIBILITY_SPREAD;
 export class PlayerSystem implements System {
     readonly name = PLAYER_TYPE;
     readonly dependencies = [PIN_TYPE, VISIBILITY_TYPE, VISIBILITY_AWARE_TYPE];
+    readonly components?: [PlayerComponent, PlayerVisibleComponent];
 
     readonly world: World;
 
@@ -105,7 +106,7 @@ export class PlayerSystem implements System {
             } as ComponentInfoPanel);
         });
 
-        let visAware = world.systems.get(VISIBILITY_AWARE_TYPE) as VisibilityAwareSystem;
+        let visAware = world.requireSystem(VISIBILITY_AWARE_TYPE);
         visAware.events.on('aware_update', this.onVisibilityAwareUpdate, this);
     }
 
@@ -141,7 +142,7 @@ export class PlayerSystem implements System {
                 playerVisible._playerCount += 1;
                 if (player.nightVision) playerVisible._playerNightVisionCount += 1;
             } else if (vis.requester === LIGHT_TYPE) {
-                const light = this.world.getComponent(entity, LIGHT_TYPE) as LightComponent;
+                const light = this.world.getComponent(entity, LIGHT_TYPE);
                 if (light === undefined) continue;
                 playerVisible._lightCount += 1;
             }
@@ -156,7 +157,7 @@ export class PlayerSystem implements System {
                 playerVisible._playerCount -= 1;
                 if (player.nightVision) playerVisible._playerNightVisionCount -= 1;
             } else if (vis.requester === LIGHT_TYPE) {
-                const light = this.world.getComponent(entity, LIGHT_TYPE) as LightComponent;
+                const light = this.world.getComponent(entity, LIGHT_TYPE);
                 if (light === undefined) continue;
                 playerVisible._lightCount -= 1;
             }
@@ -166,7 +167,7 @@ export class PlayerSystem implements System {
     }
 
     private onNightVisionUpdate(player: PlayerComponent) {
-        let visDet = this.world.getComponent(player.entity, VISIBILITY_DETAILS_TYPE) as VisibilityDetailsComponent | undefined;
+        let visDet = this.world.getComponent(player.entity, VISIBILITY_DETAILS_TYPE);
         let visSto = this.world.getStorage(VISIBILITY_TYPE) as MultiEcsStorage<VisibilityComponent>;
         let mid = -1;
         for (let x of visSto.getComponents(player.entity)) {
@@ -245,7 +246,7 @@ export class PlayerSystem implements System {
                     range: c.range
                 }, c._visIndex);
             } else {
-                let vis = this.world.getComponent(c.entity, VISIBILITY_DETAILS_TYPE) as VisibilityDetailsComponent;
+                let vis = this.world.getComponent(c.entity, VISIBILITY_DETAILS_TYPE)!;
                 if (vis.polygon !== undefined) {
                     this.spreader.spreadPlayerVisibility(comp.entity);
                 }
@@ -364,8 +365,8 @@ class BitByBitSpreader {
         this.world = playerSys.world;
         this.playerSys = playerSys;
 
-        this.visibilitySystem = this.world.systems.get(VISIBILITY_TYPE) as VisibilitySystem;
-        this.gridSize = (this.world.getResource(GRID_TYPE) as GridResource ?? STANDARD_GRID_OPTIONS).size;
+        this.visibilitySystem = this.world.requireSystem(VISIBILITY_TYPE);
+        this.gridSize = (this.world.getResource(GRID_TYPE) ?? STANDARD_GRID_OPTIONS).size;
 
         this.world.events.on('command_post_execute', () => {
             if (this.playersToUpdate.length + this.lightsToUpdate.length === 0) return;

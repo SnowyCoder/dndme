@@ -1,5 +1,5 @@
-import {System} from "../../system";
-import {World} from "../../world";
+import {System} from "../../System";
+import {World} from "../../World";
 import { GAME_CLOCK_TYPE, GameClockResource } from "@/ecs/systems/back/pixi/pixiBoardSystem";
 import {Command} from "./command";
 import {COMMAND_TYPE, CommandResult, CommandSystem, EVENT_COMMAND_EMIT, EVENT_COMMAND_HISTORY_LOG} from "./commandSystem";
@@ -37,8 +37,8 @@ export class CommandHistorySystem implements System {
 
         this.history = new Array<HistoryEntry>();
 
-        this.commandSys = this.world.systems.get(COMMAND_TYPE) as CommandSystem;
-        this.fileSys = this.world.systems.get(BIG_STORAGE_TYPE) as BigStorageSystem;
+        this.commandSys = this.world.requireSystem(COMMAND_TYPE);
+        this.fileSys = this.world.requireSystem(BIG_STORAGE_TYPE);
 
         this.world.events.on("command_undo", this.onUndo, this);
         this.world.events.on("command_redo", this.onRedo, this);
@@ -167,7 +167,7 @@ export class CommandHistorySystem implements System {
         kind.merge(cmd, lastCmd.cmd, false);
         this.historyReplacePrev({
             cmd,
-            timestamp: (this.world.getResource(GAME_CLOCK_TYPE) as GameClockResource)?.timestampMs,
+            timestamp: this.world.getResource(GAME_CLOCK_TYPE)?.timestampMs ?? 0,
             files: [],
         });
 
@@ -194,7 +194,7 @@ export class CommandHistorySystem implements System {
         }
         this.historyPush({
             cmd,
-            timestamp: (this.world.getResource(GAME_CLOCK_TYPE) as GameClockResource)?.timestampMs,
+            timestamp: this.world.getResource(GAME_CLOCK_TYPE)?.timestampMs ?? 0,
             files,
         });
         this.notifyHistoryChange();

@@ -27,7 +27,7 @@
 
 import { defineComponent, inject, PropType, toRefs } from "vue";
 import { useComponentReactive } from "../vue";
-import { StatsComponent } from "../../ecs/systems/battleSystem";
+import { StatsComponent } from "../../ecs/systems/BattleSystem";
 import EditableNumber from "../util/EditableNumber.vue";
 
 export default defineComponent({

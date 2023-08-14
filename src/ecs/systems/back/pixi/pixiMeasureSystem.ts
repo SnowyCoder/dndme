@@ -1,6 +1,6 @@
-import {World} from "@/ecs/world";
+import {World} from "@/ecs/World";
 import {BOARD_TRANSFORM_TYPE, BoardTransformResource, PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
-import {System} from "@/ecs/system";
+import {System} from "@/ecs/System";
 import {GridResource, MEASURE_TYPE, MeasureResource, Resource} from "@/ecs/resource";
 import {distSquared2d} from "@/util/geometry";
 import {STANDARD_GRID_OPTIONS} from "@/game/grid";
@@ -25,7 +25,7 @@ export class PixiMeasureSystem implements System {
 
     constructor(world: World) {
         this.world = world;
-        const pixiBoard = this.world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
+        const pixiBoard = this.world.requireSystem(PIXI_BOARD_TYPE);
 
         this.display = new Graphics();
         this.display.parentGroup = pixiBoard.toolForegroundGroup;
@@ -112,7 +112,7 @@ export class PixiMeasureSystem implements System {
         }
 
         if (redraw) {
-            const r = this.world.getResource(MEASURE_TYPE) as MeasureResource | undefined;
+            const r = this.world.getResource(MEASURE_TYPE);
             if (r !== undefined) this.redrawRes(r);
         }
     }
@@ -127,7 +127,7 @@ export class PixiMeasureSystem implements System {
     }
 
     enable(): void {
-        let board = this.world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
+        let board = this.world.requireSystem(PIXI_BOARD_TYPE);
         board.board.addChild(this.display);
         board.board.addChild(this.text);
 
@@ -135,7 +135,7 @@ export class PixiMeasureSystem implements System {
         if (grid !== undefined) {
             this.gridSize = (grid as GridResource).size;
         }
-        this.boardScale = (this.world.getResource(BOARD_TRANSFORM_TYPE) as BoardTransformResource | undefined)?.scaleX || 1;
+        this.boardScale = this.world.getResource(BOARD_TRANSFORM_TYPE)?.scaleX || 1;
     }
 
     destroy(): void {

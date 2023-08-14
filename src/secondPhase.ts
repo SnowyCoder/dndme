@@ -11,25 +11,15 @@ import { HomePhase } from './phase/homePhase';
 export async function start() {
     await loadAssets();
 
-    onHashChange();
-
-    window.onhashchange = function () {
-        console.log("Hash change" + location.hash);
-        onHashChange();
-    }
+    resetPhase();
 }
 
-export async function onHashChange() {
-    if (window.location.hash) {
-        const roomId = window.location.hash.substr(1);// Remove #
-        if (roomId.startsWith('t')) {
-            console.log("Connecting with: torrent");
-            stage.setPhase(new ClientEditMapPhase(roomId.substr(1)));
-        } else {
-            console.log("Invalid hash");
-            stage.setPhase(new HomePhase());
-        }
-
+export function resetPhase() {
+    const hash = window.location.hash;
+    if (hash.length > 1) {
+        const roomId = hash.substring(1);// Remove #
+        console.log("Connecting to room", roomId);
+        stage.setPhase(new ClientEditMapPhase(roomId));
     } else {
         stage.setPhase(new HomePhase());
     }

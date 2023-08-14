@@ -1,13 +1,13 @@
-import {System} from "../../system";
-import {World} from "../../world";
+import {System} from "../../System";
+import {World} from "../../World";
 import {Resource} from "../../resource";
 import {Component, SerializedFlag, SERIALIZED_TYPE, SharedFlag, SHARED_TYPE} from "../../component";
-import {SingleEcsStorage} from "../../storage";
+import {SingleEcsStorage} from "../../Storage";
 import {DeSpawnCommand} from "../command/despawnCommand";
 import {commandRegisterPreConsequence, emitCommand} from "../command/command";
 import {LayerOrder} from "../../../phase/editMap/layerOrder";
 import { SpawnCommandKind } from "../command/spawnCommand";
-import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE } from "./selectionUiSystem";
+import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE } from "./SelectionUiSystem";
 
 
 import EcsLayer from "@/ui/ecs/EcsLayer.vue";
@@ -47,6 +47,7 @@ export interface BackgroundLayerResource extends Resource, Layer {
 export const SELECTED_LAYER_TYPE = "layer_sel";
 export type SELECTED_LAYER_TYPE = typeof SELECTED_LAYER_TYPE;
 export interface SelectedLayerResource extends Resource {
+    type: SELECTED_LAYER_TYPE;
     layer?: number;
 }
 
@@ -55,6 +56,8 @@ export class LayerSystem implements System {
     readonly name = LAYER_TYPE;
     readonly dependencies = [];
     readonly optionalDependencies = [];
+    readonly components?: [LayerComponent, ParentLayerComponent];
+    readonly resources?: [BackgroundLayerResource, SelectedLayerResource];
 
     private readonly world: World;
 

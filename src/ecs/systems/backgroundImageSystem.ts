@@ -1,7 +1,7 @@
-import {System} from "../system";
-import {World} from "../world";
+import {System} from "../System";
+import {World} from "../World";
 import {Component, TRANSFORM_TYPE} from "../component";
-import {SingleEcsStorage} from "../storage";
+import {SingleEcsStorage} from "../Storage";
 import {
     ElementType,
     EVENT_REMEMBER_BIT_BY_BIY_MASK_UPDATE,
@@ -13,8 +13,8 @@ import {
 } from "../../graphics";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {BIG_STORAGE_TYPE, BigStorageSystem} from "./back/files/bigStorageSystem";
-import { NameAsLabelComponent, NAME_AS_LABEL_TYPE } from "./back/nameAsLabelSystem";
-import { InteractionComponent, INTERACTION_TYPE, ObbShape } from "./back/interactionSystem";
+import { NameAsLabelComponent, NAME_AS_LABEL_TYPE } from "./back/NameAsLabelSystem";
+import { InteractionComponent, INTERACTION_TYPE, ObbShape } from "./back/InteractionSystem";
 import { Aabb } from "../../geometry/aabb";
 import { FileIndex } from "../../map/FileDb";
 
@@ -31,6 +31,7 @@ export interface BackgroundImageComponent extends Component {
 export class BackgroundImageSystem implements System {
     readonly name = BACKGROUND_IMAGE_TYPE;
     readonly dependencies = [GRAPHIC_TYPE, BIG_STORAGE_TYPE];
+    readonly components?: [BackgroundImageComponent];
 
     readonly world: World;
     readonly storage: SingleEcsStorage<BackgroundImageComponent>;
@@ -38,7 +39,7 @@ export class BackgroundImageSystem implements System {
 
     constructor(world: World) {
         this.world = world;
-        this.bigStorage = world.systems.get(BIG_STORAGE_TYPE) as BigStorageSystem;
+        this.bigStorage = world.requireSystem(BIG_STORAGE_TYPE);
 
         this.storage = new SingleEcsStorage<BackgroundImageComponent>(BACKGROUND_IMAGE_TYPE, true, true);
 
@@ -96,7 +97,7 @@ export class BackgroundImageSystem implements System {
     }
 
     private computeLabelHeightOffset(entity: number) {
-        const shape = this.world.getComponent<InteractionComponent>(entity, INTERACTION_TYPE)!.shape as ObbShape;
+        const shape = this.world.getComponent(entity, INTERACTION_TYPE)!.shape as ObbShape;
         const aabb = Aabb.zero();
         aabb.wrapPolygon(shape.data.rotVertex);
 
@@ -104,7 +105,7 @@ export class BackgroundImageSystem implements System {
     }
 
     private onRememberBBBUpdate(entities: number[]): void {
-        let gstor = this.world.storages.get(GRAPHIC_TYPE) as SingleEcsStorage<GraphicComponent>;
+        let gstor = this.world.getStorage(GRAPHIC_TYPE);
 
         for (let e of entities) {
             let c = this.storage.getComponent(e);

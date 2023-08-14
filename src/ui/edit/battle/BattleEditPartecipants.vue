@@ -11,60 +11,51 @@
   </div>
 </template>
 
-<script lang="ts">
-import { computed, defineComponent, inject, ShallowRef, toRefs } from "vue";
-import { World } from "../../../ecs/world";
-import { SelectionSystem, SELECTION_TYPE } from "../../../ecs/systems/back/selectionSystem";
-import { stupidRef, useEvent, useResourceReactive, isNull } from "../../vue";
-import { NameComponent, NAME_TYPE } from "../../../ecs/component";
-import { BattleComponent, BATTLE_TYPE, STATS_TYPE } from "../../../ecs/systems/battleSystem";
+<script setup lang="ts">
+import { computed, toRefs } from "vue";
+import { SELECTION_TYPE } from "../../../ecs/systems/back/SelectionSystem";
+import { stupidRef, useEvent, useResourceReactive, useWorld } from "../../vue";
+import { NAME_TYPE } from "../../../ecs/component";
+import { BATTLE_TYPE, STATS_TYPE } from "../../../ecs/systems/BattleSystem";
 
-import Battle from "./Battle.vue";
+const props = defineProps<{
+  battleStarted: boolean
+}>();
+const emits = defineEmits<{
+  (event: 'back'): void
+}>();
 
-export default defineComponent({
-  components: {Battle},
-  emits: ['back'],
-  props: {
-    battleStarted: { type: Boolean, required: true },
-  },
-  setup(props, context) {
-    const { battleStarted } = toRefs(props);
-    const world = inject<ShallowRef<World>>('world')!.value;
-    const sys = world.systems.get(SELECTION_TYPE) as SelectionSystem;
+const { battleStarted } = toRefs(props);
+const world = useWorld();
+const sys = world.requireSystem(SELECTION_TYPE);
 
-    const selectedEntities = stupidRef(sys.selectedEntities);
+const selectedEntities = stupidRef(sys.selectedEntities);
 
-    useEvent(world, 'selection_update', () => {
-      selectedEntities.value = sys.selectedEntities;
-    });
-
-    const entities = computed(() => {
-      const isBattle = battleStarted.value;
-      return [...selectedEntities.value]
-        .filter(x => world.getComponent(x, STATS_TYPE) !== undefined)
-        .map(x => {
-          // Avoid lookup if there is no battle
-          const added = !isBattle || world.getComponent<BattleComponent>(x, BATTLE_TYPE) === undefined;
-          return {
-            id: x,
-            name: world.getComponent<NameComponent>(x, NAME_TYPE)?.name,
-            class: isBattle ? (added ? 'list-group-item-success' : 'list-group-item-danger') : '',
-          }
-        });
-    });
-
-    const battleRes = useResourceReactive(world, BATTLE_TYPE, {
-      turnOf: undefined,
-    });
-
-    const startBattle = () => {
-      world.events.emit('battle_begin');
-      context.emit('back');
-    };
-
-    return {
-      entities, battleRes, isNull, startBattle
-    }
-  },
+useEvent(world, 'selection_update', () => {
+  selectedEntities.value = sys.selectedEntities;
 });
+
+const entities = computed(() => {
+  const isBattle = battleStarted.value;
+  return [...selectedEntities.value]
+    .filter(x => world.getComponent(x, STATS_TYPE) !== undefined)
+    .map(x => {
+      // Avoid lookup if there is no battle
+      const added = !isBattle || world.getComponent(x, BATTLE_TYPE) === undefined;
+      return {
+        id: x,
+        name: world.getComponent(x, NAME_TYPE)?.name,
+        class: isBattle ? (added ? 'list-group-item-success' : 'list-group-item-danger') : '',
+      }
+    });
+});
+
+const battleRes = useResourceReactive(world, BATTLE_TYPE, {
+  turnOf: undefined,
+});
+
+const startBattle = () => {
+  world.events.emit('battle_begin');
+  emits('back');
+};
 </script>

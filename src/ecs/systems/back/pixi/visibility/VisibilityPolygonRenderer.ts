@@ -103,7 +103,7 @@ export class VisibilityPolygonRenderer extends ObjectRenderer {
         if (this.currentDepthFunc === func) return;
         this.currentDepthFunc = func;
         const gl = this.renderer.gl;
-        let f = gl.LESS;
+        let f: number = gl.LESS;
         if (func == DepthFunc.NEVER) f = gl.NEVER;
         else if (func == DepthFunc.LESS) f = gl.LESS;
         else if (func == DepthFunc.EQUAL) f = gl.EQUAL;

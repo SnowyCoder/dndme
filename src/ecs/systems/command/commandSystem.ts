@@ -1,5 +1,5 @@
-import {System} from "../../system";
-import {World} from "../../world";
+import {System} from "../../System";
+import {World} from "../../World";
 import {Command, CommandKind} from "./command";
 import {SpawnCommandKind} from "./spawnCommand";
 import {DeSpawnCommandKind} from "./despawnCommand";
@@ -7,7 +7,7 @@ import {ComponentEditCommandKind} from "./componentEdit";
 import {ResourceEditCommandKind} from "./resourceEditCommand";
 import {EventCommandKind} from "./eventCommand";
 import {NoneCommandKind} from "./noneCommand";
-import {NETWORK_TYPE, NetworkSystem} from "../back/networkSystem";
+import {NETWORK_TYPE, NetworkSystem} from "../back/NetworkSystem";
 
 export interface CommandResult {
     inverted: Command | undefined;
@@ -48,7 +48,7 @@ export class CommandSystem implements System {
         this.world.events.on(EVENT_COMMAND_LOG, this.onLog, this);
         this.world.events.on(EVENT_COMMAND_PARTIAL_END, this.onPartialEnd, this);
 
-        this.networkSys = world.systems.get(NETWORK_TYPE) as NetworkSystem | undefined;
+        this.networkSys = world.getSystem(NETWORK_TYPE);
     }
 
     registerCommandKind(kind: CommandKind) {

@@ -1,15 +1,15 @@
 
 import { Component } from "../component";
-import { System } from "../system";
-import { World } from "../world";
-import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE, SELECTION_UI_TYPE } from "./back/selectionUiSystem";
-import { ToolSystem, TOOL_TYPE } from "./back/toolSystem";
+import { System } from "../System";
+import { World } from "../World";
+import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE, SELECTION_UI_TYPE } from "./back/SelectionUiSystem";
+import { ToolSystem, TOOL_TYPE } from "./back/ToolSystem";
 import AttackIconVue from "../../ui/icons/AttackIcon.vue";
 import { StandardToolbarOrder } from "../../phase/editMap/standardToolbarOrder";
 import AttackVue from "../../ui/edit/battle/Attack.vue";
 import { Resource } from "../resource";
-import { SingleEcsStorage } from "../storage";
-import { SelectionSystem, SELECTION_TYPE } from "./back/selectionSystem";
+import { SingleEcsStorage } from "../Storage";
+import { SelectionSystem, SELECTION_TYPE } from "./back/SelectionSystem";
 import { PIN_TYPE } from "./pinSystem";
 import EcsStatsVue from "../../ui/ecs/EcsStats.vue";
 import { executeAndLogCommand } from "./command/command";
@@ -45,6 +45,8 @@ export class BattleSystem implements System {
     readonly world: World;
     readonly name = BATTLE_TYPE;
     readonly dependencies = [SELECTION_UI_TYPE, TOOL_TYPE];
+    readonly components?: [StatsComponent, BattleComponent];
+    readonly resources?: [BattleResource];
 
     private readonly selectionSys: SelectionSystem;
 
@@ -53,13 +55,13 @@ export class BattleSystem implements System {
 
     constructor(world: World) {
         this.world = world;
-        this.selectionSys = world.systems.get(SELECTION_TYPE) as SelectionSystem;
+        this.selectionSys = world.requireSystem(SELECTION_TYPE);
 
         world.addStorage(this.statsStorage);
         world.addStorage(this.battleStorage);
 
         // The system is only register on master worlds
-        let toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
+        let toolSys = world.requireSystem(TOOL_TYPE);
         toolSys.addTool(BATTLE_TYPE, {
             parts: ['space_pan', 'select',],
             sideBar: AttackVue,

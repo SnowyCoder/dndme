@@ -1,14 +1,14 @@
-import {System} from "../../system";
+import {System} from "../../System";
 import {
     PIXI_BOARD_TYPE, PointerDownEvent,
 } from "./pixi/pixiBoardSystem";
-import {World} from "../../world";
-import {SELECTION_TYPE} from "./selectionSystem";
+import {World} from "../../World";
+import {SELECTION_TYPE} from "./SelectionSystem";
 import {Resource} from "../../resource";
 import {FilteredPanPart, InteractPart, SelectPart} from "../../tools/inspect";
 import {ToolType} from "../../tools/toolType";
 import {MeasureToolPart} from "../../tools/measure";
-import { KeyboardResource, KEYBOARD_TYPE } from "./keyboardSystem";
+import { KeyboardResource, KEYBOARD_TYPE } from "./KeyboardSystem";
 import SafeEventEmitter, { PRIORITY_DISABLED } from "../../../util/safeEventEmitter";
 import { StandardToolbarOrder } from "@/phase/editMap/standardToolbarOrder";
 
@@ -74,6 +74,7 @@ export class ToolSystem implements System {
     readonly name = TOOL_TYPE;
     readonly dependencies = [SELECTION_TYPE];
     readonly optionalDependencies = [PIXI_BOARD_TYPE, KEYBOARD_TYPE];
+    readonly resources?: [ToolResource];
 
     private readonly world: World;
     private initialized: boolean = false;
@@ -101,7 +102,7 @@ export class ToolSystem implements System {
         events.on('resource_edited', this.onResourceEdited, this);
         events.on('populate', this.onPopulate, this);
 
-        const keyboard = this.world.getResource(KEYBOARD_TYPE) as KeyboardResource | undefined;
+        const keyboard = this.world.getResource(KEYBOARD_TYPE);
 
         this.addToolPart(new FilteredPanPart(world, 'click_pan', () => true));
         this.addToolPart(new FilteredPanPart(world, 'space_pan', () => !!keyboard?.pressedKeys?.has(' ')));

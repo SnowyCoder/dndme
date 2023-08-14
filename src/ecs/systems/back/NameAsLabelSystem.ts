@@ -1,6 +1,6 @@
-import {System} from "../../system";
-import {World} from "../../world";
-import {MultiEcsStorage, SingleEcsStorage} from "../../storage";
+import {System} from "../../System";
+import {World} from "../../World";
+import {MultiEcsStorage, SingleEcsStorage} from "../../Storage";
 import {ElementType, GRAPHIC_TYPE, GraphicComponent, PointElement, TextElement, VisibilityType, DisplayElement} from "../../../graphics";
 import { Component, NameComponent, NAME_TYPE } from "../../component";
 import { Resource } from "../../resource";
@@ -18,6 +18,7 @@ export type NAME_AS_LABEL_TYPE = typeof NAME_AS_LABEL_TYPE;
 export class NameAsLabelSystem implements System {
     readonly name = NAME_AS_LABEL_TYPE;
     readonly dependencies = [GRAPHIC_TYPE];
+    readonly components?: [NameAsLabelComponent];
 
     private world: World;
 
@@ -56,7 +57,7 @@ export class NameAsLabelSystem implements System {
     private onComponentRemoved(c: Component): void {
         if (c.type === NAME_AS_LABEL_TYPE) {
             if (this.world.isDespawning.includes(c.entity)) return;
-            const g = this.world.getComponent(c.entity, GRAPHIC_TYPE) as GraphicComponent;
+            const g = this.world.getComponent(c.entity, GRAPHIC_TYPE);
             if (g === undefined) return;
             for (let elem of (g.display.children || [])) {
                 if (elem.tag !== 'name') continue;
@@ -80,7 +81,7 @@ export class NameAsLabelSystem implements System {
     }
 
     updateElement(c: NameAsLabelComponent): void {
-        let dis = this.world.getComponent(c.entity, GRAPHIC_TYPE) as GraphicComponent;
+        let dis = this.world.getComponent(c.entity, GRAPHIC_TYPE);
         if (dis === undefined) {
             console.warn("Error, found text_as_label component on an element withot a graphic type," +
                          "please first create your graphic type, then add a text_as_label component");
@@ -141,7 +142,7 @@ export class NameAsLabelSystem implements System {
     }
 
     enable(): void {
-        this.isMasterView = (this.world.getResource(LOCAL_LIGHT_SETTINGS_TYPE) as LocalLightSettings)?.visionType !== 'rp';
+        this.isMasterView = this.world.getResource(LOCAL_LIGHT_SETTINGS_TYPE)?.visionType !== 'rp';
     }
 
     destroy(): void {

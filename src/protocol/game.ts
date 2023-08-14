@@ -1,5 +1,5 @@
 import {Packet} from "./packet";
-import {SerializedWorld} from "../ecs/world";
+import {SerializedWorld} from "../ecs/World";
 import {Component} from "../ecs/component";
 import {Resource} from "../ecs/resource";
 import {Command} from "../ecs/systems/command/command";

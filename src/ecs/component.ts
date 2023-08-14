@@ -1,14 +1,17 @@
-import {World} from "./world";
-import {FlagEcsStorage, MultiEcsStorage, SingleEcsStorage} from "./storage";
+import {World} from "./World";
+import {FlagEcsStorage, MultiEcsStorage, SingleEcsStorage} from "./Storage";
+import { ComponentTypes } from "./TypeRegistry";
 
 export interface Component {
-    type: string;
+    type: ComponentTypes;
     entity: number;
 }
 
 export interface MultiComponent extends Component {
     multiId: number;
 }
+
+export type IsFlagComponent<X> = Omit<Component, 'type'> extends Omit<X, 'type'> ? 1 : 2;
 
 export interface HideableComponent extends Component {
     clientVisible: boolean;
@@ -67,12 +70,14 @@ export interface SerializedFlag extends Component {
     type: SERIALIZED_TYPE;
 }
 
+export type DEFAULT_COMPONENTS = PositionComponent | TransformComponent | NameComponent | NoteComponent | FollowMouseFlag | SharedFlag | SerializedFlag;
+
 export function registerCommonStorage(ecs: World) {
-    ecs.addStorage(new SingleEcsStorage(POSITION_TYPE));
-    ecs.addStorage(new SingleEcsStorage(TRANSFORM_TYPE));
-    ecs.addStorage(new MultiEcsStorage(NAME_TYPE));
-    ecs.addStorage(new MultiEcsStorage(NOTE_TYPE));
-    ecs.addStorage(new FlagEcsStorage(FOLLOW_MOUSE_TYPE, false, false));
-    ecs.addStorage(new FlagEcsStorage(SHARED_TYPE, false, true));
-    ecs.addStorage(new FlagEcsStorage(SERIALIZED_TYPE, false, false));
+    ecs.addStorage(new SingleEcsStorage<PositionComponent>(POSITION_TYPE));
+    ecs.addStorage(new SingleEcsStorage<TransformComponent>(TRANSFORM_TYPE));
+    ecs.addStorage(new MultiEcsStorage<NameComponent>(NAME_TYPE));
+    ecs.addStorage(new MultiEcsStorage<NoteComponent>(NOTE_TYPE));
+    ecs.addStorage(new FlagEcsStorage<FollowMouseFlag>(FOLLOW_MOUSE_TYPE, false, false));
+    ecs.addStorage(new FlagEcsStorage<SharedFlag>(SHARED_TYPE, false, true));
+    ecs.addStorage(new FlagEcsStorage<SerializedFlag>(SERIALIZED_TYPE, false, false));
 }

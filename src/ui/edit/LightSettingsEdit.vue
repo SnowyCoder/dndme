@@ -1,3 +1,34 @@
+<script setup lang="ts">
+import { DEFAULT_LIGHT_SETTINGS, LightSettings, LIGHT_SETTINGS_TYPE, LOCAL_LIGHT_SETTINGS_TYPE } from "../../ecs/systems/lightSystem";
+import { computed } from "vue";
+import CButton from "../util/CButton.vue";
+import EditableColor from "../util/EditableColor.vue";
+import { useResourcePiece, useResourceReactive, useWorld } from "../vue";
+
+const world = useWorld();
+
+const light = useResourceReactive(world, LIGHT_SETTINGS_TYPE, {
+  ambientLight: 0,
+  needsLight: true,
+  background: 0,
+});
+
+const visionType = useResourcePiece(LOCAL_LIGHT_SETTINGS_TYPE, 'visionType', 'dm');
+const roleplayVision = computed({
+  get: () => {
+    return visionType.value === 'rp';
+  },
+  set: (x: boolean) => visionType.value = x ? 'rp' : 'dm',
+});
+
+function onLightSettingsReset() {
+  world.addResource(Object.assign({
+    type: 'light_settings',
+  }, DEFAULT_LIGHT_SETTINGS) as LightSettings, 'update');
+}
+</script>
+
+
 <template>
   <div class="px-3 py-2">
     <div class="d-flex align-items-center">
@@ -23,43 +54,3 @@
     </div>
   </div>
 </template>
-
-<script lang="ts">
-
-import { World } from "../../ecs/world";
-import { DEFAULT_LIGHT_SETTINGS, LightSettings, LIGHT_SETTINGS_TYPE, LOCAL_LIGHT_SETTINGS_TYPE } from "../../ecs/systems/lightSystem";
-import { computed, defineComponent, inject, ShallowRef } from "vue";
-import CButton from "../util/CButton.vue";
-import EditableColor from "../util/EditableColor.vue";
-import { useResourcePiece, useResourceReactive } from "../vue";
-
-export default defineComponent({
-  components: { CButton, EditableColor },
-  setup() {
-    const world = inject<ShallowRef<World>>('world')!;
-
-    const light = useResourceReactive(world.value, LIGHT_SETTINGS_TYPE, {
-      ambientLight: 0,
-      needsLight: true,
-      background: 0,
-    });
-    
-    const visionType = useResourcePiece<string>(LOCAL_LIGHT_SETTINGS_TYPE, 'visionType', 'dm');
-    const roleplayVision = computed({
-      get: () => {
-        return visionType.value === 'rp';
-      },
-      set: (x: boolean) => visionType.value = x ? 'rp' : 'dm',
-    });
-
-    return { world, light, roleplayVision };
-  },
-  methods: {
-    onLightSettingsReset() {
-      this.world.addResource(Object.assign({
-        type: 'light_settings',
-      }, DEFAULT_LIGHT_SETTINGS) as LightSettings, 'update');
-    },
-  },
-});
-</script>

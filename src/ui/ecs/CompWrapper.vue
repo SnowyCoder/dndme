@@ -33,9 +33,9 @@
 <script lang="ts">
 import { defineComponent, inject, PropType, provide, ShallowRef, shallowRef, toRefs, watch } from "vue";
 import { Component, HideableComponent, MultiComponent } from "../../ecs/component";
-import { COMPONENT_INFO_PANEL_TYPE } from "../../ecs/systems/back/selectionUiSystem";
-import { World } from "../../ecs/world";
+import { COMPONENT_INFO_PANEL_TYPE } from "../../ecs/systems/back/SelectionUiSystem";
 import Collapse from "../util/Collapse.vue";
+import { useWorld } from "../vue";
 
 //TODO: make this dynamic
 export default defineComponent({
@@ -45,7 +45,7 @@ export default defineComponent({
   },
   setup(props, context) {
     const { component } = toRefs(props);
-    const world = inject<ShallowRef<World>>("world")!.value;
+    const world = useWorld();
     const isMaster = inject<boolean>("isMaster");
 
     const isFullscreen = shallowRef<boolean | undefined>(undefined);
@@ -56,7 +56,7 @@ export default defineComponent({
     };
 
     const visible = shallowRef((component.value as any)._open ?? true);
-    watch(visible, (newVisible) => {
+    watch(visible, (newVisible: boolean) => {
       if (component.value.multiId !== undefined) return;
 
         world.editComponent((component.value as any)._infoPanelId, COMPONENT_INFO_PANEL_TYPE, {

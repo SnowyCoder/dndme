@@ -1,6 +1,6 @@
-import {World} from "@/ecs/world";
+import {World} from "@/ecs/World";
 import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
-import {System} from "@/ecs/system";
+import {System} from "@/ecs/System";
 import {RECTANGULAR_SELECTION_TYPE, RectangularSelectionResource, Resource} from "@/ecs/resource";
 import {Aabb} from "@/geometry/aabb";
 import { Graphics } from "pixi.js";
@@ -9,11 +9,11 @@ import { Graphics } from "pixi.js";
 export const PIXI_RECTANGULAR_SELECTION_TYPE = "pixi_rect_selection";
 export type PIXI_RECTANGULAR_SELECTION_TYPE = typeof PIXI_RECTANGULAR_SELECTION_TYPE;
 export class PixiRectSelectionSystem implements System {
-    name = PIXI_RECTANGULAR_SELECTION_TYPE;
-    dependencies = [PIXI_BOARD_TYPE];
+    readonly name = PIXI_RECTANGULAR_SELECTION_TYPE;
+    readonly dependencies = [PIXI_BOARD_TYPE];
 
-    world: World;
-    display: Graphics;
+    readonly world: World;
+    readonly display: Graphics;
 
     constructor(world: World) {
         this.world = world;
@@ -51,7 +51,7 @@ export class PixiRectSelectionSystem implements System {
     }
 
     enable(): void {
-        let board = this.world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
+        let board = this.world.requireSystem(PIXI_BOARD_TYPE);
         this.display.parentGroup = board.toolForegroundGroup;
         board.board.addChild(this.display);
     }

@@ -1,7 +1,7 @@
 import { Component, HideableComponent, MultiComponent, SharedFlag, SHARED_TYPE } from "@/ecs/component";
-import { SingleEcsStorage } from "@/ecs/storage";
-import { System } from "@/ecs/system";
-import { World } from "@/ecs/world";
+import { SingleEcsStorage } from "@/ecs/Storage";
+import { System } from "@/ecs/System";
+import { World } from "@/ecs/World";
 import { ImageMeta } from "@/graphics";
 import { FileIndex } from "@/map/FileDb";
 import { emitCommand } from "../command/command";
@@ -9,6 +9,7 @@ import { DeSpawnCommand } from "../command/despawnCommand";
 import { SpawnCommandKind } from "../command/spawnCommand";
 import { DeclarativeListenerSystem, DECLARATIVE_LISTENER_TYPE } from "./DeclarativeListenerSystem";
 import { BigStorageSystem, BIG_STORAGE_TYPE } from "./files/bigStorageSystem";
+import { ComponentTypes } from "@/ecs/TypeRegistry";
 
 
 export const IMAGE_META_TYPE = 'image_meta';
@@ -25,6 +26,7 @@ export type IMAGE_META_SYNC_TYPE = typeof IMAGE_META_SYNC_TYPE;
 export class ImageMetaSyncSystem implements System {
     readonly name = IMAGE_META_SYNC_TYPE;
     readonly dependencies = [DECLARATIVE_LISTENER_TYPE, BIG_STORAGE_TYPE];
+    readonly components?: [ImageMetaComponent];
 
     readonly world: World;
     readonly storage = new SingleEcsStorage<ImageMetaComponent>(IMAGE_META_TYPE, true, false);
@@ -36,17 +38,17 @@ export class ImageMetaSyncSystem implements System {
         this.world = world;
         world.addStorage(this.storage);
 
-        this.fileSys =  world.systems.get(BIG_STORAGE_TYPE) as BigStorageSystem;
-        const declarative = world.systems.get(DECLARATIVE_LISTENER_TYPE) as DeclarativeListenerSystem;
+        this.fileSys =  world.requireSystem(BIG_STORAGE_TYPE);
+        const declarative = world.requireSystem(DECLARATIVE_LISTENER_TYPE);
 
 
         if (world.isMaster) {
             world.events.on('register_image', (component, path) => {
-                declarative.onComponentVisible<FileIndex>(component, path, this.onImageEdit, this);
+                declarative.onComponentVisible<ComponentTypes, any>(component, path, this.onImageEdit, this);
             });
             world.events.on('image_preload', (data) => this.spawnMeta(data.id));
         } else {
-            declarative.onComponent<ImageMetaComponent>(IMAGE_META_TYPE, '', this.onMetaEdit, this);
+            declarative.onComponent(IMAGE_META_TYPE, "", this.onMetaEdit, this);
         }
     }
 

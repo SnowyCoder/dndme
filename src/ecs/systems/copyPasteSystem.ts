@@ -1,14 +1,14 @@
 
-import {SerializedEntities, SerializedWorld, World} from "../world";
-import {SELECTION_TYPE, SelectionSystem} from "./back/selectionSystem";
-import {KEYBOARD_TYPE, KeyboardResource} from "./back/keyboardSystem";
-import { System } from "../system";
+import {SerializedEntities, SerializedWorld, World} from "../World";
+import {SELECTION_TYPE, SelectionSystem} from "./back/SelectionSystem";
+import {KEYBOARD_TYPE, KeyboardResource} from "./back/KeyboardSystem";
+import { System } from "../System";
 import { DeSpawnCommand } from "./command/despawnCommand";
 import { executeAndLogCommand } from "./command/command";
 import { POSITION_TYPE } from "../component";
-import { SingleEcsStorageSerialzed } from "../storage";
+import { SingleEcsStorageSerialzed } from "../Storage";
 import { Aabb } from "../../geometry/aabb";
-import { BoardSizeResource, BoardTransformResource, BOARD_SIZE_TYPE, BOARD_TRANSFORM_TYPE } from "./back/pixi/pixiBoardSystem";
+import { BOARD_SIZE_TYPE, BOARD_TRANSFORM_TYPE } from "./back/pixi/pixiBoardSystem";
 import { EVENT_COMMAND_HISTORY_LOG } from "./command/commandSystem";
 
 const CLIPBOARD_DATA = 'dndme-clip';
@@ -39,8 +39,8 @@ export class CopyPasteSystem implements System {
 
     constructor(world: World) {
         this.world = world;
-        this.keyboard = world.getResource(KEYBOARD_TYPE) as KeyboardResource;
-        this.selectionSys = world.systems.get(SELECTION_TYPE) as SelectionSystem;
+        this.keyboard = world.getResource(KEYBOARD_TYPE)!;
+        this.selectionSys = world.requireSystem(SELECTION_TYPE);
 
         this.world.events.on('ignore_next_paste', this.onIgnoreNextPaste, this);
     }
@@ -77,9 +77,9 @@ export class CopyPasteSystem implements System {
             return;
         }
 
-        const transform = this.world.getResource(BOARD_TRANSFORM_TYPE) as BoardTransformResource;
+        const transform = this.world.getResource(BOARD_TRANSFORM_TYPE);
         if (transform !== undefined) {
-            const boardSize = this.world.getResource(BOARD_SIZE_TYPE) as BoardSizeResource;
+            const boardSize = this.world.getResource(BOARD_SIZE_TYPE)!;
             const randX = Math.random() + 0.5;
             const randY = Math.random() + 0.5;
             this.moveSerialized(

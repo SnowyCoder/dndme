@@ -1,47 +1,46 @@
 import EditMapComponent from "../../ui/edit/EditMap.vue";
 import {BackgroundImageSystem} from "../../ecs/systems/backgroundImageSystem";
-import {SelectionSystem} from "../../ecs/systems/back/selectionSystem";
-import {SelectionUiSystem} from "../../ecs/systems/back/selectionUiSystem";
+import {SelectionSystem} from "../../ecs/systems/back/SelectionSystem";
+import {SelectionUiSystem} from "../../ecs/systems/back/SelectionUiSystem";
 import {PinSystem} from "../../ecs/systems/pinSystem";
 import {WallSystem} from "../../ecs/systems/wallSystem";
 import {LightSystem} from "../../ecs/systems/lightSystem";
-import {TextSystem} from "../../ecs/systems/back/textSystem";
-import {VisibilitySystem} from "../../ecs/systems/back/visibilitySystem";
-import {InteractionSystem} from "../../ecs/systems/back/interactionSystem";
+import {TextSystem} from "../../ecs/systems/back/TextSystem";
+import {VisibilitySystem} from "../../ecs/systems/back/VisibilitySystem";
+import {InteractionSystem} from "../../ecs/systems/back/InteractionSystem";
 import {PlayerSystem} from "../../ecs/systems/playerSystem";
-import {VisibilityAwareSystem} from "../../ecs/systems/back/visibilityAwareSystem";
+import {VisibilityAwareSystem} from "../../ecs/systems/back/VisibilityAwareSystem";
 import {DoorConflictDetector, DoorSystem} from "../../ecs/systems/doorSystem";
 import {PropSystem} from "../../ecs/systems/propSystem";
 import {PixiGraphicSystem} from "../../ecs/systems/back/pixi/pixiGraphicSystem";
-import {ToolSystem} from "../../ecs/systems/back/toolSystem";
+import {ToolSystem} from "../../ecs/systems/back/ToolSystem";
 import {GridSystem} from "../../ecs/systems/gridSystem";
 import {EcsPhase} from "../ecsPhase";
 import {PixiBoardSystem} from "../../ecs/systems/back/pixi/pixiBoardSystem";
 import {CommandSystem} from "../../ecs/systems/command/commandSystem";
 import {CommandHistorySystem} from "../../ecs/systems/command/commandHistorySystem";
-import {LayerSystem} from "../../ecs/systems/back/layerSystem";
+import {LayerSystem} from "../../ecs/systems/back/LayerSystem";
 import {PixiRectSelectionSystem} from "../../ecs/systems/back/pixi/pixiRectSelectionSystem";
-import {WebKeyboardSystem} from "../../ecs/systems/back/keyboardSystem";
-import {CommonNetworkSystem} from "../../ecs/systems/back/networkSystem";
+import {WebKeyboardSystem} from "../../ecs/systems/back/KeyboardSystem";
+import {CommonNetworkSystem} from "../../ecs/systems/back/NetworkSystem";
 import {PixiMeasureSystem} from "../../ecs/systems/back/pixi/pixiMeasureSystem";
 import {PixiLayerSystem} from "../../ecs/systems/back/pixi/pixiLayerSystem";
 import {BigStorageSystem} from "../../ecs/systems/back/files/bigStorageSystem";
 import {MouseTrailSystem} from "../../ecs/systems/mouseTrailSystem";
 import {CopyPasteSystem} from "../../ecs/systems/copyPasteSystem";
 import { LinkRelocationSystem } from "../../ecs/systems/back/linkRelocationSystem";
-import { NameAsLabelSystem } from "../../ecs/systems/back/nameAsLabelSystem";
-import { WTChannel } from "../../network/webtorrent/WTChannel";
+import { NameAsLabelSystem } from "../../ecs/systems/back/NameAsLabelSystem";
 import { PlayerLocatorSystem } from "../../ecs/systems/playerLocator";
 import { App, createApp, shallowRef } from "vue";
 import { ToolbarSystem } from "@/ecs/systems/toolbarSystem";
-import { BattleSystem } from "../../ecs/systems/battleSystem";
+import { BattleSystem } from "../../ecs/systems/BattleSystem";
 import { ImageMetaSyncSystem } from "@/ecs/systems/back/ImageMetaSystem";
 import { DeclarativeListenerSystem } from "@/ecs/systems/back/DeclarativeListenerSystem";
 import { LogSystem } from "@/ecs/systems/back/log/LogSystem";
+import { NetworkHistorySystem } from "@/ecs/systems/back/NetworkHistorySystem";
 
 
 export class EditMapPhase extends EcsPhase {
-    channel!: WTChannel;
     private readonly gameId: string | undefined;
 
     constructor(name: string, gameId?: string) {
@@ -49,18 +48,13 @@ export class EditMapPhase extends EcsPhase {
         this.gameId = gameId;
     }
 
-    ecsSetup() {
-        this.setupNetworkManager();
-
-        super.ecsSetup();
-    }
-
     registerSystems() {
         super.registerSystems();
         let w = this.world;
         w.addSystem(new LogSystem(w));
-        w.addSystem(new CommonNetworkSystem(w, this.channel));
         w.addSystem(new DeclarativeListenerSystem(w));
+        w.addSystem(new CommonNetworkSystem(w, this.gameId));
+        w.addSystem(new NetworkHistorySystem(w));
         w.addSystem(new WebKeyboardSystem(w));
         w.addSystem(new BigStorageSystem(w));
 
@@ -105,27 +99,11 @@ export class EditMapPhase extends EcsPhase {
         }
     }
 
-    setupNetworkManager() {
-        this.channel = new WTChannel();
-        if (this.world.isMaster) {
-            this.channel.startMaster();
-            history.replaceState(null, "", '#t' + this.channel.getConnectSecret());
-        } else {
-            this.channel.startClient(this.gameId!!);
-        }
-    }
-
     // overrides
 
     ui(): App {
         return createApp(EditMapComponent, {
             world: shallowRef(this.world),
         });
-    }
-
-    disable() {
-        super.disable();
-
-        this.channel.destroy();
     }
 }

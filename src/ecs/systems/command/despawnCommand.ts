@@ -1,4 +1,4 @@
-import {World} from "../../world";
+import {World} from "../../World";
 import {SHARED_TYPE} from "../../component";
 import {Command, CommandKind} from "./command";
 import {SpawnCommand} from "./spawnCommand";

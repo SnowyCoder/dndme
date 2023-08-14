@@ -1,15 +1,15 @@
 import {Component, POSITION_TYPE, PositionComponent} from "../component";
-import {System} from "../system";
-import {World} from "../world";
+import {System} from "../System";
+import {World} from "../World";
 import {CUSTOM_BLEND_MODES, DESTROY_ALL} from "../../util/pixi";
-import {SingleEcsStorage} from "../storage";
+import {SingleEcsStorage} from "../Storage";
 import {IPoint} from "../../geometry/point";
 import {GridResource, Resource} from "../resource";
-import {VISIBILITY_TYPE, VisibilityComponent, VISIBILITY_DETAILS_TYPE, VisibilityDetailsComponent} from "./back/visibilitySystem";
+import {VISIBILITY_TYPE, VisibilityComponent, VISIBILITY_DETAILS_TYPE, VisibilityDetailsComponent} from "./back/VisibilitySystem";
 import {PLAYER_TYPE, PlayerComponent} from "./playerSystem";
 import {BLEND_MODES, Container, Geometry, Mesh, Shader, Sprite, utils, Buffer} from "pixi.js";
 import {PixiBoardSystem, PIXI_BOARD_TYPE} from "./back/pixi/pixiBoardSystem";
-import {TOOL_TYPE, ToolSystem} from "./back/toolSystem";
+import {TOOL_TYPE, ToolSystem} from "./back/ToolSystem";
 import {ToolType} from "../tools/toolType";
 import {GRID_TYPE} from "./gridSystem";
 import {STANDARD_GRID_OPTIONS} from "../../game/grid";
@@ -17,7 +17,7 @@ import {LayerOrder} from "../../phase/editMap/layerOrder";
 
 import { Group, Layer } from "@pixi/layers";
 import { StandardToolbarOrder } from "@/phase/editMap/standardToolbarOrder";
-import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE } from "./back/selectionUiSystem";
+import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE } from "./back/SelectionUiSystem";
 
 import LightSettingsEditComponent from "@/ui/edit/LightSettingsEdit.vue";
 import EcsLight from "@/ui/ecs/EcsLight.vue";
@@ -91,8 +91,10 @@ export interface LocalLightSettings extends Resource {
 export class LightSystem implements System {
     readonly name = LIGHT_TYPE;
     readonly dependencies = [PIXI_BOARD_TYPE, PLAYER_TYPE];
-
     readonly world: World;
+    readonly components?: [LightComponent];
+    readonly resources?: [LightSettings, LocalLightSettings];
+
     private boardSys: PixiBoardSystem;
 
     storage = new SingleEcsStorage<LightComponent>(LIGHT_TYPE);
@@ -108,14 +110,14 @@ export class LightSystem implements System {
 
     constructor(world: World) {
         this.world = world;
-        this.boardSys = world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
+        this.boardSys = world.requireSystem(PIXI_BOARD_TYPE);
 
         this.lightLayer = new Layer(new Group(LayerOrder.LIGHT, false));
         this.playerContainer = new Container();
         this.lightContainer = new Container();
 
         if (world.isMaster) {
-            let toolSys = world.systems.get(TOOL_TYPE) as ToolSystem;
+            let toolSys = world.requireSystem(TOOL_TYPE);
             toolSys.addToolAsCopy(ToolType.LIGHT, ToolType.INSPECT, {
                 sideBar: LightSettingsEditComponent,
                 sideBarProps: {},
@@ -140,7 +142,7 @@ export class LightSystem implements System {
         } as LocalLightSettings;
         world.addResource(this.localLightSettings);
 
-        this.gridSize = (this.world.getResource(GRID_TYPE) as GridResource ?? STANDARD_GRID_OPTIONS).size;
+        this.gridSize = (this.world.getResource(GRID_TYPE) ?? STANDARD_GRID_OPTIONS).size;
 
         world.events.on('component_add', this.onComponentAdd, this);
         world.events.on('component_edited', this.onComponentEdited, this);
@@ -192,16 +194,16 @@ export class LightSystem implements System {
     }
 
     updateVisPolygon(entity: number, target: VisibilityPolygonElement | undefined, color: number, visId: number): void {
-        let pos = this.world.getComponent(entity, POSITION_TYPE) as PositionComponent;
+        let pos = this.world.getComponent(entity, POSITION_TYPE);
         if (pos === undefined || target === undefined) return;
 
-        const vis = this.world.getComponent(entity, VISIBILITY_TYPE, visId) as VisibilityComponent;
+        const vis = this.world.getComponent(entity, VISIBILITY_TYPE, visId);
         if (vis === undefined) {
             target.visible = false;
             return;
         }
 
-        const visDet = this.world.getComponent(entity, VISIBILITY_DETAILS_TYPE) as VisibilityDetailsComponent;
+        const visDet = this.world.getComponent(entity, VISIBILITY_DETAILS_TYPE);
 
         if (visDet?.polygon === undefined) {
             target.visible = false;
@@ -254,8 +256,8 @@ export class LightSystem implements System {
                     range: c.range
                 }, c._visIndex);
             } else {
-                let vis = this.world.getComponent(c.entity, VISIBILITY_TYPE, c._visIndex) as VisibilityComponent;
-                let visDet = this.world.getComponent(c.entity, VISIBILITY_DETAILS_TYPE, c._visIndex) as VisibilityDetailsComponent;
+                let vis = this.world.getComponent(c.entity, VISIBILITY_TYPE, c._visIndex)!;
+                let visDet = this.world.getComponent(c.entity, VISIBILITY_DETAILS_TYPE, c._visIndex)!;
                 if (visDet.polygon !== undefined) {
                     c._lightDisplay!.radius = vis.range * this.gridSize;
                 }
@@ -268,7 +270,7 @@ export class LightSystem implements System {
                 this.updateLightVisPolygon(light);
             }
 
-            let player = this.world.getComponent(vis.entity, PLAYER_TYPE) as CustomPlayerComponent;
+            let player = this.world.getComponent(vis.entity, PLAYER_TYPE);
             if (player !== undefined) {
                 this.updatePlayerVisPolygon(player);
             }
@@ -336,7 +338,7 @@ export class LightSystem implements System {
         lightingSprite.interactiveChildren = false;
         lightingSprite.blendMode = CUSTOM_BLEND_MODES.MULTIPLY_COLOR_ONLY as any;
 
-        let board = this.world.systems.get(PIXI_BOARD_TYPE) as PixiBoardSystem;
+        let board = this.world.requireSystem(PIXI_BOARD_TYPE);
 
         board.board.addChild(this.playerContainer, this.lightContainer, this.lightLayer);
         this.boardSys.root.addChild(lightingSprite);

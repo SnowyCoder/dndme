@@ -22,7 +22,7 @@ import { defineComponent, PropType, provide, toRefs } from "vue";
 import ToolBar from "./toolbar/ToolBar.vue";
 import SideBar from "./SideBar.vue";
 import ReconnectionModal from "./ReconnectionModal.vue";
-import { World } from "@/ecs/world";
+import { World } from "@/ecs/World";
 
 export default defineComponent({
   components: { ToolBar, SideBar, ReconnectionModal },

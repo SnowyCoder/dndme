@@ -22,59 +22,41 @@
   </div>
 </template>
 
-<script lang="ts">
+<script setup lang="ts">
+import { useComponentsOfType, useEvent, useResource, useWorld } from "../../vue";
+import { TOOL_TYPE, ToolResource } from "../../../ecs/systems/back/ToolSystem";
 
-import { useComponentsOfType, useEvent, useResource } from "../../vue";
-import { World } from "../../../ecs/world";
-import { TOOL_TYPE, ToolResource } from "../../../ecs/systems/back/toolSystem";
-
-import MouseTrailIcon from "../../icons/MouseTrailIcon.vue";
-import WallIcon from "../../icons/WallIcon.vue";
-import { computed, defineComponent, inject, provide, reactive, ShallowRef } from "vue";
-import { SidebarResource, SIDEBAR_TYPE, ToolbarItemComponent, TOOLBAR_ITEM_TYPE } from "../../../ecs/systems/toolbarSystem";
+import { computed, provide, reactive, ShallowRef } from "vue";
+import { SIDEBAR_TYPE, ToolbarItemComponent, TOOLBAR_ITEM_TYPE } from "../../../ecs/systems/toolbarSystem";
 import ExportMap from "./ExportMap.vue";
 
-export default defineComponent({
-  components: { MouseTrailIcon, WallIcon, ExportMap },
-  setup() {
-    const world = inject('world') as ShallowRef<World>;
+const world = useWorld();
 
-    const currentToolRes = useResource(world.value, TOOL_TYPE) as ShallowRef<ToolResource>;
-    const currentTool = computed(() => currentToolRes.value.tool ?? "uninitialized");
-    provide('currentTool', currentTool);
+const currentToolRes = useResource(world, TOOL_TYPE) as ShallowRef<ToolResource>;
+const currentTool = computed(() => currentToolRes.value.tool ?? "uninitialized");
+provide('currentTool', currentTool);
 
-    const rawEntries = useComponentsOfType(TOOLBAR_ITEM_TYPE) as ShallowRef<ToolbarItemComponent[]>;
-    const entries = computed(() => rawEntries.value.slice().sort((a, b) => a.priority - b.priority));
+const rawEntries = useComponentsOfType(TOOLBAR_ITEM_TYPE) as ShallowRef<ToolbarItemComponent[]>;
+const entries = computed(() => rawEntries.value.slice().sort((a, b) => a.priority - b.priority));
 
-    const historyState = reactive({
-      canUndo: false,
-      canRedo: false,
-    });
-
-    useEvent(world.value, 'command_history_change', (canUndo: boolean, canRedo: boolean) => {
-      historyState.canUndo = canUndo;
-      historyState.canRedo = canRedo;
-    });
-
-    const undo = () => world.value.events.emit('command_undo');
-    const redo = () => world.value.events.emit('command_redo');
-    const toggleSidebar = () => {
-      const sidebar = world.value.getResource(SIDEBAR_TYPE) as SidebarResource;
-      world.value.editResource(SIDEBAR_TYPE, {
-        open: !sidebar.open,
-      });
-    };
-
-    return {
-      world,
-      entries,
-      historyState,
-      undo,
-      redo,
-      toggleSidebar
-    };
-  }
+const historyState = reactive({
+  canUndo: false,
+  canRedo: false,
 });
+
+useEvent(world, 'command_history_change', (canUndo: boolean, canRedo: boolean) => {
+  historyState.canUndo = canUndo;
+  historyState.canRedo = canRedo;
+});
+
+const undo = () => world.events.emit('command_undo');
+const redo = () => world.events.emit('command_redo');
+const toggleSidebar = () => {
+  const sidebar = world.getResource(SIDEBAR_TYPE)!;
+  world.editResource(SIDEBAR_TYPE, {
+    open: !sidebar.open,
+  });
+};
 </script>
 
 <style lang="scss">
