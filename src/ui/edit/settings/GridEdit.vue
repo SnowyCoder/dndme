@@ -68,19 +68,19 @@
 
 <script lang="ts">
 
-import HexagonIcon from "../icons/HexagonIcon.vue";
-import EditableText from "../util/EditableText.vue";
+import HexagonIcon from "@/ui/icons/HexagonIcon.vue";
+import EditableText from "@/ui/util/EditableText.vue";
 
-import { GridType } from "../../game/grid";
-import { GridResource, Resource } from "../../ecs/resource";
+import { GridType } from "@/game/grid";
+import { GridResource, Resource } from "@/ecs/resource";
 
-import { ResourceEditCommand } from "../../ecs/systems/command/resourceEditCommand";
+import { ResourceEditCommand } from "@/ecs/systems/command/resourceEditCommand";
 import { defineComponent, inject, ref, shallowRef, ShallowRef, watch } from "vue";
-import EditableRange from "../util/EditableRange.vue";
-import EditableColor from "../util/EditableColor.vue";
-import EditableNumber from "../util/EditableNumber.vue";
-import Modal from "../util/Modal.vue";
-import { useWorld } from "../vue";
+import EditableRange from "@/ui/util/EditableRange.vue";
+import EditableColor from "@/ui/util/EditableColor.vue";
+import EditableNumber from "@/ui/util/EditableNumber.vue";
+import Modal from "@/ui/util/Modal.vue";
+import { useWorld } from "@/ui/vue";
 
 type RenderGridOpts = {
   type: string;

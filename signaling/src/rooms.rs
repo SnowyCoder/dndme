@@ -16,7 +16,6 @@ use tracing::{error, trace};
 
 use crate::{
     client::MailboxMessage,
-    dashutil::{DashmapRenamable, RenameIfResult},
     protocol::{ClientId, RoomNetworkType, ServerEvent, ServerOutbound},
     users::UserProfile,
 };
@@ -350,6 +349,17 @@ impl RoomRegistry {
         (entry, id, next)
     }
 
+    pub async fn release_hold_users(users: Vec<Arc<UserProfile>>) {
+        for profile in users {
+            profile.set_current_room(None);
+            // ignore sending errors
+            let _ = profile
+                .mailbox
+                .send(MailboxMessage::RoomCreated)
+                .await;
+        }
+    }
+
     pub async fn create_room(
         &self,
         name: CompactString,
@@ -375,14 +385,7 @@ impl RoomRegistry {
         };
 
         user.set_current_room(Some(room_id));
-        for profile in on_hold {
-            profile.set_current_room(None);
-            // ignore sending errors
-            let _ = profile
-                .mailbox
-                .send(MailboxMessage::RoomCreated)
-                .await;
-        }
+        Self::release_hold_users(on_hold).await;
 
         Ok((entry, room_id))
     }
@@ -467,22 +470,60 @@ impl RoomRegistry {
                 return RoomRenameResult::ServerError;
             }
         };
+        //trace!("old_name: {old_name}");
 
         if old_name == new_name {
             return RoomRenameResult::Renamed;
         }
 
-        // Rename things in the dashmap
-        let res = self.rooms.rename(&old_name, new_name.clone());
+        // What is "rename"? Baby don't overthink shit, oh no.
+        // Ok, we have a dashmap {name => room} where room is an Arc to the real room.
+        // We can simply write the old room in the new space atomically (if it is not yet occupied)
+        // then, if everything went well, remove the old entry.
+        // But Snowy! This is the obvious thing to do, why are you writing it down?
+        // Ohhh, of course it's obvious, I didn't almost end up writing a PR for an atomic renaming
+        // that didn't even cover all edge cases, yes, yes...
+        let entry = self.rooms.entry(new_name.clone());
+        let on_hold = match entry {
+            Entry::Occupied(mut occ) => {
+                // Little change to the plan: the room might also be "vacant" with some
+                // users that are on_hold, if that's the case let them join!
+                let mut locked = occ.get().0.lock();
+                let on_hold = match &mut *locked {
+                    // Active => Occupied
+                    Some(RoomEntry::Active(_)) => return RoomRenameResult::NameTaken,
+                    // Vacant => Someone was waiting for it to be used
+                    Some(RoomEntry::Vacant(vac)) => vac.on_hold.drain(..).collect(),
+                    // None => should never happen, it means that the room is being removed
+                    None => Vec::new(),
+                };
+                // Remove the old room (Vacant)
+                *locked = None;
+                drop(locked);
+                // Put the new room (well, a copy of it)
+                occ.insert(room.clone());
+                on_hold
+            },
+            Entry::Vacant(v) => {
+                // Free real estate! (easy path)
+                v.insert(room.clone());
+                Vec::new()
+            },
+        };
+        // Ok, now we have a foot in both spaces
+        self.rooms.remove(&old_name);
+        // Not anymore :3
 
-        match res {
-            RenameIfResult::Renamed => {}
-            RenameIfResult::SourceNotFound => {
-                error!("Trying to rename a room that is not in the hasmap");
+        // Change room name
+        match &mut *room.0.lock() {
+            Some(RoomEntry::Active(x)) => x.name = new_name,
+            _ => {
+                error!("Room changed state while renaming");
                 return RoomRenameResult::ServerError;
             }
-            RenameIfResult::DestinationAlreadyPresent => return RoomRenameResult::NameTaken,
-        }
+        };
+        // Notify `on_hold`ers
+        Self::release_hold_users(on_hold).await;
 
         // Notify players
         let to_notify: Vec<_> = {

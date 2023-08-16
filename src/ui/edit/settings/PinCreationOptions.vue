@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import EditableRange from "../util/EditableRange.vue";
-import { useResourcePiece } from "../vue";
-import { PIN_TYPE } from "../../ecs/systems/pinSystem";
+import EditableRange from "@/ui/util/EditableRange.vue";
+import { useResourcePiece } from "@/ui/vue";
+import { PIN_TYPE } from "@/ecs/systems/pinSystem";
 
 const defaultSize = useResourcePiece(PIN_TYPE, 'defaultSize', 1);
 </script>

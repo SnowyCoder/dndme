@@ -1,7 +1,7 @@
 import { Component, HideableComponent, SHARED_TYPE } from "@/ecs/component";
 import { Resource } from "@/ecs/resource";
 import { System } from "@/ecs/System";
-import { ComponentForType, ComponentTypes, ResourceForType, ResourceType } from "@/ecs/TypeRegistry";
+import { ComponentForType, ComponentType, ResourceForType, ResourceType } from "@/ecs/TypeRegistry";
 import { World } from "@/ecs/World";
 import { Path, PathValue } from "@/util/TypeNavigation";
 
@@ -50,12 +50,12 @@ interface Entry {
 
 type CompletePathComponent<Rest extends string> =
   Rest extends `${infer Name}.${infer RPath}`
-  ? Name extends ComponentTypes
+  ? Name extends ComponentType
     ? RPath extends Path<ComponentForType<Name>>
       ? PathValue<ComponentForType<Name>, RPath>
       : never
     : never
-  : Rest extends ComponentTypes
+  : Rest extends ComponentType
     ? ComponentForType<Rest>
     : never;
 
@@ -79,10 +79,10 @@ type CompletePathToValue<X extends string> =
 type CompletePathToComponent<X extends string> =
   string extends X ? string :
   X extends `${ComponentFirstChar}${infer Rest}`
-  ? Rest extends ComponentTypes
+  ? Rest extends ComponentType
     ? ComponentForType<Rest>
     : Rest extends `${infer Name}.${string}`
-      ? Name extends ComponentTypes ? ComponentForType<Name> : never
+      ? Name extends ComponentType ? ComponentForType<Name> : never
       : never
   : X extends `#${infer Rest}`
   ? Rest extends ResourceType
@@ -98,9 +98,9 @@ type ComponentFirstChar = '@' | '^';
 // Typescript crashes when you enable this, lol
 /*
 type AllPaths<C> = Path<ComponentForType<C>>;
-type CompletePathForComp<C extends ComponentTypes> = `${ComponentFirstChar}${C}.${AllPaths<C>}` | `${ComponentFirstChar}${C}`;
+type CompletePathForComp<C extends ComponentType> = `${ComponentFirstChar}${C}.${AllPaths<C>}` | `${ComponentFirstChar}${C}`;
 type CompletePathForRes<C extends ResourceType> = `#${C}.${Path<ResourceForType<C>>}` | `#${C}`;
-export type CompletePath = CompletePathForRes<ResourceType> | CompletePathForComp<ComponentTypes>;*/
+export type CompletePath = CompletePathForRes<ResourceType> | CompletePathForComp<ComponentType>;*/
 
 // We might not be able to create a type with all of the possible instantiations of the CompletePath
 // buuuut, we ARE able to validate the CompletePath by checking CompletePathToValue<X> != never
@@ -232,7 +232,7 @@ export class DeclarativeListenerSystem implements System {
         this.unRegister(reg, name, rest, listener, context);
     }
 
-    onComponent<T extends ComponentTypes, P extends Path<ComponentForType<T>>>(
+    onComponent<T extends ComponentType, P extends Path<ComponentForType<T>>>(
         name: T,
         path: P,
         listener: DeclarativeListener<PathValue<ComponentForType<T>, P>, ComponentForType<T>>,
@@ -241,7 +241,7 @@ export class DeclarativeListenerSystem implements System {
         this.register(this.components_, name, path, listener, context);
     }
 
-    offComponent<T extends ComponentTypes, P extends Path<ComponentForType<T>>>(
+    offComponent<T extends ComponentType, P extends Path<ComponentForType<T>>>(
         name: T,
         path: P,
         listener: DeclarativeListener<PathValue<ComponentForType<T>, P>, ComponentForType<T>>,
@@ -250,7 +250,7 @@ export class DeclarativeListenerSystem implements System {
         this.unRegister(this.components_, name, path, listener, context);
     }
 
-    onComponentVisible<T extends ComponentTypes, P extends Path<ComponentForType<T>>>(
+    onComponentVisible<T extends ComponentType, P extends Path<ComponentForType<T>>>(
         name: T,
         path: P,
         listener: DeclarativeListener<PathValue<ComponentForType<T>, P>, ComponentForType<T>>,
@@ -259,7 +259,7 @@ export class DeclarativeListenerSystem implements System {
         this.register(this.visibleComponents, name, path, listener, context);
     }
 
-    offComponentVisible<T extends ComponentTypes, P extends Path<ComponentForType<T>>>(
+    offComponentVisible<T extends ComponentType, P extends Path<ComponentForType<T>>>(
         name: T,
         path: P,
         listener: DeclarativeListener<PathValue<ComponentForType<T>, P>, ComponentForType<T>>,

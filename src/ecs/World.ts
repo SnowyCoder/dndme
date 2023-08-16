@@ -11,7 +11,7 @@ import {Resource} from "./resource";
 import {SystemGraph} from "./SystemGraph";
 import SafeEventEmitter from "../util/safeEventEmitter";
 import {generateRandomId} from "./ecsUtil";
-import type { ComponentForType, ComponentTypes, RegisteredComponent, RegisteredSystem, ResourceForType, ResourceType, SystemForName, SystemNames } from "./TypeRegistry";
+import type { ComponentForType, ComponentType, RegisteredComponent, RegisteredSystem, ResourceForType, ResourceType, SystemForName, SystemName } from "./TypeRegistry";
 
 
 export interface ForgetData {
@@ -20,7 +20,7 @@ export interface ForgetData {
 
 export type SerializedEntities = {
     entities: number[];
-    storages: {[type in ComponentTypes]: any};
+    storages: {[type in ComponentType]: any};
 };
 
 export type SerializedResources = {
@@ -35,7 +35,7 @@ export interface EcsEntityLinked {
 
 export type AnyMapType = {[key: string]: any};
 export type MultiEditType = Array<{
-    type: ComponentTypes,
+    type: ComponentType,
     changes: AnyMapType,
     multiId?: number,
     clearChanges?: boolean,
@@ -160,7 +160,7 @@ export class World {
         this.isMaster = isMaster;
     }
 
-    getStorage<T extends ComponentTypes>(name: T): StorageForComponent<ComponentForType<T>> {
+    getStorage<T extends ComponentType>(name: T): StorageForComponent<ComponentForType<T>> {
         let s = this.storages.get(name);
         if (s === undefined) {
             throw new Error("Cannot find storage " + name);
@@ -229,7 +229,7 @@ export class World {
         }
     }
 
-    requireSystem<N extends SystemNames>(name: N): SystemForName<N> {
+    requireSystem<N extends SystemName>(name: N): SystemForName<N> {
         const sys =  this.systems.get(name);
         if (sys === undefined) {
             throw new Error("Required system " + name + " but not present!");
@@ -237,11 +237,11 @@ export class World {
         return sys;
     }
 
-    getSystem<N extends SystemNames>(name: N): SystemForName<N> | undefined {
+    getSystem<N extends SystemName>(name: N): SystemForName<N> | undefined {
         return this.systems.get(name);
     }
 
-    hasAllComponents(entity: number, ...types: ComponentTypes[]): boolean {
+    hasAllComponents(entity: number, ...types: ComponentType[]): boolean {
         for (let t of types) {
             if (this.getComponent(entity, t) === undefined) return false;
         }
@@ -271,7 +271,7 @@ export class World {
         this.events.emit('component_removed', cmp);
     }
 
-    removeComponentType(entity: number, type: ComponentTypes): void {
+    removeComponentType(entity: number, type: ComponentType): void {
         for (let c of this.getStorage(type).getComponents(entity)) {
             this.removeComponent(c as RegisteredComponent);
         }
@@ -282,7 +282,7 @@ export class World {
         this.storageList.push(storage);
     }
 
-    getComponent<T extends ComponentTypes>(entity: number, type: T, multiId?: number): ComponentForType<T> | undefined {
+    getComponent<T extends ComponentType>(entity: number, type: T, multiId?: number): ComponentForType<T> | undefined {
         let storage = this.getStorage(type) as EcsStorage<RegisteredComponent>;
         return storage.getFirstComponent(entity, multiId) as any;
     }
@@ -297,7 +297,7 @@ export class World {
         return res;
     }
 
-    editComponent<T extends ComponentTypes>(entity: number, type: T, changes: Partial<ComponentForType<T>>, multiId?: number, clearCh: boolean = true): void {
+    editComponent<T extends ComponentType>(entity: number, type: T, changes: Partial<ComponentForType<T>>, multiId?: number, clearCh: boolean = true): void {
         let c = this.getComponent(entity, type, multiId);
         if (c === undefined) {
             throw new Error('Cannot find component ' + type + ' of entity: ' + entity);

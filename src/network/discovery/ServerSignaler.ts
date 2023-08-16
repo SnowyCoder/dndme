@@ -105,9 +105,10 @@ export class ServerSignaler {
         this.socket.onerror = this.onError.bind(this);
         this.socket.onmessage = this.onMessageHandshake.bind(this);
         this.socket.onopen = this.onOpen.bind(this);
-        (window as any).severeConnections = () => {
+        // Useful for debugging
+        /*(window as any).severeConnections = () => {
             this.socket.close();
-        }
+        }*/
     }
 
     private reopenStrategy() {
@@ -331,7 +332,6 @@ export class ServerSignaler {
     }
 
     async joinRoom(room: string, password: string): Promise<RoomJoinPromiseResult> {
-        this.logger.error('joinRoom', room, password);
         if (this.status !== 'no_room') throw new Error("Wrong room state " + this.status);
         this.status = 'joining_room';
 
@@ -363,6 +363,7 @@ export class ServerSignaler {
                 others: msg.others,
             }
         } else if (msg.type === 'error') {
+            this.status = 'no_room';
             if (msg.reason === 'room_password_wrong') {
                 this.events.emit('room_password_wrong', msg.hint ?? '');
                 return {

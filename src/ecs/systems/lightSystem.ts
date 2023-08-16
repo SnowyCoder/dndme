@@ -1,15 +1,14 @@
-import {Component, POSITION_TYPE, PositionComponent} from "../component";
+import {Component, POSITION_TYPE} from "../component";
 import {System} from "../System";
 import {World} from "../World";
 import {CUSTOM_BLEND_MODES, DESTROY_ALL} from "../../util/pixi";
 import {SingleEcsStorage} from "../Storage";
-import {IPoint} from "../../geometry/point";
 import {GridResource, Resource} from "../resource";
 import {VISIBILITY_TYPE, VisibilityComponent, VISIBILITY_DETAILS_TYPE, VisibilityDetailsComponent} from "./back/VisibilitySystem";
 import {PLAYER_TYPE, PlayerComponent} from "./playerSystem";
-import {BLEND_MODES, Container, Geometry, Mesh, Shader, Sprite, utils, Buffer} from "pixi.js";
+import {BLEND_MODES, Container, Sprite, utils} from "pixi.js";
 import {PixiBoardSystem, PIXI_BOARD_TYPE} from "./back/pixi/pixiBoardSystem";
-import {TOOL_TYPE, ToolSystem} from "./back/ToolSystem";
+import {TOOL_TYPE} from "./back/ToolSystem";
 import {ToolType} from "../tools/toolType";
 import {GRID_TYPE} from "./gridSystem";
 import {STANDARD_GRID_OPTIONS} from "../../game/grid";
@@ -19,10 +18,10 @@ import { Group, Layer } from "@pixi/layers";
 import { StandardToolbarOrder } from "@/phase/editMap/standardToolbarOrder";
 import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE } from "./back/SelectionUiSystem";
 
-import LightSettingsEditComponent from "@/ui/edit/LightSettingsEdit.vue";
+import LightSettingsEditComponent from "@/ui/edit/settings/LightSettingsEdit.vue";
 import EcsLight from "@/ui/ecs/EcsLight.vue";
 import { PIN_TYPE } from "./pinSystem";
-import { DepthFunc, VisibilityPolygonElement } from "./back/pixi/visibility/VisibilityPolygonElement";
+import { VisibilityPolygonElement } from "./back/pixi/visibility/VisibilityPolygonElement";
 
 
 export const DEFAULT_BACKGROUND = 0x6e472c;

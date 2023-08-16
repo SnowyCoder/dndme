@@ -8,12 +8,12 @@ import {Resource} from "../../resource";
 import {FilteredPanPart, InteractPart, SelectPart} from "../../tools/inspect";
 import {ToolType} from "../../tools/toolType";
 import {MeasureToolPart} from "../../tools/measure";
-import { KeyboardResource, KEYBOARD_TYPE } from "./KeyboardSystem";
+import { KEYBOARD_TYPE } from "./KeyboardSystem";
 import SafeEventEmitter, { PRIORITY_DISABLED } from "../../../util/safeEventEmitter";
 import { StandardToolbarOrder } from "@/phase/editMap/standardToolbarOrder";
 
 import EntityInspectComponent from "@/ui/ecs/EntityInspect.vue";
-import CreationOptionsComponent from "@/ui/edit/CreationOptions.vue";
+import CreationOptionsComponent from "@/ui/edit/settings/CreationOptions.vue";
 import ToolBarEntry from "@/ui/edit/toolbar/ToolBarEntry.vue";
 import ToolBarEntryInspect from "@/ui/edit/toolbar/ToolBarEntryInspect.vue";
 import { SIDEBAR_TYPE, ToolbarItemComponent, TOOLBAR_ITEM_TYPE } from "../toolbarSystem";

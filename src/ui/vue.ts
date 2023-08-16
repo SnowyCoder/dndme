@@ -7,7 +7,7 @@ import { ListenerFn } from "../util/safeEventEmitter";
 import { objectClone, randombytes } from "../util/jsobj";
 import { EcsStorage } from "../ecs/Storage";
 import { utils } from "pixi.js";
-import { ComponentForType, ComponentTypes, RegisteredResource, ResourceForType, ResourceType } from "@/ecs/TypeRegistry";
+import { ComponentForType, ComponentType, RegisteredResource, ResourceForType, ResourceType } from "@/ecs/TypeRegistry";
 
 export type VueComponent = VComponent | DefineComponent;
 
@@ -203,7 +203,7 @@ export function uhex2str(hex: number | undefined) {
     return hex === undefined ? '' : utils.hex2string(hex);
 }
 
-export function useComponentsOfType<T extends ComponentTypes>(type: T): ShallowRef<ComponentForType<T>[]> {
+export function useComponentsOfType<T extends ComponentType>(type: T): ShallowRef<ComponentForType<T>[]> {
     const world = (inject('world') as ShallowRef<World>).value;
 
     const res = shallowRef(new Array<ComponentForType<T>>());

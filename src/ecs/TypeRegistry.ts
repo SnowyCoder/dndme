@@ -83,18 +83,18 @@ const SystemList = [
 ] as const;
 
 export type RegisteredSystem = InstanceType<typeof SystemList[number]>;
-export type SystemNames = RegisteredSystem['name'];
-export type SystemRegistry = {[name in SystemNames]: Extract<RegisteredSystem, {name: name}>}
-export type SystemForName<Name extends SystemNames> = SystemRegistry[Name];
+export type SystemName = RegisteredSystem['name'];
+export type SystemRegistry = {[name in SystemName]: Extract<RegisteredSystem, {name: name}>}
+export type SystemForName<Name extends SystemName> = SystemRegistry[Name];
 
 
 type GetComponents<X> = X extends { components?: unknown } ? X['components'] : typeof undefined;
 
 
 export type RegisteredComponent = DEFAULT_COMPONENTS | NonNullable<GetComponents<RegisteredSystem>>[number];
-export type ComponentTypes = RegisteredComponent['type'];
-export type ComponentRegistry = {[type in ComponentTypes]: Extract<RegisteredComponent, {type: type}>}
-export type ComponentForType<Type extends ComponentTypes> = ComponentRegistry[Type];
+export type ComponentType = RegisteredComponent['type'];
+export type ComponentRegistry = {[type in ComponentType]: Extract<RegisteredComponent, {type: type}>}
+export type ComponentForType<Type extends ComponentType> = ComponentRegistry[Type];
 
 
 type GetResources<X> = X extends { resources?: unknown } ? X['resources'] : typeof undefined;
@@ -112,7 +112,7 @@ const _TYPES_ARE_TOO_GENERAL1: IfEquals<GeneralTypes, never, "", TooGeneralError
 const _TYPES_ARE_TOO_GENERAL2: IfEquals<GeneralTypes, never, 0, GeneralTypes> = 0;
 
 
-// Problem: if even ONE type does not define the property "name" as readonly, SystemNames becomes `string`
+// Problem: if even ONE type does not define the property "name" as readonly, SystemName becomes `string`
 // and every type checking becomes `any` throwing up all this beautiful machinery.
 // The following black magic returns an error when one type does not use a readonly "name" property.
 // TODO: more black magic to check WHICH system has violated us.

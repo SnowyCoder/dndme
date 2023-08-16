@@ -8,4 +8,5 @@ export enum ToolType {
     MEASURE= 'measure',
     PROP_TELEPORT_LINK = 'prop_teleport_link',
     MOUSE_TRAIL = 'mouse_trail',
+    DISCOVERY = 'discovery',
 }

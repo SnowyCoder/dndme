@@ -2,6 +2,7 @@
   <div class="util_editable-text_div w-fit-content">
     <input :type="isPassword ? 'password' : 'text'" :value="modelValue"
            @input="onEvent('input', $event as InputEvent)" @change="onEvent('change', $event as InputEvent)"
+           @keydown="onKeyboardEvent($event)"
            :size="size" :readonly="readonly" :placeholder="placeholder"
            class="form-control-plaintext hprior util_editable-text_input">
     <span class="util_editable-text_border"></span>
@@ -22,7 +23,7 @@ export default defineComponent({
     size: { type: Number },
     filter: { type: Function, default: undefined},// (text: string) => String
   },
-  emits: ['update:modelValue', 'change'],
+  emits: ['update:modelValue', 'change', 'enter'],
   methods: {
     onEvent(ev: string, event: InputEvent) {
       const et = event.target as HTMLInputElement;
@@ -36,7 +37,12 @@ export default defineComponent({
         et.value = this.filter(et.value);
       }
       this.$emit('update:modelValue', et.value);
-    }
+    },
+    onKeyboardEvent(ev: KeyboardEvent) {
+      if (ev.key == 'Enter') {
+        this.$emit('enter');
+      }
+    },
   }
 })
 

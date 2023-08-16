@@ -1,0 +1,11 @@
+version: '3'
+
+services:
+  dndme_signaler:
+    build: .
+    environment:
+      - LISTEN_ADDR=0.0.0.0:3000
+      - RUST_LOG=info
+    ports:
+      - 3000:3000
+    restart: unless-stopped

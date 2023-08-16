@@ -79,6 +79,7 @@ impl ClientState {
                 if self.current_room.is_some() {
                     return self.send_error(ErrorS2C::AlreadyInRoom).await;
                 }
+                info!(name=name.as_str(), "Create room");
                 let name = self.compute_name(name);
                 let name = match name {
                     Ok(x) => x,
@@ -116,6 +117,7 @@ impl ClientState {
                 if self.current_room.is_some() {
                     return self.send_error(ErrorS2C::AlreadyInRoom).await;
                 }
+                info!(name=room.as_str(), "Join room");
                 let password = password.unwrap_or(CompactString::new(""));
                 let credentials = UserCredentials { net, psw: password };
                 self.is_master = false;
@@ -180,6 +182,7 @@ impl ClientState {
                 self.send_message(MessageS2C::Success).await?;
             }
             MessageC2S::LeaveRoom => {
+                info!("Leave room");
                 if let Some((room, _room_id)) = self.current_room.take() {
                     self.state
                         .rooms
@@ -189,6 +192,7 @@ impl ClientState {
                 self.send_message(MessageS2C::Success).await?;
             }
             MessageC2S::RenameRoom { name } => {
+                info!(name=name.as_str(), "Rename room");
                 let (room, _room_id) = match &self.current_room {
                     Some(room_id) if self.is_master => room_id,
                     _ => {
@@ -213,6 +217,7 @@ impl ClientState {
                 self.send_message(pkt).await?;
             }
             MessageC2S::EditPassword { password, password_hint } => {
+                info!("Edit password");
                 let (room, _room_id) = match &self.current_room {
                     Some(room_id) if self.is_master => room_id,
                     _ => {
@@ -236,6 +241,7 @@ impl ClientState {
         use MailboxMessage::*;
         match msg {
             RoomCreated => {
+                info!("Event: room created");
                 if !self.on_hold {
                     error!("Received RoomJoinResult while not on hold!");
                     return Ok(());
@@ -248,6 +254,7 @@ impl ClientState {
                 self.socket.send(Message::Binary(data)).await?;
             }
             RoomDestroyed => {
+                info!("Event: room destroyed");
                 self.on_hold = false;
                 self.current_room = None;
                 self.send_event(ServerEvent::RoomDestroyed).await?;

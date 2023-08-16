@@ -5,16 +5,16 @@ import {GridResource, Resource} from "../resource";
 import {World} from "../World";
 import {System} from "../System";
 import {BOARD_TRANSFORM_TYPE, BoardTransformResource, PIXI_BOARD_TYPE, PixiBoardSystem} from "./back/pixi/pixiBoardSystem";
-import {TOOL_TYPE, ToolSystem} from "./back/ToolSystem";
+import {TOOL_TYPE} from "./back/ToolSystem";
 import {SELECTION_TYPE} from "./back/SelectionSystem";
 import {ToolType} from "../tools/toolType";
 import {LayerOrder} from "../../phase/editMap/layerOrder";
 
-import GridEditComponent from "@/ui/edit/GridEdit.vue";
+import GridEditComponent from "@/ui/edit/settings/GridEdit.vue";
 import { VueComponent } from "@/ui/vue";
 import { Group, Layer } from "@pixi/layers";
 import { StandardToolbarOrder } from "@/phase/editMap/standardToolbarOrder";
-import { BaseTexture, Extract, FORMATS, Point, RenderTexture, Texture, TilingSprite } from "pixi.js";
+import { BaseTexture, FORMATS, Point, RenderTexture, Texture, TilingSprite } from "pixi.js";
 
 
 const SQRT3 = Math.sqrt(3);

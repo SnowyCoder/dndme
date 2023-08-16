@@ -8,15 +8,15 @@ use axum::{
     routing::get,
     Extension, Router,
 };
+use base64::{Engine, engine::general_purpose::STANDARD};
 use client::ClientState;
 use handshake::perform_handshake;
 use rooms::RoomRegistry;
-use tracing::{error, Level};
+use tracing::{error, Level, Instrument};
 use tracing_subscriber::EnvFilter;
 use users::UserRegistry;
 
 mod client;
-mod dashutil;
 mod handshake;
 mod protocol;
 mod rooms;
@@ -59,9 +59,11 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<ServerState>) {
             return;
         }
     };
+    let b64id = STANDARD.encode(client_id.0);
 
     ClientState::new(state, socket, client_id)
         .handle_socket()
+        .instrument(tracing::info_span!("client", id=b64id))
         .await
 }
 
@@ -85,9 +87,11 @@ async fn main() {
         .route("/", get(handler))
         .layer(Extension(state));
 
-    let addr = &"0.0.0.0:3000".parse().unwrap();
+    let addr = std::env::var("LISTEN_ADDR")
+            .unwrap_or_else(|_e| "0.0.0.0:3000".into());
+    let addr = &addr.parse().expect("Cannot parse LISTEN_ADDR");
 
-    tracing::debug!("Listening on {addr}");
+    tracing::info!("Listening on {addr}");
     // run it with hyper on localhost:3000
     axum::Server::bind(addr)
         .serve(app.into_make_service())

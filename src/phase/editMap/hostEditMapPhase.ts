@@ -3,7 +3,7 @@ import {NameComponent, NAME_TYPE, PositionComponent, POSITION_TYPE, SerializedFl
 import {BackgroundImageComponent, BACKGROUND_IMAGE_TYPE} from "../../ecs/systems/backgroundImageSystem";
 import {GameMap} from "../../map/gameMap";
 import {MapLevel} from "../../map/mapLevel";
-import {PIXI_BOARD_TYPE, PixiBoardSystem} from "../../ecs/systems/back/pixi/pixiBoardSystem";
+import {PIXI_BOARD_TYPE} from "../../ecs/systems/back/pixi/pixiBoardSystem";
 import {SpawnCommandKind} from "../../ecs/systems/command/spawnCommand";
 import {executeAndLogCommand} from "../../ecs/systems/command/command";
 import { ImageRenderer } from "@/ecs/systems/back/pixi/ImageRenderer";

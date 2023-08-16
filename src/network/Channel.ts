@@ -1,12 +1,10 @@
 import SafeEventEmitter from "../util/safeEventEmitter";
 import { encode, decode } from "@msgpack/msgpack";
-import { base64UrlToBuffer, bufferToBase64Url, randombytes } from "../util/jsobj";
-import { Buffer } from "buffer";
 import { WrtcConnection } from "./channel/WrtcConnection";
 import { WrtcChannel } from "./channel/WrtcChannel";
 import { ServerSignaler } from "./discovery/ServerSignaler";
 import { PeerConnector } from "./discovery/PeerConnector";
-import { NetworkIdentity } from "./Identity";
+import { Logger, getLogger } from "@/ecs/systems/back/log/Logger";
 
 // The network subsystem, welcome!!
 // You just payed your subription to a history course about this project, enjoy your stay while I describe my
@@ -108,6 +106,7 @@ const MAX_MESSAGE_LENGTH = 65535;
 export class WTChannel {
     private readonly signaler: ServerSignaler
     private readonly connector: PeerConnector;
+    private readonly logger: Logger;
 
     readonly events = new SafeEventEmitter();
     readonly packets = new SafeEventEmitter();
@@ -125,6 +124,7 @@ export class WTChannel {
     constructor(connector: PeerConnector, signaler: ServerSignaler) {
         this.connector = connector;
         this.signaler = signaler;
+        this.logger = getLogger('network.channel');
         this.connector.events.on('on_peer', this.onPeer.bind(this));
 
         this.signaler.events.on('room_created', (name) => {
@@ -250,7 +250,7 @@ export class WTChannel {
     }
 
     private onPeer(peer: WrtcConnection, peerId: string): void {
-        console.log('[WTChannel] Connecting peer...');
+        this.logger.info('Connecting peer...');
         const isMaster = this.isMaster;
         const socket = peer.createDataChannel('main', {
             negotiated: true,
@@ -282,7 +282,7 @@ export class WTChannel {
 
         if (socket.handle.readyState !== 'connecting') throw Error("Already connected");
         socket.events.once('open', () => {
-            console.log("[WTChannel] Connecton open");
+            this.logger.info("Connecton open");
             if (this.isMaster) {
                 socket.send('' + data.id, postBootstrap);
             }
@@ -306,14 +306,15 @@ export class WTChannel {
 
 
         peer.events.on('close', () => {
-            console.trace("[WTChannel] Peer closed");
-            this.connections.delete(data.id);
+            this.logger.info("Peer closed");
             this.peers.delete(peerId);
-            this.events.emit('device_left', data.id);
+            if (this.connections.delete(data.id)) {
+                this.events.emit('device_left', data.id);
+            }
         });
 
         peer.events.on('error', (e: Error) => {
-            console.error("[WTChannel] Peer error", e);
+            this.logger.error("Peer error", e);
         });
 
     }

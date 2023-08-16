@@ -9,7 +9,7 @@ import { DeSpawnCommand } from "../command/despawnCommand";
 import { SpawnCommandKind } from "../command/spawnCommand";
 import { DeclarativeListenerSystem, DECLARATIVE_LISTENER_TYPE } from "./DeclarativeListenerSystem";
 import { BigStorageSystem, BIG_STORAGE_TYPE } from "./files/bigStorageSystem";
-import { ComponentTypes } from "@/ecs/TypeRegistry";
+import { ComponentType } from "@/ecs/TypeRegistry";
 
 
 export const IMAGE_META_TYPE = 'image_meta';
@@ -44,7 +44,7 @@ export class ImageMetaSyncSystem implements System {
 
         if (world.isMaster) {
             world.events.on('register_image', (component, path) => {
-                declarative.onComponentVisible<ComponentTypes, any>(component, path, this.onImageEdit, this);
+                declarative.onComponentVisible<ComponentType, any>(component, path, this.onImageEdit, this);
             });
             world.events.on('image_preload', (data) => this.spawnMeta(data.id));
         } else {

@@ -5,7 +5,7 @@ import {DeSpawnCommand} from "./despawnCommand";
 import {SpawnCommand} from "./spawnCommand";
 import { filterComponentKeepEntity } from "../../ecsUtil";
 import { objectClone } from "../../../util/jsobj";
-import { ComponentTypes } from "@/ecs/TypeRegistry";
+import { ComponentType } from "@/ecs/TypeRegistry";
 
 export function componentEditCommand(
     add?: Component[],
@@ -28,7 +28,7 @@ export function singleEditCommand(edit: EditType) {
 
 export interface EditType {
     entity: number;
-    type: ComponentTypes;
+    type: ComponentType;
     multiId?: number;
     changes: AnyMapType,
 }
@@ -118,7 +118,7 @@ export class ComponentEditCommandKind implements CommandKind {
         // if the old component is hidden and the new edits do not change that, the component is filtered
         // if the old component is hidden and the new edits might change it, it's not hidden
         // if the old component is not hidden, it's not hidden
-        let partialPredicate = (entity: number, type: ComponentTypes, multiId: number | undefined, changes: AnyMapType) => {
+        let partialPredicate = (entity: number, type: ComponentType, multiId: number | undefined, changes: AnyMapType) => {
             let real = this.world.getComponent(entity, type, multiId)!;
             if ((real as HideableComponent).clientVisible === false && !('clientVisible' in changes)) return false;
             return predicate({ entity });

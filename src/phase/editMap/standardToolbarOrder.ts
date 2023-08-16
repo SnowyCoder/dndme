@@ -9,4 +9,5 @@ export enum StandardToolbarOrder {
     MEASURE,
     MOUSE_TRAIL,
     BATTLE,
+    DISCOVERY,
 }

@@ -1,9 +1,9 @@
 import {World} from "./World";
 import {FlagEcsStorage, MultiEcsStorage, SingleEcsStorage} from "./Storage";
-import { ComponentTypes } from "./TypeRegistry";
+import { ComponentType } from "./TypeRegistry";
 
 export interface Component {
-    type: ComponentTypes;
+    type: ComponentType;
     entity: number;
 }
 

@@ -1,45 +1,37 @@
 <template>
   <div class="edit-map_game">
 
-    <tool-bar>
-    </tool-bar>
+    <ToolBar />
 
     <div id="canvas-container" class="under-toolbar">
     </div>
 
-    <side-bar>
-    </side-bar>
+    <SideBar />
 
-    <reconnection-modal v-if="!isMaster">
-    </reconnection-modal>
+    <ReconnectionModal v-if="!isMaster" />
+    <MasterNameErrorModal v-else />
 
     <a id="hidden-download-link" style="display: none;"/>
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent, PropType, provide, toRefs } from "vue";
+<script setup lang="ts">
+import { provide, toRefs } from "vue";
 import ToolBar from "./toolbar/ToolBar.vue";
 import SideBar from "./SideBar.vue";
 import ReconnectionModal from "./ReconnectionModal.vue";
+import MasterNameErrorModal from "./MasterNameErrorModal.vue";
 import { World } from "@/ecs/World";
 
-export default defineComponent({
-  components: { ToolBar, SideBar, ReconnectionModal },
-  props: {
-    world: { required: true, type: Object as PropType<World>, }
-  },
-  setup(props) {
-    const { world } = toRefs(props);
-    provide("world", world);
-    const isMaster = world.value.isMaster;
-    provide("isMaster", isMaster);
+const props = defineProps<{
+  world: World
+}>();
 
-    return {
-      isMaster
-    }
-  },
-});
+const { world } = toRefs(props);
+provide("world", world);
+const isMaster = world.value.isMaster;
+provide("isMaster", isMaster);
+
 </script>
 
 <style lang="scss">

@@ -97,7 +97,7 @@ export class PeerConnector {
         let data = this.peers.get(bid);
         if (data === undefined) {
             if (!this.isMaster && this.signaler.networking != 'mesh') {
-                this.logger.warning("Warning! received user message when networking is not mesh!");
+                this.logger.warning("Received user message when networking is not mesh!");
                 return;
             }
             // New signaling data!

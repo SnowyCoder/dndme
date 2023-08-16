@@ -5,7 +5,7 @@ import {DeSpawnCommand} from "./despawnCommand";
 import { componentClone } from "../../ecsUtil";
 import { EcsStorage, FlagEcsStorage, FlagEcsStorageSerialzed, MultiEcsStorage, SingleEcsStorage } from "../../Storage";
 import { objectClone, objectFilterInplace } from "../../../util/jsobj";
-import { ComponentTypes } from "@/ecs/TypeRegistry";
+import { ComponentType } from "@/ecs/TypeRegistry";
 
 export interface SpawnCommand extends Command {
     kind: 'spawn';
@@ -69,7 +69,7 @@ export class SpawnCommandKind implements CommandKind {
         if (strict) return false;
         to.data.entities.push(...from.data.entities);
         for (let storageName in from.data.storages) {
-            const name = storageName as ComponentTypes;
+            const name = storageName as ComponentType;
             const fromStorage = from.data.storages[name];
             const toStorage = to.data.storages[name];
             if (toStorage === undefined) {

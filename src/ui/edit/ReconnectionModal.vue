@@ -1,39 +1,22 @@
 <script setup lang="ts">
-import { networkStatus, useResource, useWorld } from "../vue";
+import { useResource, useWorld } from "../vue";
 import { resetPhase } from "../../secondPhase";
-import { computed, ref, watch } from "vue";
+import { computed, ref, watchEffect } from "vue";
 import Modal from "../util/Modal.vue";
 import { DISCOVERY_CONFIG_TYPE, NETWORK_STATUS_TYPE } from "@/ecs/systems/back/NetworkSystem";
+import EditableText from "../util/EditableText.vue";
 
 const world = useWorld();
 const netStatus = useResource(world, NETWORK_STATUS_TYPE);
 const bodyMessage = computed(() => {
   const net = netStatus.value;
-  if (!networkStatus.isOnline) {
-    return "Check your internet connection";
-  }
-  switch (net.statusDescription) {
+  switch (net.discoveryStatus) {
     case 'starting':
     case 'connecting': return "Connecting to Server...";
     case 'joining': return "Joining room...";
     case 'creating': return "Creating room...";
-    case 'downloading': return "Downloading data...";
-    case 'name_occupied': return "Name already taken, are you running another tab?";
     case 'wrong_password': return "Server requires a password";
     case 'on_hold': return "Waiting for master...";
-    case 'wrong_name': return "Invalid name, choose another one";
-    case 'connected': return "Connected!";// unreachable
-  }
-});
-const title = computed(() => {
-  const net = netStatus.value;
-  switch(net.discoveryStatus) {
-    case 'starting':
-    case 'connecting':
-    case 'joining':
-    case 'creating':
-      console.log('DISCOVERY_STATUS', net.discoveryStatus);
-      return "Connecting...";
     case 'in_room':
       switch(net.gameStatus) {
         case 'downloading':
@@ -44,32 +27,35 @@ const title = computed(() => {
         case 'playing':
           return 'Done!';
       }
-    case 'name_occupied':
+  }
+});
+const title = computed(() => {
+  const net = netStatus.value;
+  switch(net.discoveryStatus) {
+    case 'starting':
+    case 'connecting':
+    case 'joining':
+    case 'creating':
+    case 'in_room':
+      return "Connecting...";
     case 'wrong_password':
-    case 'wrong_name':
       return "Error";
     case 'on_hold':
       return "Waiting...";
   }
 });
 
-let isConfirmVisible = ref(false);
-let placeholder = ref('');
+const isConfirmVisible = ref(false);
+const hint = ref('');
 let oldName = '';
-watch(netStatus, (val) => {
-  switch(val.discoveryStatus) {
-    case 'name_occupied':
-    case 'wrong_name':
-      const discovery = world.getResource(DISCOVERY_CONFIG_TYPE)!;
-      input.value = discovery.room;
-      oldName = discovery.room;
-      isConfirmVisible.value = true;
-      placeholder.value = "New name (empty = auto)";
-      break;
+
+watchEffect(() => {
+  const net = netStatus.value;
+  switch(net.discoveryStatus) {
     case 'wrong_password':
       input.value = '';
       isConfirmVisible.value = true;
-      placeholder.value = "Password";
+      hint.value = net.statusDescription;
       break;
     default:
       isConfirmVisible.value = false;
@@ -124,8 +110,11 @@ function stop() {
     <template #header>
       <h5 class="modal-title">{{ title }}</h5>
     </template>
-
     {{ bodyMessage }}
+
+    <span v-if="hint != ''"><br/>{{ hint }}</span>
+
+    <EditableText v-if="isConfirmVisible" placeholder="Password" v-model="input" :is-password="true" @enter="confirm()"/>
 
     <template #footer>
       <button class="btn btn-sm btn-outline-primary" v-if="isConfirmVisible" :disabled="isConfirmDisabled" @click="confirm()">

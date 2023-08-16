@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { DEFAULT_LIGHT_SETTINGS, LightSettings, LIGHT_SETTINGS_TYPE, LOCAL_LIGHT_SETTINGS_TYPE } from "../../ecs/systems/lightSystem";
+import { DEFAULT_LIGHT_SETTINGS, LightSettings, LIGHT_SETTINGS_TYPE, LOCAL_LIGHT_SETTINGS_TYPE } from "@/ecs/systems/lightSystem";
 import { computed } from "vue";
-import CButton from "../util/CButton.vue";
-import EditableColor from "../util/EditableColor.vue";
-import { useResourcePiece, useResourceReactive, useWorld } from "../vue";
+import CButton from "@/ui/util/CButton.vue";
+import EditableColor from "@/ui/util/EditableColor.vue";
+import { useResourcePiece, useResourceReactive, useWorld } from "@/ui/vue";
 
 const world = useWorld();
 

@@ -26,7 +26,7 @@ import {executeAndLogCommand} from "./command/command";
 import {findForeground, PARENT_LAYER_TYPE, ParentLayerComponent} from "./back/LayerSystem";
 import { NameAsLabelComponent, NAME_AS_LABEL_TYPE } from "./back/NameAsLabelSystem";
 import SafeEventEmitter from "../../util/safeEventEmitter";
-import { CreationInfoResource, CREATION_INFO_TYPE, GridResource, Resource } from "../resource";
+import { CREATION_INFO_TYPE, GridResource, Resource } from "../resource";
 import { GRID_TYPE } from "./gridSystem";
 import { STANDARD_GRID_OPTIONS } from "../../game/grid";
 
@@ -34,10 +34,8 @@ import { StandardToolbarOrder } from "@/phase/editMap/standardToolbarOrder";
 import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE, SELECTION_UI_TYPE } from "./back/SelectionUiSystem";
 
 
-import PinCreationOptions from "@/ui/edit/PinCreationOptions.vue";
+import PinCreationOptions from "@/ui/edit/settings/PinCreationOptions.vue";
 import EcsPin from "@/ui/ecs/EcsPin.vue";
-import { CircleShape, InteractionComponent, INTERACTION_TYPE } from "./back/InteractionSystem";
-import { Container } from "pixi.js";
 import { FileIndex } from "@/map/FileDb";
 
 export const PIN_TYPE = 'pin';

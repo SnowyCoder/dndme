@@ -1,12 +1,12 @@
 import {System} from "./System";
-import { RegisteredSystem, SystemForName, SystemNames } from "./TypeRegistry";
+import { RegisteredSystem, SystemForName, SystemName } from "./TypeRegistry";
 
 export class SystemGraph {
     private systemsByName = new Map<string, System>();
     private systems = new Array<System>();
     private unfulfilledDeps = new Set<string>();
 
-    get<N extends SystemNames>(name: N): SystemForName<N> | undefined {
+    get<N extends SystemName>(name: N): SystemForName<N> | undefined {
         return this.systemsByName.get(name) as SystemForName<N>;
     }
 

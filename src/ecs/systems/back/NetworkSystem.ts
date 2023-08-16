@@ -13,8 +13,12 @@ import { RoomRenamePromiseResult, ServerSignaler, SignalerError } from "@/networ
 import { NetworkIdentity } from "@/network/Identity";
 import { getLogger } from "./log/LogSystem";
 import { Logger } from "./log/Logger";
-import { DECLARATIVE_LISTENER_TYPE, DeclarativeListenerSystem } from "./DeclarativeListenerSystem";
-import { stat } from "fs";
+import { DECLARATIVE_LISTENER_TYPE } from "./DeclarativeListenerSystem";
+import { TOOL_TYPE } from "./ToolSystem";
+import { ToolType } from "@/ecs/tools/toolType";
+import { StandardToolbarOrder } from "@/phase/editMap/standardToolbarOrder";
+import DiscoveryOptions from "@/ui/edit/settings/DiscoveryOptions.vue";
+import { VueComponent } from "@/ui/vue";
 
 export const NETWORK_TYPE = 'network';
 export type NETWORK_TYPE = typeof NETWORK_TYPE;
@@ -259,7 +263,7 @@ export const HOST_NETWORK_TYPE = 'host_network';
 export type HOST_NETWORK_TYPE = typeof HOST_NETWORK_TYPE;
 export class HostNetworkSystem {
     readonly name = HOST_NETWORK_TYPE;
-    readonly dependencies = [] as string[];
+    readonly dependencies = [];
 
     readonly world: World;
     readonly logger: Logger;
@@ -300,12 +304,20 @@ export class HostNetworkSystem {
         return res;
     }
 
+    async tryEditPassword(password: string, hint: string): Promise<void> {
+        await this.parent.signaler.editPassword(password, hint);
+        this.world.editResource(DISCOVERY_CONFIG_TYPE, {
+            password,
+            hint
+        });
+    }
+
     async tryCreateRoom() {
         this.logger.trace('tryCreateRoom');
 
         const statusRes = this.world.getResource(NETWORK_STATUS_TYPE)!;
         const configRes = this.world.getResource(DISCOVERY_CONFIG_TYPE)!;
-        const ALLOWED_STATES = ['connecting', 'wrong_name']
+        const ALLOWED_STATES = ['connecting', 'wrong_name', 'name_occupied']
         if (!ALLOWED_STATES.includes(statusRes.discoveryStatus)) {
             this.logger.warning('called tryCreateRoom in wrong state: ', statusRes.discoveryStatus);
             return;
@@ -399,6 +411,17 @@ export class HostNetworkSystem {
         this.world.editResource(NETWORK_STATUS_TYPE, {
             discoveryStatus: 'connecting',
             gameStatus: 'playing',
+        });
+
+        const toolSys = this.world.requireSystem(TOOL_TYPE);
+        toolSys.addToolAsCopy(ToolType.DISCOVERY, ToolType.INSPECT, {
+            sideBar: DiscoveryOptions,
+            sideBarProps: {},
+            toolbarEntry: {
+                icon: 'fas fa-users',
+                title: 'Edit discovery',
+                priority: StandardToolbarOrder.DISCOVERY,
+            },
         });
     }
 

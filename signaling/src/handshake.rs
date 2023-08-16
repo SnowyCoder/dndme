@@ -1,10 +1,7 @@
 use std::mem::size_of;
 
 use axum::extract::ws::{Message, WebSocket};
-use p256::{
-    ecdsa::signature::Signature as _,
-    ecdsa::{signature::Verifier, Signature, VerifyingKey},
-};
+use p256::ecdsa::{VerifyingKey, Signature, signature::Verifier};
 use rand::{thread_rng, Rng};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
@@ -50,7 +47,7 @@ pub async fn perform_handshake(socket: &mut WebSocket) -> Result<ClientId, Hands
     let key =
         VerifyingKey::from_sec1_bytes(&msg.identity).map_err(|_| HandshakeError::InvalidMessage)?;
 
-    let signature_correct = Signature::from_bytes(&msg.proof)
+    let signature_correct = Signature::from_slice(&msg.proof)
         .and_then(|s| key.verify(&send_data[size_of::<u64>()..], &s))
         .is_ok();
 
