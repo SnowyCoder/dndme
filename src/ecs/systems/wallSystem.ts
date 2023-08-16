@@ -42,10 +42,12 @@ export type WALL_TYPE = typeof WALL_TYPE;
 export interface WallComponent extends Component {
     type: WALL_TYPE;
     vec: RPoint;
+    thickness: number;
     _dontMerge: number;
 }
 
 const SELECTION_COLOR = 0x7986CB;
+const DEFAULT_THICKNESS = 5;
 
 export class WallSystem implements System {
     readonly name = WALL_TYPE;
@@ -116,6 +118,7 @@ export class WallSystem implements System {
                 ignore: false,
                 visib: VisibilityType.REMEMBER,
                 priority: DisplayPrecedence.WALL,
+                thickness: wall.thickness,
                 vec: { x: wall.vec[0], y: wall.vec[1] },
             } as LineElement,
             interactive: true,
@@ -286,7 +289,7 @@ export class WallSystem implements System {
             this.fixWallPostTranslation([wall]);
         }
 
-        if (comp.type === WALL_TYPE && 'vec' in changed) {
+        if (comp.type === WALL_TYPE && ('vec' in changed || 'thickness' in changed)) {
             this.redrawWall(wall);
         }
     }
@@ -294,6 +297,7 @@ export class WallSystem implements System {
     private redrawWall(wall: WallComponent): void {
         let display = this.world.getComponent(wall.entity, GRAPHIC_TYPE)!.display as LineElement;
         display.vec = { x: wall.vec[0], y: wall.vec[1] };
+        display.thickness = wall.thickness;
         this.world.editComponent(wall.entity, GRAPHIC_TYPE, {display}, undefined, false);
     }
 
@@ -413,6 +417,7 @@ export class WallSystem implements System {
             {
                 type: WALL_TYPE,
                 vec: [maxX - minX, maxY - minY],
+                thickness: DEFAULT_THICKNESS,
             } as WallComponent,
         ];
         return SpawnCommandKind.from(this.world, components);

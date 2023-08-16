@@ -181,7 +181,7 @@ export function useComponentReactive<T>(component: ShallowRef<Component>,  prope
     return proxyRefs(obj) as ShallowReactive<T>;
 }
 
-export function useComponentPiece<T>(component: ShallowRef<Component>, name: string, defValue: T):  ShallowRef<T> {
+export function useComponentPiece<C extends Component, N extends keyof C>(component: ShallowRef<C>, name: N, defValue: C[N]):  ShallowRef<C[N]> {
     const { emit } = getCurrentInstance()!;
 
     return customRef((track, trigger) => {
@@ -192,8 +192,8 @@ export function useComponentPiece<T>(component: ShallowRef<Component>, name: str
                 const rawVal = (component.value as any)[name];
                 return rawVal ?? defValue;
             },
-            set(newVal: T) {
-                emit('ecs-property-change', component.value.type, name, newVal, (component.value as MultiComponent).multiId);
+            set(newVal: C[N]) {
+                emit('ecs-property-change', component.value.type, name, newVal, (component.value as any as MultiComponent).multiId);
             },
         };
     });

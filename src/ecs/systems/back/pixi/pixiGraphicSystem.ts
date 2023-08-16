@@ -45,7 +45,7 @@ import {arrayRemoveElem} from "@/util/array";
 import {GRID_TYPE} from "../../gridSystem";
 import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
 import {TEXT_TYPE, TextSystem} from "../TextSystem";
-import { VisibilityAwareSystem, VISIBILITY_AWARE_TYPE } from "../VisibilityAwareSystem";
+import { VISIBILITY_AWARE_TYPE } from "../VisibilityAwareSystem";
 import { Group } from "@pixi/layers";
 import { IPoint } from "@/geometry/point";
 import { ImageRenderer, PixiImageElement } from "./ImageRenderer";
@@ -83,6 +83,7 @@ function lerpColor(a: number, b: number, t: number): number {
 }
 
 export const POINT_RADIUS = 42;
+export const DEFAULT_LINE_THICKNESS = 5;
 
 export const PIXI_GRAPHIC_TYPE = 'pixi_graphic';
 export type PIXI_GRAPHIC_TYPE = typeof PIXI_GRAPHIC_TYPE;
@@ -688,18 +689,28 @@ export class PixiGraphicSystem implements System {
                 g.clear();
 
                 g.moveTo(0, 0);
-                g.lineStyle(5, el.color);
+                const thickness = el.thickness ?? DEFAULT_LINE_THICKNESS;
+                g.lineStyle(thickness, el.color, el.alpha);
                 g.lineTo(el.vec.x, el.vec.y);
+                if (thickness > 10) {
+                    g.lineStyle(0)
+                    g.beginFill(el.color, el.alpha);
+                    g.drawCircle(0, 0, thickness / 2);
+                    g.drawCircle(el.vec.x, el.vec.y, thickness / 2);
+                    g.endFill();
+                }
+
+                // TODO: show direction
 
                 if (par._selected) {
                     g.lineStyle(0);
 
                     g.beginFill(0xe51010);
-                    g.drawCircle(0, 0, 10);
+                    g.drawCircle(0, 0, thickness + 5);
                     g.endFill();
 
                     g.beginFill(el.color);
-                    g.drawCircle(el.vec.x, el.vec.y, 10);
+                    g.drawCircle(el.vec.x, el.vec.y, thickness + 5);
                     g.endFill();
                 }
 
@@ -713,7 +724,7 @@ export class PixiGraphicSystem implements System {
                 }
                 let g = d as Graphics;
                 g.clear();
-                g.beginFill(color);
+                g.beginFill(color, el.alpha);
                 g.lineStyle(0);
                 g.drawCircle(0, 0, el.scale * POINT_RADIUS);
                 g.endFill();

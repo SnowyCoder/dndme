@@ -49,6 +49,7 @@ export interface AnchorableElement {
 
 export interface ColorableElement {
     color: number;
+    alpha?: number;
 }
 
 export enum VisibilityType {
@@ -106,6 +107,7 @@ export interface ImageMeta {
 export interface LineElement extends DisplayElement, ColorableElement {
     type: ElementType.LINE;
     vec: IPoint;
+    thickness?: number,
 }
 
 export interface PointElement extends DisplayElement, ColorableElement {

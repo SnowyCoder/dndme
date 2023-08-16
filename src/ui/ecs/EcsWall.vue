@@ -6,6 +6,9 @@
     <div class="d-flex align-items-center">
       H: <editable-number :readonly="!isMaster" v-model="h"/>
     </div>
+    <div class="d-flex align-items-center">
+      Thick: <editable-number :readonly="!isMaster" v-model="thick"/>
+    </div>
   </div>
 </template>
 
@@ -25,6 +28,7 @@ export default defineComponent({
     const { component } = toRefs(props);
 
     const vec = useComponentPiece(component, 'vec', [0, 0]);
+    const thick = useComponentPiece(component, 'thickness', 5);
 
     const defineElement = (index: number) => computed({
       get: () => vec.value[index],
@@ -40,6 +44,7 @@ export default defineComponent({
       isMaster,
       w: defineElement(0),
       h: defineElement(1),
+      thick,
     }
   }
 });

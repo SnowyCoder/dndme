@@ -13,7 +13,7 @@ import { defineComponent } from "vue";
 
 const LOADING_PHRASES = [
   "Persuading dragons to cooperate...",
-  "A Dwarf, an Elf and a Dragonbord enter a tavern... \"We're looking for a quest\"",
+  "A Dwarf, an Elf and a Dragonborn enter a tavern... \"We're looking for a quest\"",
   "An ancient legend tells that if you insult a dragon to exhaustion... they'll eat you anyways",
   "Recharging spell slots...",
   "Roll a Charisma saving throw...",
