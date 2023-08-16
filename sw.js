@@ -38,6 +38,7 @@ async function handleFetch(request) {
 }
 
 self.addEventListener("fetch", function(e) {
+    console.log(e.request.cache);
     if (!(e.request.cache === "only-if-cached" && e.request.mode !== "same-origin")) {
         e.respondWith(handleFetch(e.request)); // respondWith must be executed synchonously (but can be passed a Promise)
     }
