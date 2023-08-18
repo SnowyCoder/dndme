@@ -2,6 +2,7 @@
   <div class="footer">
     <div class="footer_credits">
       <div class="links">
+        {{ VERSION }}
         <a href="https://github.com/SnowyCoder/dndme" target="_blank" class="footer_github"></a>
       </div>
       <small style="color: lightgray">
@@ -12,10 +13,9 @@
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent } from "vue";
+<script setup lang="ts">
 
-export default defineComponent({});
+const VERSION = __COMMIT_HASH__;
 </script>
 
 <style>

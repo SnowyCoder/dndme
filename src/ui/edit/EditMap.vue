@@ -11,6 +11,8 @@
     <ReconnectionModal v-if="!isMaster" />
     <MasterNameErrorModal v-else />
 
+    <UpdateModal />
+
     <a id="hidden-download-link" style="display: none;"/>
   </div>
 </template>
@@ -21,6 +23,7 @@ import ToolBar from "./toolbar/ToolBar.vue";
 import SideBar from "./SideBar.vue";
 import ReconnectionModal from "./ReconnectionModal.vue";
 import MasterNameErrorModal from "./MasterNameErrorModal.vue";
+import UpdateModal from "./UpdateModal.vue";
 import { World } from "@/ecs/World";
 
 const props = defineProps<{

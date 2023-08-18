@@ -3,13 +3,18 @@
     <div class="sloading-container">
       <h1 class="sloading-title">DRAW&DICE</h1>
       <h2>{{ message }}</h2>
-      <h5>Loading</h5>
+      <h5>{{ state }}</h5>
     </div>
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent } from "vue";
+<script setup lang="ts">
+import { LoadingState } from "@/phase/loadingPhase";
+import { ShallowRef, computed } from "vue";
+
+const props = defineProps<{
+  status: ShallowRef<LoadingState>
+}>();
 
 const LOADING_PHRASES = [
   "Persuading dragons to cooperate...",
@@ -29,17 +34,19 @@ function randomMex() {
   return LOADING_PHRASES[i];
 }
 
-export default defineComponent({
-  data() {
-    return {
-      message: randomMex(),
-    }
-  },
+const message = randomMex();
+const state = computed(() => {
+  switch (props.status.value) {
+    case 'loading': return 'Loading';
+    case 'sw_register': return 'Registering SW';
+    case 'sw_error': return 'Error while registering service worker';
+    default: return 'ERROR: ' + props.status;
+  }
 });
 
 </script>
 
-<style>
+<style lang="scss">
   .sloading-container {
     color: white;
     height: 100vh;
@@ -48,7 +55,24 @@ export default defineComponent({
     align-items: center;
     justify-content: center;
     flex-direction: column;
+
+    padding-right: 15px;
+    padding-left: 15px;
+    margin-right: auto;
+    margin-left: auto;
+
+    @media (min-width: 768px) {
+      width: 750px;
+    }
+
+    @media (min-width: 992px) {
+      width: 970px;
+    }
+    @media (min-width: 1200px) {
+      width: 1170px;
+    }
   }
+
   .sloading-title {
     font-size: 5em;
   }

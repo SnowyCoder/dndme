@@ -15,6 +15,9 @@
       "@/*": ["./src/*"]
     },
     "lib": ["esnext", "dom", "dom.iterable", "scripthost"],
+    "types": [
+      "vite-plugin-pwa/client"
+    ],
     "skipLibCheck": true
   },
   "include": ["vite.config.*", "env.d.ts", "src/**/*", "src/**/*.vue"]

@@ -46,6 +46,7 @@ export class EditMapPhase extends EcsPhase {
     constructor(name: string, gameId?: string) {
         super(name, gameId === undefined);
         this.gameId = gameId;
+        // TODO: use import.meta.hot 'vite:beforeFullReload' to listen for reloads and export the current map.
     }
 
     registerSystems() {

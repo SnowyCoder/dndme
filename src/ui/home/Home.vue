@@ -6,10 +6,13 @@
     </div>
 
     <div>
-      <button class="btn btn-lg btn-warning btn-entry" v-on:click="onCreateMap">Create Map</button>
+      <button class="btn btn-lg btn-warning btn-entry" @click="onCreateMap">Create Map</button>
     </div>
     <div>
-      <button class="btn btn-lg btn-info btn-entry" v-on:click="showFileModal= true">Edit Map</button>
+      <button class="btn btn-lg btn-info btn-entry" @click="showFileModal= true">Edit Map</button>
+    </div>
+    <div v-if="versionReady != null">
+      <button class="btn btn-lg btn-success btn-entry" @click="reloadWindow()">Update {{ versionReady }}</button>
     </div>
 
     <Modal v-model="showFileModal" hide-footer title="Gimme the map" center-vertical>
@@ -39,11 +42,12 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, PropType, ref, shallowRef, watch } from "vue";
+import { defineComponent, PropType, shallowRef, watch } from "vue";
 import SafeEventEmitter from "../../util/safeEventEmitter";
-import FooterComponent from "../Footer.vue";
+import FooterComponent from "./Footer.vue";
 import MapInput from "./MapInput.vue";
 import Modal from "../util/Modal.vue";
+import { versionReady } from "@/swClient";
 
 export default defineComponent({
   components: { MapInput, FooterComponent, Modal },
@@ -78,10 +82,13 @@ export default defineComponent({
     const onCreateMap = () => {
       uiEvents.emit("create_map");
     };
+    const reloadWindow = () => {
+      window.location.reload();
+    }
 
     return {
       file, showFileModal, loadingProgress,
-      onCreateMap,
+      onCreateMap, reloadWindow, versionReady
     }
   },
 });

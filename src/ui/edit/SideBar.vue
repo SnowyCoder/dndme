@@ -88,5 +88,3 @@ const open = computed({
   }
 }
 </style>
-../../ecs/systems/back/NetworkSystem
-../../ecs/World
