@@ -592,9 +592,9 @@ export class CreateWallToolPart implements ToolPart {
     }
 
     initialize(events: SafeEventEmitter): void {
-        this.createLastLineDisplay.zIndex = DisplayPrecedence.WALL + 1;
         this.createLastLineDisplay.interactive = false;
         this.createLastLineDisplay.interactiveChildren = false;
+        this.createLastLineDisplay.parentGroup = this.pixiBoardSys.toolForegroundGroup;
         this.pixiBoardSys.board.addChild(this.createLastLineDisplay);
         this.pixiBoardSys.board.sortChildren();
 
