@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use axum::extract::ws::{Message, WebSocket};
 use base64::{engine::general_purpose, Engine};
@@ -16,6 +16,8 @@ use crate::{
     users::UserProfile,
     ServerState,
 };
+
+const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(30);
 
 #[derive(Error, Debug)]
 pub enum HandleMessageError {
@@ -67,6 +69,11 @@ impl ClientState {
     }
 
     async fn handle_message(&mut self, data: Vec<u8>) -> Result<(), HandleMessageError> {
+        if data.is_empty() {
+            // Ping frame at application-level
+            // (js cannot send real Ping/Pong packets)
+            return Ok(());
+        }
         let msg: MessageC2S =
             rmp_serde::from_slice(&data).map_err(|_| HandleMessageError::InvalidMessage)?;
 
@@ -293,6 +300,13 @@ impl ClientState {
                         break
                     }
                     Some(Ok(_)) => {}, // Ignore other messages
+                },
+                // Check if client is alive (and also trick nginx that the connection is alive)
+                _ = tokio::time::sleep(HEARTBEAT_INTERVAL) => {
+                    if let Err(e) = self.socket.send(Message::Pong(Vec::new())).await {
+                        error!("Error while sending heartbeat: {e}");
+                        break
+                    }
                 }
             }
         }
