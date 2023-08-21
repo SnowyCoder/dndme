@@ -54,7 +54,11 @@ export async function registerServiceWorker(): Promise<Result> {
                     const eventListener = async () => {
                         if (usw.state == 'activated') {
                             usw.removeEventListener('statechange', eventListener);
-                            const version = await fetch('version').then(x => x.text());
+                            const response = await fetch('version');
+                            let version = '?';
+                            if (response.status == 200) {
+                                version = await response.text();
+                            }
 
                             console.log("Update version: ", version);
                             res.events.emit('updateactive', version);

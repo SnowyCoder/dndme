@@ -50,7 +50,8 @@ addPlugins([{
 }]);
 
 precacheAndRoute(manifest);
-registerRoute('/version', async handle => {
+// IMPORTANT: do not use / paths as it will ignore registration url!
+registerRoute('version', async handle => {
     return new Response(__COMMIT_HASH__, {
         status: 200,
         headers: headersCrossOrigIsolate(new Headers()),
