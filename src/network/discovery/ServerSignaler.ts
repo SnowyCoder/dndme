@@ -64,6 +64,15 @@ export class SignalerError extends Error {
     }
 }
 
+export class ChannelClosedError extends Error {
+    reason: DisconnectReason;
+    constructor(reason: DisconnectReason) {
+        super("Channel closed for reason: " + reason);
+        this.reason = reason;
+        this.name = 'ChannelClosedError';
+    }
+}
+
 export class ServerSignaler {
     private readonly identity: NetworkIdentity;
     private readonly logger: Logger;
@@ -147,7 +156,7 @@ export class ServerSignaler {
             this.onHoldCallback = undefined;
         }
         for (let prom of proms) {
-            prom[1](new Error("Channel closed for reason: " + reason));
+            prom[1](new ChannelClosedError(reason));
         }
 
         if (reason == DisconnectReason.SocketFail) {
@@ -166,6 +175,8 @@ export class ServerSignaler {
     private onClose(ev: CloseEvent): void {
         const c = ev.code;
         this.isConnected = false;
+        if (this.status == 'destroyed') return;// Disconnect was requested by us.
+
         this.logger.info(`Closed, reason: ${ev.reason} code: ${ev.code}`);
         if (c == 1000) { // Normal closure
             this.destroy(DisconnectReason.CleanClose);

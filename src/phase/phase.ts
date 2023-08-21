@@ -29,13 +29,12 @@ export class Phase {
     }
 
     disable() {
-        console.log(`[${this.name}] Disabling`);
+        this.log(`Disabling`);
         if (this.vue) {
             this.vue.unmount();
             this.vue = undefined;
         }
     }
-
 
 
     /**

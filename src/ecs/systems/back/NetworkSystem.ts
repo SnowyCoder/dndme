@@ -9,7 +9,7 @@ import {SpawnCommand, SpawnCommandKind} from "../command/spawnCommand";
 import {DeSpawnCommand} from "../command/despawnCommand";
 import { PacketInfo, WTChannel } from "../../../network/Channel";
 import { PeerConnector } from "@/network/discovery/PeerConnector";
-import { RoomRenamePromiseResult, ServerSignaler, SignalerError } from "@/network/discovery/ServerSignaler";
+import { ChannelClosedError, DisconnectReason, RoomRenamePromiseResult, ServerSignaler, SignalerError } from "@/network/discovery/ServerSignaler";
 import { NetworkIdentity } from "@/network/Identity";
 import { getLogger } from "./log/LogSystem";
 import { Logger } from "./log/Logger";
@@ -475,7 +475,7 @@ export class ClientNetworkSystem {
         });
     }
 
-    async tryJoinRoom() {
+    async tryJoinRoom1() {
         const statusRes = this.world.getResource(NETWORK_STATUS_TYPE)!;
         const configRes = this.world.getResource(DISCOVERY_CONFIG_TYPE)!;
         const ALLOWED_STATES = ['connecting', 'wrong_password']
@@ -512,6 +512,18 @@ export class ClientNetworkSystem {
                         statusDescription: 'Hint: ' + res.hint,
                     });
                     return;
+            }
+        }
+    }
+
+    async tryJoinRoom() {
+        try {
+            await this.tryJoinRoom1();
+        } catch (e) {
+            if (e instanceof ChannelClosedError && e.reason == DisconnectReason.CleanClose) {
+                // User requested exit.
+            } else {
+                this.logger.error('Error in joinRoom', e);
             }
         }
     }
