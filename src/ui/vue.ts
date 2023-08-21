@@ -8,6 +8,7 @@ import { objectClone, randombytes } from "../util/jsobj";
 import { EcsStorage } from "../ecs/Storage";
 import { utils } from "pixi.js";
 import { ComponentForType, ComponentType, RegisteredResource, ResourceForType, ResourceType } from "@/ecs/TypeRegistry";
+import { getLogger } from "@/ecs/systems/back/log/Logger";
 
 export type VueComponent = VComponent | DefineComponent;
 
@@ -88,6 +89,7 @@ export function useResourceReactive<R extends ResourceType, P extends Partial<Re
                     changes[name] = newVal;
                     const v = res.value;
                     if (v === undefined) {
+                        getLogger('ui.vue').warning('Reactive resource: assign to null resource!');
                         const res = Object.assign({ type: resName }, objectClone(properties), changes);
                         world.addResource(res);
                     } else {

@@ -1,5 +1,5 @@
 import {World} from "@/ecs/World";
-import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
+import {PIXI_BOARD_TYPE} from "./pixiBoardSystem";
 import {System} from "@/ecs/System";
 import {RECTANGULAR_SELECTION_TYPE, RectangularSelectionResource, Resource} from "@/ecs/resource";
 import {Aabb} from "@/geometry/aabb";

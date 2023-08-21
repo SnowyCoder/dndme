@@ -11,7 +11,7 @@ import {intersectSegmentVsSegment, lineSameSlope, SegmentVsSegmentRes} from "../
 import {INTERACTION_TYPE, InteractionSystem, LineShape, shapeAabb, shapeLine} from "./back/InteractionSystem";
 import {VISIBILITY_BLOCKER_TYPE, VisibilityBlocker} from "./back/VisibilitySystem";
 import {ElementType, GRAPHIC_TYPE, GraphicComponent, LineElement, VisibilityType} from "../../graphics";
-import {TOOL_TYPE, ToolPart, ToolSystem} from "./back/ToolSystem";
+import {TOOL_TYPE, ToolPart} from "./back/ToolSystem";
 import {
     PIXI_BOARD_TYPE,
     PixiBoardSystem,
@@ -34,16 +34,27 @@ import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE } from "./back/SelectionU
 
 import WallIcon from "@/ui/icons/WallIcon.vue";
 import EcsWall from "@/ui/ecs/EcsWall.vue";
+import WallCreationOptions from "@/ui/edit/creation/WallCreationOptions.vue";
+
 import { Graphics, Point } from "pixi.js";
 import { RegisteredComponent } from "../TypeRegistry";
+import { Resource } from "../resource";
 
 export const WALL_TYPE = 'wall';
 export type WALL_TYPE = typeof WALL_TYPE;
 export interface WallComponent extends Component {
     type: WALL_TYPE;
     vec: RPoint;
-    thickness: number;
+    thickness?: number;
     _dontMerge: number;
+}
+
+export interface WallCreationResource extends Resource {
+    type: 'wall_creation';
+    thickness: number;
+
+    _save: true,
+    _sync: false,
 }
 
 const SELECTION_COLOR = 0x7986CB;
@@ -57,6 +68,7 @@ export class WallSystem implements System {
     readonly interactionSys: InteractionSystem;
     readonly selectionSys: SelectionSystem;
     readonly components?: [WallComponent];
+    readonly resources?: [WallCreationResource];
 
     readonly storage = new SingleEcsStorage<WallComponent>(WALL_TYPE);
 
@@ -69,14 +81,20 @@ export class WallSystem implements System {
         if (this.world.isMaster) {
             let toolSys = world.requireSystem(TOOL_TYPE);
             toolSys.addToolPart(new CreateWallToolPart(this));
-            toolSys.addTool(ToolType.CREATE_WALL, {
+            toolSys.addCreationTool({
+                name: ToolType.CREATE_WALL,
                 parts: ['space_pan', ToolType.CREATE_WALL],
+                additionalOptions: WallCreationOptions,
                 toolbarEntry: {
                     icon: WallIcon,
                     title: 'Add wall',
                     priority: StandardToolbarOrder.CREATE_WALL,
                 }
             });
+            world.addResource({
+                type: 'wall_creation',
+                thickness: DEFAULT_THICKNESS,
+            } as WallCreationResource);
         }
         world.events.on('populate', () => {
             this.world.spawnEntity({
@@ -169,7 +187,7 @@ export class WallSystem implements System {
                 let wlen = walls.length;
                 for (let i = 0; i < wlen; i++) {
                     let owall = walls[i];
-                    if (lineSameSlope(wall.vec[0], wall.vec[1], owall.vec[0], owall.vec[1])) {
+                    if (wall.thickness == owall.thickness && lineSameSlope(wall.vec[0], wall.vec[1], owall.vec[0], owall.vec[1])) {
                         mergeWithIndex = i;
                         break;
                     }
@@ -251,7 +269,8 @@ export class WallSystem implements System {
             for (let i = 4; i < plen; i += 2) {
                 let cmd = this.createWall(
                     points[i - 2], points[i - 1],
-                    points[i], points[i + 1]
+                    points[i], points[i + 1],
+                    wall.thickness
                 );
                 cIds.push(cmd.data.entities[0]);
                 this.world.deserialize(cmd.data, { remap: false });
@@ -400,7 +419,7 @@ export class WallSystem implements System {
         return end;
     }
 
-    createWall(minX: number, minY: number, maxX: number, maxY: number): SpawnCommand {
+    createWall(minX: number, minY: number, maxX: number, maxY: number, thickness?: number): SpawnCommand {
         let components = [
             {
                 type: SHARED_TYPE,
@@ -417,7 +436,7 @@ export class WallSystem implements System {
             {
                 type: WALL_TYPE,
                 vec: [maxX - minX, maxY - minY],
-                thickness: DEFAULT_THICKNESS,
+                thickness: thickness,
             } as WallComponent,
         ];
         return SpawnCommandKind.from(this.world, components);
@@ -441,6 +460,8 @@ export class CreateWallToolPart implements ToolPart {
     createdLastPos?: RPoint;
     createLastLineDisplay: Graphics;
 
+    thickness: number = DEFAULT_THICKNESS;
+
     isActive = false;
     mouseLastPos: IPoint = new Point();
 
@@ -448,15 +469,25 @@ export class CreateWallToolPart implements ToolPart {
         this.sys = sys;
         this.createLastLineDisplay = new Graphics();
         this.pixiBoardSys = sys.world.requireSystem(PIXI_BOARD_TYPE);
-        sys.world.events.on('component_add', (c: Component) => {
-            if (this.isActive && c.type === 'wall') {
-                this.createdIds.push(c.entity);
+
+        const decl = sys.world.requireSystem('declarative_listener');
+
+        decl.onResource('wall_creation', 'thickness', (oldv, newv) => {
+            this.thickness = newv ?? DEFAULT_THICKNESS;
+            if (this.isActive) this.redrawCreationLastLine(this.mouseLastPos);
+        })
+
+        decl.onComponent('wall', '', (oldc, newc) => {
+            if (!this.isActive) return;
+            if (oldc == null) {// added
+                this.createdIds.push(newc!.entity);
+            } else if (newc == null) {// removed
+                if (arrayRemoveElem(this.createdIds, oldc.entity)) {
+                    this.recomputeCreatedLastPos();
+                }
+
             }
-        });
-        sys.world.events.on('component_remove', (c: Component) => {
-            if (this.isActive && c.type === 'wall' && arrayRemoveElem(this.createdIds, c.entity)) {
-                this.recomputeCreatedLastPos();
-            }
+
         });
     }
 
@@ -473,10 +504,12 @@ export class CreateWallToolPart implements ToolPart {
         this.sys.selectionSys.setOnlyEntities(this.createdIds);
         this.createdIds.length = 0;
         this.createdLastPos = undefined;
-        // don't change tool
-        /*this.sys.world.editResource(TOOL_TYPE, {
-            tool: Tool.INSPECT,
-        })*/
+
+        if (this.sys.world.getResource('creation_info')?.exitAfterCreation) {
+            this.sys.world.editResource(TOOL_TYPE, {
+                tool: ToolType.INSPECT,
+            });
+        }
     }
 
     redrawCreationLastLine(pos: IPoint): void {
@@ -486,16 +519,16 @@ export class CreateWallToolPart implements ToolPart {
 
         if (this.createdLastPos !== undefined) {
             g.moveTo(this.createdLastPos[0], this.createdLastPos[1]);
-            g.lineStyle(5, SELECTION_COLOR);
+            g.lineStyle(this.thickness, SELECTION_COLOR);
             g.lineTo(pos.x, pos.y);
         }
         g.lineStyle(0);
-        if (this.createdIds.length === 0 && this.createdLastPos !== undefined) {
+        if (this.createdLastPos !== undefined) {
             g.beginFill(0xe51010);
-            g.drawCircle(this.createdLastPos[0], this.createdLastPos[1], 10);
+            g.drawCircle(this.createdLastPos[0], this.createdLastPos[1], this.thickness + 5);
         }
         g.beginFill(0x405FFE);
-        g.drawCircle(pos.x, pos.y, 10);
+        g.drawCircle(pos.x, pos.y, this.thickness + 5);
     }
 
     addVertex(point: IPoint): void {
@@ -506,6 +539,8 @@ export class CreateWallToolPart implements ToolPart {
         } else if (point.x == lp[0] && point.y == lp[1]) {
             this.endCreation();
         } else {
+            const opts = this.sys.world.getResource('wall_creation');
+
             let points = [lp[0], lp[1], point.x, point.y];
             this.sys.fixIntersections(points, 0);
             let plen = points.length;
@@ -513,9 +548,11 @@ export class CreateWallToolPart implements ToolPart {
             for (let i = 2; i < plen; i += 2) {
                 let cmd = this.sys.createWall(
                     points[i - 2], points[i - 1],
-                    points[i    ], points[i + 1]
+                    points[i    ], points[i + 1],
+                    opts?.thickness ?? DEFAULT_THICKNESS
                 );
                 executeAndLogCommand(this.sys.world, cmd);
+                this.sys.selectionSys.clear();
             }
             this.createdLastPos = [point.x, point.y];
         }

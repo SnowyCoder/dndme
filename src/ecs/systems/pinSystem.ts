@@ -18,7 +18,7 @@ TRANSFORM_TYPE
 import {ElementType, GRAPHIC_TYPE, GraphicComponent, PointElement, VisibilityType, ImageElement, ContainerElement} from "../../graphics";
 import {POINT_RADIUS} from "./back/pixi/pixiGraphicSystem";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
-import {TOOL_TYPE, ToolSystem, ToolPart} from "./back/ToolSystem";
+import {TOOL_TYPE, ToolPart} from "./back/ToolSystem";
 import {PointerEvents, PointerUpEvent} from "./back/pixi/pixiBoardSystem";
 import {ToolType} from "../tools/toolType";
 import {SpawnCommandKind} from "./command/spawnCommand";
@@ -34,7 +34,7 @@ import { StandardToolbarOrder } from "@/phase/editMap/standardToolbarOrder";
 import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE, SELECTION_UI_TYPE } from "./back/SelectionUiSystem";
 
 
-import PinCreationOptions from "@/ui/edit/settings/PinCreationOptions.vue";
+import PinCreationOptions from "@/ui/edit/creation/PinCreationOptions.vue";
 import EcsPin from "@/ui/ecs/EcsPin.vue";
 import { FileIndex } from "@/map/FileDb";
 
@@ -88,6 +88,13 @@ export class PinSystem implements System {
                     priority: StandardToolbarOrder.CREATE_PIN,
                 },
             });
+
+            world.addResource({
+                type: PIN_TYPE,
+                defaultSize: DEFAULT_SIZE,
+                _save: true,
+                _sync: true,
+            } as PinResource, 'ignore');
         }
         world.events.on('populate', () => {
             this.world.spawnEntity({
@@ -103,12 +110,6 @@ export class PinSystem implements System {
 
         this.gridSize = (this.world.getResource(GRID_TYPE) ?? STANDARD_GRID_OPTIONS).size / STANDARD_GRID_OPTIONS.size;
 
-        world.addResource({
-            type: PIN_TYPE,
-            defaultSize: DEFAULT_SIZE,
-            _save: true,
-            _sync: true,
-        } as PinResource, 'ignore');
         this.res = world.getResource(PIN_TYPE)!;
 
         world.addStorage(this.storage);
@@ -334,7 +335,7 @@ export class CreatePinToolPart implements ToolPart {
 
         this.createPin = -1;
         const creationInfo = this.sys.world.getResource(CREATION_INFO_TYPE);
-        if (creationInfo?.exitAfterCreation ?? true) {
+        if (creationInfo?.exitAfterCreation) {
             this.sys.world.editResource(TOOL_TYPE, {
                 tool: ToolType.INSPECT,
             });

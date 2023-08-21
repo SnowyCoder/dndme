@@ -3,9 +3,8 @@ import { Container, Point, Renderer, settings, Ticker, UPDATE_PRIORITY } from "p
 import { World } from "@/ecs/World";
 import { Resource } from "@/ecs/resource";
 import { FOLLOW_MOUSE_TYPE, POSITION_TYPE } from "@/ecs/component";
-import { FlagEcsStorage } from "@/ecs/Storage";
 import { findEntitiesAt, snapPoint } from "@/ecs/tools/utils";
-import { KEYBOARD_KEY_DOWN, KEYBOARD_TYPE, KeyboardResource } from "../KeyboardSystem";
+import { KEYBOARD_KEY_DOWN, KEYBOARD_TYPE } from "../KeyboardSystem";
 import { DEFAULT_BACKGROUND } from "@/ecs/systems/lightSystem";
 import { LayerOrder } from "@/phase/editMap/layerOrder";
 import { Group, Layer, Stage } from "@pixi/layers";

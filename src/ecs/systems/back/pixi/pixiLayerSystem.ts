@@ -1,5 +1,5 @@
 import {System} from "@/ecs/System";
-import {PIXI_GRAPHIC_TYPE, PixiDisplayElement, PixiGraphicComponent, PixiGraphicSystem} from "./pixiGraphicSystem";
+import {PIXI_GRAPHIC_TYPE, PixiDisplayElement, PixiGraphicSystem} from "./pixiGraphicSystem";
 import {
     BACKGROUND_LAYER_TYPE,
     BackgroundLayerResource,

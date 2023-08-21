@@ -4,7 +4,7 @@ import {
 } from "./pixi/pixiBoardSystem";
 import {World} from "../../World";
 import {SELECTION_TYPE} from "./SelectionSystem";
-import {Resource} from "../../resource";
+import {CreationInfoResource, Resource} from "../../resource";
 import {FilteredPanPart, InteractPart, SelectPart} from "../../tools/inspect";
 import {ToolType} from "../../tools/toolType";
 import {MeasureToolPart} from "../../tools/measure";
@@ -13,7 +13,7 @@ import SafeEventEmitter, { PRIORITY_DISABLED } from "../../../util/safeEventEmit
 import { StandardToolbarOrder } from "@/phase/editMap/standardToolbarOrder";
 
 import EntityInspectComponent from "@/ui/ecs/EntityInspect.vue";
-import CreationOptionsComponent from "@/ui/edit/settings/CreationOptions.vue";
+import CreationOptionsComponent from "@/ui/edit/creation/CreationOptions.vue";
 import ToolBarEntry from "@/ui/edit/toolbar/ToolBarEntry.vue";
 import ToolBarEntryInspect from "@/ui/edit/toolbar/ToolBarEntryInspect.vue";
 import { SIDEBAR_TYPE, ToolbarItemComponent, TOOLBAR_ITEM_TYPE } from "../toolbarSystem";
@@ -97,6 +97,14 @@ export class ToolSystem implements System {
 
             tool: undefined,
         } as ToolResource);
+
+        world.addResource({
+            type: 'creation_info',
+            exitAfterCreation: true,
+
+            _save: true,
+            _sync: false,
+        } as CreationInfoResource);
 
         const events = world.events;
         events.on('resource_edited', this.onResourceEdited, this);
