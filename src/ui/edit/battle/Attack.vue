@@ -5,29 +5,20 @@
   </div>
 </template>
 
-<script lang="ts">
-import { computed, defineComponent, ref } from "vue";
-import { useResourceReactive, isNull, useWorld } from "../../vue";
+<script setup lang="ts">
+import { computed, ref } from "vue";
+import { useResourceReactive, isNull, useWorld, ResourceUpdateHistory } from "../../vue";
 import { BATTLE_TYPE } from "../../../ecs/systems/BattleSystem";
 
 import Battle from "./Battle.vue";
 import BattleEditPartecipants from "./BattleEditPartecipants.vue";
 
-export default defineComponent({
-  components: { Battle, BattleEditPartecipants },
-  setup() {
-    const world = useWorld();
+const world = useWorld();
 
-    const battleRes = useResourceReactive(world, BATTLE_TYPE, {
-      turnOf: undefined,
-    });
+const battleRes = useResourceReactive(world, BATTLE_TYPE, {
+  turnOf: undefined,
+}, ResourceUpdateHistory.READONLY);
 
-    const partecipantsOpen = ref(false);
-    const showPartecipants = computed(() => battleRes[isNull] || partecipantsOpen.value);
-
-    return {
-      battleRes, isNull, partecipantsOpen, showPartecipants
-    }
-  },
-});
+const partecipantsOpen = ref(false);
+const showPartecipants = computed(() => battleRes[isNull] || partecipantsOpen.value);
 </script>

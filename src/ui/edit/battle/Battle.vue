@@ -40,18 +40,18 @@
 
   <div class="battle-btn-group">
     <div class="row g-0">
-      <button class="col btn btn-success btn-xl" @click="nextTurn">Next turn</button>
+      <button class="col btn btn-outline-success btn-xl" @click="nextTurn">Next turn</button>
     </div>
     <div class="row g-0">
-      <button class="col btn btn-secondary btn-xl" @click="$emit('partecipants')">Add/Remove</button>
-      <button class="col btn btn-danger btn-xl" @click="endBattle">End Battle</button>
+      <button class="col btn btn-outline-secondary btn-xl" @click="$emit('partecipants')">Add/Remove</button>
+      <button class="col btn btn-outline-danger btn-xl" @click="endBattle">End Battle</button>
     </div>
   </div>
 </template>
 
 <script lang="ts">
 import { computed, defineComponent, PropType, ref, ShallowReactive, triggerRef } from "vue";
-import { BattleComponent, BattleResource, BATTLE_TYPE, STATS_TYPE } from "../../../ecs/systems/BattleSystem";
+import { BattleResource, BATTLE_TYPE, STATS_TYPE } from "../../../ecs/systems/BattleSystem";
 import { useComponentsOfType, useResource, useWorld } from "../../vue";
 import { NAME_TYPE } from "../../../ecs/component";
 import AttackIcon from "../../icons/AttackIcon.vue";
@@ -88,10 +88,10 @@ export default defineComponent({
             }).map((x, i) => {
                 const stats = world.getComponent(x.entity, STATS_TYPE)!;
                 const rowClass = [
-                  world.getComponent(x.entity, PLAYER_TYPE) ? 'table-success' : 'table-danger',
+                  world.getComponent(x.entity, PLAYER_TYPE) ? 'battle-player' : 'battle-enemy',
                 ];
                 if (battle.turnOf === x.entity || (battle.turnOf === undefined && i === 0)) {
-                  rowClass.push('battle-active');
+                  rowClass.push('table-active');
                 }
                 return {
                   entity: x.entity,
@@ -190,7 +190,7 @@ export default defineComponent({
 </script>
 
 <style lang="scss">
-@import "@/style/vars";
+@import 'bootstrap';
 
 .battle-name {
   transition: color 0.4s;
@@ -203,6 +203,16 @@ export default defineComponent({
     transition: 0.3s;
   }
 }
+.battle-player {
+  --bs-table-color: var(--bs-success);
+  --bs-table-active-color: var(--bs-success);
+}
+
+.battle-enemy {
+  --bs-table-color: var(--bs-danger);
+  --bs-table-active-color: var(--bs-danger);
+}
+
 .battle-active .battle-name {
   color: var(--bs-primary);
   &::after {

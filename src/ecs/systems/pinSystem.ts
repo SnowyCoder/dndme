@@ -15,7 +15,7 @@ import {
     SerializedFlag,
 TRANSFORM_TYPE
 } from "../component";
-import {ElementType, GRAPHIC_TYPE, GraphicComponent, PointElement, VisibilityType, ImageElement, ContainerElement} from "../../graphics";
+import {ElementType, GRAPHIC_TYPE, GraphicComponent, PointElement, VisibilityType, ImageElement, ContainerElement, ImageScaleMode} from "../../graphics";
 import {POINT_RADIUS} from "./back/pixi/pixiGraphicSystem";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {TOOL_TYPE, ToolPart} from "./back/ToolSystem";
@@ -37,6 +37,7 @@ import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE, SELECTION_UI_TYPE } from
 import PinCreationOptions from "@/ui/edit/creation/PinCreationOptions.vue";
 import EcsPin from "@/ui/ecs/EcsPin.vue";
 import { FileIndex } from "@/map/FileDb";
+import { Texture } from "pixi.js";
 
 export const PIN_TYPE = 'pin';
 export type PIN_TYPE = typeof PIN_TYPE;
@@ -203,6 +204,21 @@ export class PinSystem implements System {
                     color: 0xFFFFFF,
                     scale: 1,
                 } as PointElement,
+                {
+                    type: ElementType.IMAGE,
+                    texture: {
+                        type: 'raw',
+                        value: Texture.WHITE,
+                    },
+                    priority: DisplayPrecedence.PINS,
+                    visib: VisibilityType.INVISIBLE,
+                    ignore: false,
+                    scale: 0.8,
+                    scaleMode: ImageScaleMode.CONSTRAINED,
+                    anchor: { x: 0.5, y: 0.5 },
+                    tint: 0xFFFFFF,
+                    children: []
+                } as ImageElement,
             ],
         } as ContainerElement;
     }
@@ -211,33 +227,25 @@ export class PinSystem implements System {
         const gc = this.world.getComponent(pin.entity, GRAPHIC_TYPE)!;
         const scale = (pin.size || this.res.defaultSize) * this.gridSize;
         const display = gc.display as ContainerElement;
-        if (pin.imageId !== undefined) {
-            let img;
-            if (display.children!.length < 2) {
-                img = {
-                    type: ElementType.IMAGE,
-                    texture: {
-                        type: 'external',
-                        value: pin.imageId!,
-                        priority: 100,
-                    },
-                    priority: DisplayPrecedence.PINS,
-                    visib: VisibilityType.NORMAL,
-                    ignore: false,
-                    scale: 1,
-                    anchor: { x: 0.5, y: 0.5 },
-                    tint: 0xFFFFFF,
-                    children: []
-                } as ImageElement;
-                display._childrenAdd = [];
-            }
-        }
+
         const point = gc.display.children![0] as PointElement;
         point.color = pin.color;
         point.scale = scale;
-        const image = gc.display.children![1] as ImageElement | undefined;
-        if (image !== undefined) {
-            image.scale = scale;
+        const image = gc.display.children![1] as ImageElement;
+        image.scale = scale * 0.6;
+        if (pin.imageId !== undefined) {
+            image.visib = VisibilityType.NORMAL;
+            image.texture = {
+                type: 'external',
+                value: pin.imageId!,
+                priority: 100,
+            };
+        } else {
+            image.visib = VisibilityType.INVISIBLE;
+            image.texture = {
+                type: 'raw',
+                value: Texture.WHITE,
+            };
         }
 
         this.world.editComponent(pin.entity, GRAPHIC_TYPE, { display: gc.display }, undefined, false);

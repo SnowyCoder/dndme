@@ -74,7 +74,7 @@ export class HostEditMapPhase extends EditMapPhase {
         pixiBoard.board.transform.worldTransform.applyInverse(p, p);
 
         if (firstFile.type.startsWith("image/")) {
-            let data = new Uint8Array(await firstFile.arrayBuffer());
+            const data = new Uint8Array(await firstFile.arrayBuffer());
             const dataId = await ImageRenderer.preloadTexture(this.world, data, firstFile.type);
 
             const cmd = SpawnCommandKind.from(this.world, [

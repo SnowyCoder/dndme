@@ -49,7 +49,8 @@ import { VISIBILITY_AWARE_TYPE } from "../VisibilityAwareSystem";
 import { Group } from "@pixi/layers";
 import { IPoint } from "@/geometry/point";
 import { ImageRenderer, PixiImageElement } from "./ImageRenderer";
-import { Container, DisplayObject, Graphics, Point, Sprite, Text, TextStyle } from "pixi.js";
+import { Container, DisplayObject, Graphics, ImageBitmapResource, Point, Sprite, Text, TextStyle, Texture } from "pixi.js";
+import { FileIndex } from "@/map/FileDb";
 
 export interface PixiGraphicComponent extends GraphicComponent {
     _selected?: boolean;
@@ -140,6 +141,10 @@ export class PixiGraphicSystem implements System {
         world.events.on('forget', this.onForget, this);
 
         this.renImage = new ImageRenderer(this);
+    }
+
+    getTexture(id: FileIndex): Promise<Texture<ImageBitmapResource> | 'unused'> {
+        return this.renImage.getTexturePromise(id);
     }
 
     private onComponentAdd(c: Component): void {
@@ -465,6 +470,7 @@ export class PixiGraphicSystem implements System {
                 return VisibListenerLevel.PERSISTENT;
             case VisibilityType.ALWAYS_VISIBLE:
             case VisibilityType.REMEMBER_BIT_BY_BIT:
+            case VisibilityType.INVISIBLE:
                 level = VisibListenerLevel.NOT_NEEDED;
                 break;
             case VisibilityType.REMEMBER:
@@ -523,6 +529,8 @@ export class PixiGraphicSystem implements System {
     private createElement(cmp: PixiGraphicComponent, desc: PixiDisplayElement): void {
         this.destroyElement(cmp.entity, desc, false);
 
+        if (desc.visib == VisibilityType.INVISIBLE) return;
+
         let defLayer = true;
         let res: DisplayObject;
         switch (desc.type) {
@@ -562,6 +570,9 @@ export class PixiGraphicSystem implements System {
 
     private updateElementVisibility(par: PixiGraphicComponent, desc: PixiDisplayElement, recursive: boolean,
                                     currentlyVisible: boolean, remembered: boolean) {
+        const pixi = desc._pixi;
+        if (pixi === undefined) return;
+
         const isShared = this.world.getComponent(par.entity, SHARED_TYPE) !== undefined;
         let isVisible;
         if (currentlyVisible || this.masterVisibility) {
@@ -570,6 +581,9 @@ export class PixiGraphicSystem implements System {
             isVisible = false;// Not shared (and not master visibility)
         } else {
             switch (desc.visib) {
+                case VisibilityType.INVISIBLE:
+                    isVisible = false;
+                    break;
                 case VisibilityType.NORMAL:
                     isVisible = currentlyVisible;
                     break;
@@ -582,7 +596,6 @@ export class PixiGraphicSystem implements System {
                     break;
             }
         }
-        let pixi = desc._pixi!;
         pixi.visible = isVisible;
 
         if (desc.visib === VisibilityType.REMEMBER_BIT_BY_BIT) {
@@ -663,11 +676,12 @@ export class PixiGraphicSystem implements System {
     }
 
     private updateElement(par: PixiGraphicComponent, desc: PixiDisplayElement, pos: IPoint, trans: TransformComponent | undefined, recursive: boolean) {
-        if (desc._oldType !== desc.type) {
+        if (desc._oldType !== desc.type || desc.visib === VisibilityType.INVISIBLE) {
             this.createElement(par, desc);
         }
 
-        let d = desc._pixi!;
+        const d = desc._pixi;
+        if (d === undefined) return;
 
         if (desc.offset !== undefined) {
             d.position.set(pos.x + desc.offset.x, pos.y + desc.offset.y);

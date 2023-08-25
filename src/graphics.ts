@@ -53,6 +53,8 @@ export interface ColorableElement {
 }
 
 export enum VisibilityType {
+    // Never visible, by anyone!
+    INVISIBLE,
     // You only see one thing when you see it! seems stupid but you can also remember things
     NORMAL,
     // A player can always see itself, even with no light, "I think therefore I am"
@@ -78,12 +80,15 @@ export enum ImageScaleMode {
     REAL,
     // 1 pixel = 1*gridSize*scale pixels
     GRID,
+    // scale = 1 => image will be 1 grid in width
+    CONSTRAINED,
 }
 
 // TODO: create a shared resources resource and put textures in them (then put backgrounds in it!).
 export interface ImageElement extends DisplayElement, AnchorableElement {
     type: ElementType.IMAGE;
-    scale: ImageScaleMode;
+    scaleMode: ImageScaleMode;
+    scale: number,
     texture: {// external
         type: 'external';
         value: FileIndex;

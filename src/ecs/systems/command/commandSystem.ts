@@ -90,7 +90,7 @@ export class CommandSystem implements System {
     }
 
     private emit(command: Command, share: boolean=false, isLogging: boolean=false): CommandResult {
-        // console.log("EMIT", JSON.stringify(command));
+        // console.log("EMIT", JSON.stringify(command), isLogging);
 
         let kind = this.commands.get(command.kind);
         if (kind === undefined) {

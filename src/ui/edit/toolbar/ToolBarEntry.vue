@@ -47,7 +47,7 @@ export default defineComponent({
             const cc = customClass.value;
             const a = [];
 
-            a.push(cc.color ?? 'toolbar-btn')
+            a.push(cc.color ?? 'btn-toolbar-entry')
 
             if (toolName.value === currentTool.value) {
                 a.push(cc.activeName ?? 'active');
@@ -66,7 +66,7 @@ export default defineComponent({
 </script>
 
 <style lang="scss">
-.toolbar-btn {
+.hprior.toolbar-btn {
   color: #fff;
   background-color: #2C3E50;
   border-color: #2C3E50;

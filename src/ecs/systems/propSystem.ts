@@ -200,7 +200,7 @@ export class PropSystem implements System {
                 type: ElementType.IMAGE,
                 ignore: false,
                 priority: DisplayPrecedence.PROP,
-                scale: ImageScaleMode.GRID,
+                scaleMode: ImageScaleMode.GRID,
                 visib: VisibilityType.REMEMBER,
                 texture: {
                     type: 'raw',
@@ -318,7 +318,7 @@ export class CreatePropToolPart implements ToolPart {
                     type: ElementType.IMAGE,
                     ignore: false,
                     priority: DisplayPrecedence.PROP,
-                    scale: ImageScaleMode.GRID,
+                    scaleMode: ImageScaleMode.GRID,
                     visib: VisibilityType.ALWAYS_VISIBLE,
                     texture: {
                         type: 'raw',

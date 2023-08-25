@@ -1,5 +1,4 @@
 import { SHARED_TYPE, TransformComponent, TRANSFORM_TYPE } from "@/ecs/component";
-import { GridResource } from "@/ecs/resource";
 import { SerializeData, World } from "@/ecs/World";
 import { STANDARD_GRID_OPTIONS } from "@/game/grid";
 import { Aabb } from "@/geometry/aabb";
@@ -10,18 +9,20 @@ import { FileIndex } from "@/map/FileDb";
 import { arrayRemoveElem } from "@/util/array";
 import { BitSet } from "@/util/bitSet";
 import { DESTROY_ALL, DESTROY_MIN, loadTexture } from "@/util/pixi";
-import { BaseTexture, BLEND_MODES, BufferResource, Container, FORMATS, Matrix, RenderTexture, Sprite, Texture } from "pixi.js";
+import { BaseTexture, BitmapText, BLEND_MODES, BufferResource, Container, FORMATS, ImageBitmapResource, Matrix, RenderTexture, Sprite, Texture } from "pixi.js";
 import { GRID_TYPE } from "../../gridSystem";
 import { EVENT_VISIBILITY_SPREAD, VisibilitySpreadData } from "../../playerSystem";
 import { BigStorageSystem, BIG_STORAGE_TYPE } from "../files/bigStorageSystem";
-import { InteractionComponent, INTERACTION_TYPE, Shape, shapeAabb, shapeObb, shapeToAabb } from "../InteractionSystem";
+import { INTERACTION_TYPE, Shape, shapeAabb, shapeObb, shapeToAabb } from "../InteractionSystem";
 import { Logger, LogLevel } from "../log/Logger";
 import { getLogger } from "../log/LogSystem";
 import { PixiDisplayElement, PixiGraphicComponent, PixiGraphicSystem } from "./pixiGraphicSystem";
 import { DepthFunc } from "./visibility/VisibilityPolygonElement";
+import { ShallowRef, shallowRef } from "vue";
 
 interface TextureEntry {
     elements: PixiImageElement[];
+    promise?: [promise: Promise<Texture<ImageBitmapResource>>, resolve: (tex: Texture<ImageBitmapResource>) => void];
     texture: Texture;
     pending: boolean;
 }
@@ -67,6 +68,24 @@ export class ImageRenderer {
             tex = el._renTex!;
         }
         el._pixi!.texture = tex;
+    }
+
+    getTexturePromise(id: FileIndex): Promise<Texture<ImageBitmapResource> | 'unused'> {
+        const entry = this.textureMap.get(id);
+        if (entry == undefined) return Promise.resolve('unused');
+        if (entry.promise !== undefined) return entry.promise[0];
+        let rresolve;
+        const promise = new Promise<Texture<ImageBitmapResource>>((resolve, reject) => {
+            if (!entry.pending) {
+                resolve(entry.texture as any);
+                return;
+            }
+            rresolve = resolve;
+        });
+        // This assumes that the function is called instantly (it seems to be working FOR NOW)
+        // god I hate js
+        entry.promise = [promise, rresolve!];
+        return promise;
     }
 
     private dropTexUsage(owner: number, el: PixiImageElement, tex: FileIndex): void {
@@ -162,7 +181,7 @@ export class ImageRenderer {
     }
 
 
-    private onTextureLoaded(index: FileIndex, tex: Texture): void {
+    private onTextureLoaded(index: FileIndex, tex: Texture<ImageBitmapResource>): void {
         const entry = this.textureMap.get(index);
         if (entry === undefined) return;
         if (!entry.pending) {
@@ -171,6 +190,11 @@ export class ImageRenderer {
         }
         entry.pending = false;
         entry.texture = tex;
+        if (entry.promise) {
+            const resolve = entry.promise[1];
+            entry.promise = undefined;
+            resolve(tex);
+        }
         const meta = this.fileSys.files.loadMeta(index, 'image') as ImageMeta | undefined;
         if (meta === undefined || meta.dims[0] != tex.width || meta.dims[1] != tex.height) {
             this.fileSys.files.saveMeta(index, 'image', {
@@ -179,8 +203,10 @@ export class ImageRenderer {
             } as ImageMeta);
         }
         for (const el of entry.elements) {
-            this.updateVisibility(el);
-            el._pixi!.scale.set(1, 1);
+            const graphic = this.world.getComponent(el._owner, 'graphic')!;
+            const trans = this.world.getComponent(el._owner, 'transform');
+            this.updateImage(graphic, el, {} as any /*unused*/, trans);
+
             this.repaintVisibility(el);
             this.sys.forceShapeUpdate(this.world.getComponent(el._owner, GRAPHIC_TYPE)!);
         }
@@ -197,10 +223,14 @@ export class ImageRenderer {
         dim.anchor.copyFrom(el.anchor);
         let sx = trans?.scale || 1;
         let sy = sx;
-        if (el.scale === ImageScaleMode.GRID) {
+        if (el.scaleMode === ImageScaleMode.GRID) {
             const gsize = this.requireGridSize(el);
             sx = gsize.x * this.sys.gridSize * sx;
             sy = gsize.y * this.sys.gridSize * sy;
+        } else if (el.scaleMode === ImageScaleMode.CONSTRAINED) {
+            sx = this.sys.gridSize * el.scale / dim.texture.width;
+            sy = this.sys.gridSize * el.scale / dim.texture.height;
+            console.log('SCALE: ', sx, sy);
         }
         dim.rotation = trans?.rotation || 0;
         dim.scale.set(sx, sy);

@@ -47,6 +47,7 @@ export default defineComponent({
     bodyClass: { default: '', type: [Object, String] },
     footerClass: { default: '', type: [Object, String] },
   },
+  emits: ['show', 'shown', 'hide', 'hidden', 'update:modelValue'],
   setup(props, context) {
     const { modelValue, centerVertical, scrollable } = toRefs(props);
     const bootstrapModal = ref<HTMLDivElement>();
@@ -68,16 +69,20 @@ export default defineComponent({
 
       htmlModal.addEventListener('show.bs.modal', () => {
         onShowHide(true);
+        context.emit('show');
       });
       htmlModal.addEventListener('shown.bs.modal', () => {
+        context.emit('shown');
         if (!modelValue.value) {
           modal.value!.hide();
         }
       });
       htmlModal.addEventListener('hide.bs.modal', () => {
+        context.emit('hide');
         onShowHide(false);
       });
       htmlModal.addEventListener('hidden.bs.modal', () => {
+        context.emit('hidden');
         if (modelValue.value) {
           modal.value!.hide();
         }
@@ -92,7 +97,6 @@ export default defineComponent({
     });
 
     watch(modelValue, val => {
-      //console.log("ONWATCH: ", val);
       if (val) {
         modal.value?.show();
       } else {

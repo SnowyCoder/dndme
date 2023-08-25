@@ -1,4 +1,4 @@
-import { Component as VComponent, customRef, DefineComponent, getCurrentInstance, inject, onUnmounted, proxyRefs, reactive, ShallowReactive, shallowRef, ShallowRef, toRef, triggerRef, watch } from "vue";
+import { Component as VComponent, customRef, DefineComponent, getCurrentInstance, inject, onUnmounted, proxyRefs, reactive, ShallowReactive, shallowRef, ShallowRef, toRef, triggerRef, watch, Ref } from "vue";
 import { Component, MultiComponent } from "../ecs/component";
 import { World } from "../ecs/World";
 import { arrayRemoveElem } from "../util/array";
@@ -7,21 +7,14 @@ import { ListenerFn } from "../util/safeEventEmitter";
 import { objectClone, randombytes } from "../util/jsobj";
 import { EcsStorage } from "../ecs/Storage";
 import { utils } from "pixi.js";
-import { ComponentForType, ComponentType, RegisteredResource, ResourceForType, ResourceType } from "@/ecs/TypeRegistry";
+import { ComponentForType, ComponentType, ResourceForType, ResourceType } from "@/ecs/TypeRegistry";
 import { getLogger } from "@/ecs/systems/back/log/Logger";
+import { executeAndLogCommand } from "@/ecs/systems/command/command";
+import { ResourceEditCommand } from "@/ecs/systems/command/resourceEditCommand";
 
 export type VueComponent = VComponent | DefineComponent;
 
 export const isNull = Symbol('isNull');
-
-
-export const networkStatus = reactive({
-    isOnline: navigator.onLine,
-});
-
-window.addEventListener('online', () => networkStatus.isOnline = true);
-window.addEventListener('offline', () => networkStatus.isOnline = false);
-
 
 export function uniqueId(category: string | undefined) {
     return randombytes(16).toString('hex') + (category ? '-' + category : '');
@@ -50,6 +43,17 @@ export function useEvent(world: World, eventName: string, callback: ListenerFn, 
     });
 }
 
+export enum ResourceUpdateHistory {
+    // When the resource is edited a command is created and registered in the
+    // command history system, this way the user will be able to press undo and cancel the command
+    REGISTER_COMMAND_IN_HISTORY,
+    // When the resource is edited it WON'T be registered in the command history system, useful for quick
+    // changes that aren't needed for propagation.
+    QUICK_UPDATE,
+    // Resource edits will result in errors!
+    READONLY,
+}
+
 export function useResource<T extends ResourceType>(world: World, name: T): ShallowRef<ResourceForType<T>> {
     const res = stupidRef(world.getResource(name));
     const sys = world.requireSystem('declarative_listener');
@@ -64,7 +68,14 @@ export function useResource<T extends ResourceType>(world: World, name: T): Shal
     return res as ShallowRef<ResourceForType<T>>;
 }
 
-export function useResourceReactive<R extends ResourceType, P extends Partial<ResourceForType<R>>>(world: World, resName: R, properties: P): ShallowReactive<ResourceForType<R> & P & {[isNull]: boolean}> {
+
+type WithDefaults<T, D extends Partial<Record<keyof T, any>>> = {
+    [K in keyof D]: K extends keyof T
+      ? T[K] | D[K]
+      : never
+}
+
+export function useResourceReactive<R extends ResourceType, P extends Partial<Record<keyof ResourceForType<R>, any>>>(world: World, resName: R, properties: P, updateHistory: ResourceUpdateHistory): ShallowReactive<WithDefaults<ResourceForType<R>, P> & {[isNull]: boolean}> {
     // This, my friends, is how we create abstraction.
     // This is how we teach stones to think, processors to have multiple programs and javascript to do useful shit
     // Ok, enough with that, how does this work?
@@ -85,6 +96,9 @@ export function useResourceReactive<R extends ResourceType, P extends Partial<Re
                     return (v as any)[name];
                 },
                 set(newVal) {
+                    if (updateHistory === ResourceUpdateHistory.READONLY) {
+                        throw new Error('Tried to edit readonly reactive ref resource');
+                    }
                     const changes = {} as any;
                     changes[name] = newVal;
                     const v = res.value;
@@ -93,7 +107,19 @@ export function useResourceReactive<R extends ResourceType, P extends Partial<Re
                         const res = Object.assign({ type: resName }, objectClone(properties), changes);
                         world.addResource(res);
                     } else {
-                        world.editResource(resName, changes);
+                        if (updateHistory == ResourceUpdateHistory.QUICK_UPDATE) {
+                            world.editResource(resName, changes);
+                        } else if (updateHistory == ResourceUpdateHistory.REGISTER_COMMAND_IN_HISTORY) {
+                            const edit = {} as any;
+                            edit[resName] = changes;
+                            const command = {
+                                kind: 'redit',
+                                edit: edit,
+                                add: [],
+                                remove: [],
+                            } satisfies ResourceEditCommand;
+                            executeAndLogCommand(world, command);
+                        }
                     }
                 },
             }
@@ -144,13 +170,14 @@ export function useResourceReactive<R extends ResourceType, P extends Partial<Re
     return reactiveRes as any;// more or less
 }
 
-export function useResourcePiece<T extends ResourceType, K extends keyof ResourceForType<T>>(name: T, attrName: K, defValue: ResourceForType<T>[K]):  ShallowRef<ResourceForType<T>[K]> {
+export function useResourcePiece<T extends ResourceType, K extends keyof ResourceForType<T>>(name: T, attrName: K, defValue: ResourceForType<T>[K], updateHistory: ResourceUpdateHistory):  Ref<ResourceForType<T>[K]> {
     const world = (inject('world') as ShallowRef<World>).value;
 
-    const properties = {} as any;
+    const properties = {} as Record<K, ResourceForType<T>[K]>;
     properties[attrName] = defValue;
 
-    const res = useResourceReactive(world, name, properties)
+    // message to typescript: SHUT UP NERD
+    const res = useResourceReactive(world, name, properties as any, updateHistory);
 
     return toRef(res, attrName);
 }

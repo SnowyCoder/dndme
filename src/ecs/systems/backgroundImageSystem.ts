@@ -67,7 +67,8 @@ export class BackgroundImageSystem implements System {
                 type: ElementType.IMAGE,
                 ignore: false,
                 priority: DisplayPrecedence.BACKGROUND,
-                scale: ImageScaleMode.REAL,
+                scale: 1,
+                scaleMode: ImageScaleMode.REAL,
                 visib: VisibilityType.REMEMBER_BIT_BY_BIT,
                 visMap: bkgImg.visMap,
                 texture: {

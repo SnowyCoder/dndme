@@ -2,7 +2,7 @@
   <div>
     <textarea placeholder="Write something here..." v-model.lazy="note" :readonly="!isMaster" class="form-control hprior ecs-note_textarea"/>
     <Modal title="Note" v-model="isFullscreen" hide-header
-           dialog-class="modal-fullscreen" content-class="modal-content-dark">
+           dialog-class="modal-fullscreen">
       <textarea placeholder="Write something here..." v-model.lazy="note" :readonly="!isMaster"
                 style="height: 100%; width: 100%; resize: none;" class="hprior ecs-note_textarea"/>
     </Modal>
@@ -35,10 +35,6 @@ export default defineComponent({
 </script>
 
 <style>
-
-.modal-content-dark {
-  background-color: var(--bs-body-color) !important;
-}
 
 .hprior.ecs-note_textarea {
   color: white !important;

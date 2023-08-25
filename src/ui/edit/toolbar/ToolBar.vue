@@ -60,8 +60,7 @@ const toggleSidebar = () => {
 </script>
 
 <style lang="scss">
-@import "@/style/vars";
-@import "bootstrap/scss/mixins";
+@import "bootstrap/scss/bootstrap";
 
 .plz-prioritize.undo-redo-btn.disabled, .plz-prioritize.undo-redo-btn:disabled {
   background-color: #343a40;

@@ -3,7 +3,7 @@ import { DEFAULT_LIGHT_SETTINGS, LightSettings, LIGHT_SETTINGS_TYPE, LOCAL_LIGHT
 import { computed } from "vue";
 import CButton from "@/ui/util/CButton.vue";
 import EditableColor from "@/ui/util/EditableColor.vue";
-import { useResourcePiece, useResourceReactive, useWorld } from "@/ui/vue";
+import { ResourceUpdateHistory, useResourcePiece, useResourceReactive, useWorld } from "@/ui/vue";
 
 const world = useWorld();
 
@@ -11,9 +11,9 @@ const light = useResourceReactive(world, LIGHT_SETTINGS_TYPE, {
   ambientLight: 0,
   needsLight: true,
   background: 0,
-});
+}, ResourceUpdateHistory.REGISTER_COMMAND_IN_HISTORY);
 
-const visionType = useResourcePiece(LOCAL_LIGHT_SETTINGS_TYPE, 'visionType', 'dm');
+const visionType = useResourcePiece(LOCAL_LIGHT_SETTINGS_TYPE, 'visionType', 'dm', ResourceUpdateHistory.REGISTER_COMMAND_IN_HISTORY);
 const roleplayVision = computed({
   get: () => {
     return visionType.value === 'rp';

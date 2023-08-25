@@ -1,6 +1,6 @@
 import { componentClone } from "@/ecs/ecsUtil";
 import { ImageMeta } from "@/graphics";
-import { loadTextureHTML } from "@/util/pixi";
+import { loadTexture } from "@/util/pixi";
 import { decode } from "@msgpack/msgpack";
 import JSZip from "jszip";
 import { SHARED_TYPE } from "../ecs/component";
@@ -140,10 +140,10 @@ export async function rewriteCompatibility(zip: JSZip, filedb: FileDb, progress:
                         imageType = img.imageType;
                         delete img.imageType;
                     }
-                    let htmlImage = await loadTextureHTML(filedb.load(img.image)!, imageType);
+                    let htmlImage = await loadTexture(filedb.load(img.image)!, imageType);
 
                     filedb.saveMeta(img.image, "image", {
-                        dims: [htmlImage.naturalWidth, htmlImage.naturalHeight],
+                        dims: [htmlImage.width, htmlImage.height],
                         format: imageType,
                     } as ImageMeta);
                     console.log("Adjusted image: ", img);

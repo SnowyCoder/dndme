@@ -40,11 +40,9 @@ import EcsComponentWrapper from "./CompWrapper.vue";
 
 import {
   SELECTION_UI_TYPE,
-  SelectionUiData,
-  SelectionUiSystem,
 } from "../../ecs/systems/back/SelectionUiSystem";
 
-import { defineComponent, inject, ShallowRef, shallowRef } from "vue";
+import { defineComponent, shallowRef } from "vue";
 import { uniqueId, useResource, useWorld } from "../vue";
 
 export default defineComponent({

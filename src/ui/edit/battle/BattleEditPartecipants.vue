@@ -6,15 +6,15 @@
         </li>
     </ul>
 
-    <button class="btn btn-primary btn-xl" @click="startBattle">{{ battleStarted ? 'Change partecipants' : 'Start battle' }}</button>
-    <button v-if="battleStarted" class="btn btn-secondary btn-xl" @click="$emit('back')">Go back</button>
+    <button class="btn btn-outline-primary btn-xl" @click="startBattle">{{ battleStarted ? 'Change partecipants' : 'Start battle' }}</button>
+    <button v-if="battleStarted" class="btn btn-outline-secondary btn-xl" @click="$emit('back')">Go back</button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, toRefs } from "vue";
 import { SELECTION_TYPE } from "../../../ecs/systems/back/SelectionSystem";
-import { stupidRef, useEvent, useResourceReactive, useWorld } from "../../vue";
+import { stupidRef, useEvent, useWorld } from "../../vue";
 import { NAME_TYPE } from "../../../ecs/component";
 import { BATTLE_TYPE, STATS_TYPE } from "../../../ecs/systems/BattleSystem";
 
@@ -48,10 +48,6 @@ const entities = computed(() => {
         class: isBattle ? (added ? 'list-group-item-success' : 'list-group-item-danger') : '',
       }
     });
-});
-
-const battleRes = useResourceReactive(world, BATTLE_TYPE, {
-  turnOf: undefined,
 });
 
 const startBattle = () => {

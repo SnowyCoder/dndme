@@ -1,10 +1,10 @@
 import {System} from "../../System";
 import {World} from "../../World";
-import { GAME_CLOCK_TYPE, GameClockResource } from "@/ecs/systems/back/pixi/pixiBoardSystem";
+import { GAME_CLOCK_TYPE } from "@/ecs/systems/back/pixi/pixiBoardSystem";
 import {Command} from "./command";
 import {COMMAND_TYPE, CommandResult, CommandSystem, EVENT_COMMAND_EMIT, EVENT_COMMAND_HISTORY_LOG} from "./commandSystem";
 import { BigStorageSystem, BIG_STORAGE_TYPE } from "../back/files/bigStorageSystem";
-import { FileDb, FileIndex } from "@/map/FileDb";
+import { FileIndex } from "@/map/FileDb";
 
 const HISTORY_LIMIT = 128;
 
@@ -54,7 +54,8 @@ export class CommandHistorySystem implements System {
 
     private onCommandPreExecute(isLogging: boolean): void {
         if (this.registeredFiles !== undefined) {
-            console.error("unfinished command!");
+            console.error("unfinished command! please if logging is enabled call onLog after onCommit");
+            debugger;
         }
         this.registeredFiles = (isLogging || this.forceFileLogging) ? [] : undefined;
     }
@@ -69,7 +70,7 @@ export class CommandHistorySystem implements System {
 
     private destroyEntry(entry: HistoryEntry): void {
         setTimeout(() => {
-            for (const file of entry.files) {
+            for (const file of (entry.files ?? [])) {
                 this.fileSys.dropUse(this.fileKeeper, file);
             }
         }, 10);
@@ -175,18 +176,23 @@ export class CommandHistorySystem implements System {
     }
 
     logCommit(cmd: Command | undefined, partial: boolean): void {
-        // console.log("LOG", JSON.stringify(cmd));
-        if (cmd === undefined) {
-            if (!partial) {
-                this.closePartial();
-            }
-            return;
-        }
+        console.log("LOG", JSON.stringify(cmd));
+
         let files = new Array<FileIndex>();
         if (this.registeredFiles !== undefined) {
             // File registering enabled!
             files = this.registeredFiles;
             this.registeredFiles = undefined;
+        }
+
+        if (cmd === undefined) {
+            if (!partial) {
+                this.closePartial();
+            }
+            if (files != undefined && files.length > 0) {
+                throw new Error("Unexpected: final partial message posted with uncommited files!??")
+            }
+            return;
         }
 
         if (this.processPartial(cmd, partial)) {
@@ -224,7 +230,7 @@ export class CommandHistorySystem implements System {
             this.historyUndo({
                 cmd: this.executeEmit(cmd.cmd, true),
                 timestamp: cmd.timestamp,
-                files: this.registeredFiles!,
+                files: this.registeredFiles ?? [],
             });
             this.registeredFiles = undefined;
             this.notifyHistoryChange();
@@ -245,7 +251,7 @@ export class CommandHistorySystem implements System {
             this.historyRedo({
                 cmd: this.executeEmit(cmd.cmd, true),
                 timestamp: cmd.timestamp,
-                files: this.registeredFiles!,
+                files: this.registeredFiles ?? [],
             });
             this.registeredFiles = undefined;
             this.notifyHistoryChange();

@@ -49,7 +49,8 @@ export default defineComponent({
 </script>
 
 <style lang="scss">
-@import "@/style/vars";
+@import "bootstrap/scss/functions";
+@import "bootstrap/scss/variables";
 
 .util_editable-text_div {
   position: relative;
@@ -81,7 +82,7 @@ export default defineComponent({
 }
 
 .hprior.util_editable-text_input {
-  color: white;
+  color: inherit;
   padding: 3px 5px;
   margin: 0;
   border-bottom: solid 1px #eeeeee;

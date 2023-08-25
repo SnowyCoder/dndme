@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { CREATION_INFO_TYPE } from "@/ecs/resource";
 import { PropType, VueElementConstructor } from "vue";
-import { useResourcePiece } from "@/ui/vue";
+import { ResourceUpdateHistory, useResourcePiece } from "@/ui/vue";
 
 const props = defineProps<{
   additionalOptions: PropType<VueElementConstructor>,
 }>();
 
-const exitAfterCreation = useResourcePiece(CREATION_INFO_TYPE, 'exitAfterCreation', true);
+const exitAfterCreation = useResourcePiece(CREATION_INFO_TYPE, 'exitAfterCreation', true, ResourceUpdateHistory.QUICK_UPDATE);
 </script>
 
 <template>

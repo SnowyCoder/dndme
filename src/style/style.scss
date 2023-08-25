@@ -9,7 +9,8 @@
 }
 
 
-@import './bootstrap_custom.scss';
+@import 'bootstrap/scss/bootstrap.scss';
+@import 'cropperjs/dist/cropper.css';
 
 
 :root {
@@ -95,4 +96,14 @@ body {
     to {
         transform: rotate(359deg);
     }
+}
+
+.hidden {
+    visibility: hidden;
+}
+
+$mynewcolor: $gray-200;
+
+.btn-toolbar-entry {
+    @include button-outline-variant($mynewcolor, #222222, lighten($mynewcolor,5%), $mynewcolor);
 }
