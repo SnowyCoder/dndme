@@ -20,7 +20,7 @@
 
       <div class="d-flex align-items-center">
         Size
-        <editable-range v-model="gridRes.size" :min="10" :max="512"></editable-range>
+        <editable-range v-model="gridSize" :min="0.5" :max="2" :step="0.001"></editable-range>
       </div>
 
       <div class="d-flex align-items-center">
@@ -49,6 +49,10 @@
         <editable-range v-model="gridRes.thick" :min="0" :max="200"></editable-range>
       </div>
 
+      <div v-if="gridSize < 0.5" class="alert alert-warning" role="alert">
+        This tool is not design to have a grid this small, you'll see any issue from blurry text to pixelated walls. Please consider scaling the images instead to have a better experience
+      </div>
+
       <button class="btn btn-primary" title="Export" @click="isExporting = true">
         Export
       </button>
@@ -71,7 +75,7 @@
 import HexagonIcon from "@/ui/icons/HexagonIcon.vue";
 import EditableText from "@/ui/util/EditableText.vue";
 
-import { GridType } from "@/game/grid";
+import { GridType, STANDARD_GRID_OPTIONS } from "@/game/grid";
 
 import { computed, ref, shallowRef, watch } from "vue";
 import EditableRange from "@/ui/util/EditableRange.vue";
@@ -139,6 +143,11 @@ const gridUnit = computed({
     gridRes.unitName = res.name;
     gridRes.unitMul = res.mul;
   }
+});
+
+const gridSize = computed({
+  get: () => gridRes.size / STANDARD_GRID_OPTIONS.size,
+  set: (x) => gridRes.size = x * STANDARD_GRID_OPTIONS.size,
 })
 
 const onExport = () => {

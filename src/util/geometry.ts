@@ -36,27 +36,31 @@ export function distSquared2d(x1: number, y1: number, x2: number, y2: number): n
     return x * x + y * y
 }
 
-export function projectPointOnSegment(ax: number, ay: number, bx: number, by: number, px: number, py: number): RPoint | undefined {
+export function projectPointOnLine(ax: number, ay: number, bx: number, by: number, px: number, py: number): RPoint {
     if (ax == bx && ay == ay) ax -= 0.00001;
 
     let u = ((px - ax) * (bx - ax)) + ((py - ay) * (by - ay));
 
-    let udenom = Math.pow(bx - ax, 2) + Math.pow(by - ay, 2);
+    const udenom = Math.pow(bx - ax, 2) + Math.pow(by - ay, 2);
 
     u /= udenom;
 
-    let rx = ax + (u * (bx - ax));
-    let ry = ay + (u * (by - ay));
+    const rx = ax + (u * (bx - ax));
+    const ry = ay + (u * (by - ay));
 
-    let minx, maxx, miny, maxy;
+    return [rx, ry];
+}
 
-    minx = Math.min(ax, bx);
-    maxx = Math.max(ax, bx);
+export function projectPointOnSegment(ax: number, ay: number, bx: number, by: number, px: number, py: number): RPoint | undefined {
+    const [rx, ry] = projectPointOnLine(ax, ay, bx, by, px, py);
 
-    miny = Math.min(ay, by);
-    maxy = Math.max(ay, by);
+    const minx = Math.min(ax, bx);
+    const maxx = Math.max(ax, bx);
 
-    let isValid = (rx >= minx && rx <= maxx) && (ry >= miny && ry <= maxy);
+    const miny = Math.min(ay, by);
+    const maxy = Math.max(ay, by);
+
+    const isValid = (rx >= minx && rx <= maxx) && (ry >= miny && ry <= maxy);
 
     return isValid ? [rx, ry] : undefined;
 }

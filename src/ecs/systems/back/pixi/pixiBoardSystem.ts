@@ -54,7 +54,9 @@ export type PointerUpEvent = PointerInteractionEvent & HasLastPosition & Consuma
 };
 export type PointerMoveEvent = PointerInteractionEvent & HasLastPosition & {
     canBecomeClick: boolean;
+    cursorStyle: string;
 };
+
 export type PointerRightDownEvent = PointerInteractionEvent & ConsumableEvent;
 export type PointerRightUpEvent = PointerInteractionEvent & ConsumableEvent;
 export type PointerClickEvent = PointerInteractionEvent & ConsumableEvent;
@@ -434,9 +436,12 @@ export class PixiBoardSystem implements System {
                 x: this.mouseLastX, y: this.mouseLastY,
             };
             pme.canBecomeClick = pdata === undefined ? false : this.canBecomeClick(pdata, pos);
+            pme.cursorStyle = 'inherit';
             this.world.events.emit(PointerEvents.POINTER_MOVE, pme);
             this.mouseLastX = pos.x;
             this.mouseLastY = pos.y;
+            console.log(pme.cursorStyle);
+            this.renderer.view.style!.cursor = pme.cursorStyle;
         }
 
         if (pdata === undefined) return;

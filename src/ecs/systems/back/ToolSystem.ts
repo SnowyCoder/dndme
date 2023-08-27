@@ -19,6 +19,7 @@ import ToolBarEntryInspect from "@/ui/edit/toolbar/ToolBarEntryInspect.vue";
 import { SIDEBAR_TYPE, ToolbarItemComponent, TOOLBAR_ITEM_TYPE } from "../toolbarSystem";
 
 import { VueComponent } from "@/ui/vue";
+import { TransformToolPart } from "@/ecs/tools/transform";
 
 export interface ToolPart {
     readonly name: string;
@@ -120,10 +121,11 @@ export class ToolSystem implements System {
         this.addToolPart(new InteractPart(world));
         this.addToolPart(new SelectPart(world));
         this.addToolPart(new MeasureToolPart(world));
+        this.addToolPart(new TransformToolPart(world));
         this.addToolPart(new FlagToolPart('creation_flag'));
 
         this.addTool(ToolType.INSPECT, {
-            parts: ['space_pan', 'select', 'touch_pan', 'interact'],
+            parts: ['space_pan', 'transform', 'select', 'touch_pan', 'interact'],
             sideBar: EntityInspectComponent,
             toolbarEntry: {
                 customElement: ToolBarEntryInspect,

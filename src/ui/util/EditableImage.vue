@@ -211,7 +211,7 @@ function removeImage() {
   background-color: transparent !important;
 
   border-radius: 50%;
-  
+
   padding: 0.125rem;
   margin-left: 0.5em;
 

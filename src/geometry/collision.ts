@@ -160,8 +160,8 @@ export function overlapLineVsPolygon(line: Line, poly: number[]) {
 }
 
 export function rotatePointByOrig(o: IPoint, rot: number, p: IPoint): IPoint {
-    let s = Math.sin(-rot);
-    let c = Math.cos(-rot);
+    let s = Math.sin(rot);
+    let c = Math.cos(rot);
 
     let transX = p.x - o.x;
     let transY = p.y - o.y;
@@ -201,8 +201,9 @@ export function computeObbPoints(aabb: Aabb, rot: number, origin?: IPoint): numb
     };
 
     for (let i = 0; i < 4; i++) {
-        let minX = (i & 1);
+        // Should be XY: 00, 01, 11, 10
         let minY = (i & 2) >>> 1;
+        let minX = (i & 1) ^ minY;
 
         let p = rotatePointByOrig(o, rot, {
             x: minX ? aabb.minX : aabb.maxX,
