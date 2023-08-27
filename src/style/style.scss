@@ -105,5 +105,6 @@ body {
 $mynewcolor: $gray-200;
 
 .btn-toolbar-entry {
+    border: 0;
     @include button-outline-variant($mynewcolor, #222222, lighten($mynewcolor,5%), $mynewcolor);
 }

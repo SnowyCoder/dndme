@@ -124,8 +124,8 @@ function onCrop(): void {
       <button type="button" class="btn btn-outline-danger me-auto" @click="isOpen = false">Cancel</button>
       <div class="btn-group" role="group" aria-label="Basic example">
         <button type="button" class="btn btn-outline-primary" @click="cropper?.rotate(45)"><i class="fas fa-undo-alt" /></button>
-        <button type="button" class="btn btn-outline-primary" @click="cropper?.scaleX(-1)"><i class="fas fa-arrows-alt-h" /></button>
-        <button type="button" class="btn btn-outline-primary" @click="cropper?.scaleY(-1)"><i class="fas fa-arrows-alt-v" /></button>
+        <button type="button" class="btn btn-outline-primary" @click="cropper?.scaleX(-cropper.getData().scaleX)"><i class="fas fa-arrows-alt-h" /></button>
+        <button type="button" class="btn btn-outline-primary" @click="cropper?.scaleY(-cropper.getData().scaleY)"><i class="fas fa-arrows-alt-v" /></button>
       </div>
       <button type="button" class="btn btn-outline-primary ms-auto" @click="onCrop">Crop</button>
     </div>

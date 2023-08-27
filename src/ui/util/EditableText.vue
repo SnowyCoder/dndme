@@ -49,8 +49,6 @@ export default defineComponent({
 </script>
 
 <style lang="scss">
-@import "bootstrap/scss/functions";
-@import "bootstrap/scss/variables";
 
 .util_editable-text_div {
   position: relative;
@@ -76,7 +74,7 @@ export default defineComponent({
     transition: width 0.3s;
   }
   &::placeholder {
-    color: $input-placeholder-color;
+    color: var(--bs-secondary-color);
     opacity: 1;
   }
 }

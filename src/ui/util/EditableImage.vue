@@ -1,6 +1,7 @@
 <template>
   <canvas ref="previewCanvas" class="util_eimage" width="128" height="128" style="width: 7rem"
         @click="onClick" @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop"
+        v-tooltip.right="'Upload image'"
         :class="{
           'util_eimage_drag': isDragging,
         }">
@@ -16,7 +17,7 @@
 <script setup lang="ts">
 
 import { ref, toRefs, watch, watchEffect } from 'vue';
-import { useWorld } from '../vue';
+import { useWorld, vTooltip } from '../vue';
 import { FileIndex } from '@/map/FileDb';
 import { ImageRenderer } from '@/ecs/systems/back/pixi/ImageRenderer';
 import ImageCropper from './ImageCropper.vue';
@@ -116,10 +117,20 @@ watch(modelValue, value => {
 }, { immediate: true})
 
 
-const isFullscreen = ref(false);
 
 function onClick() {
-  isFullscreen.value = true;
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*'
+
+  input.onchange = e => {
+    const f = input.files;
+    if (f == null || f.length == 0) return;
+
+    imgBlob.value = f[0];
+  }
+
+  input.click();
 }
 
 const isDragging = ref(false);
@@ -150,7 +161,6 @@ async function onDrop(event: DragEvent) {
   if (res.length === 0) return;
   const file = res[0];
   if (!file.type.startsWith('image/')) return;
-  console.log("Showing!");
 
   imgBlob.value = file;
 }
@@ -194,7 +204,7 @@ function removeImage() {
 
 </script>
 
-<style>
+<style lang="scss">
 .util_eimage {
   aspect-ratio: 1 / 1;
 
@@ -206,6 +216,10 @@ function removeImage() {
   margin-left: 0.5em;
 
   transition: 0.1s filter linear, 0.1s -webkit-filter linear;
+
+  &:hover {
+    filter: blur(5px) brightness(50%);
+  }
 }
 
 .util_eimage_drag {

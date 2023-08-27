@@ -28,7 +28,7 @@ const VERSION = __COMMIT_HASH__;
   display: inline-block;
   width: 32px;
   height: 32px;
-  background-image: url("@/assets/GitHub-Mark-Light-32px.png");
+  background-image: url("../../assets/GitHub-Mark-Light-32px.png");
 }
 
 .footer_github:hover {

@@ -190,7 +190,6 @@ export default defineComponent({
 </script>
 
 <style lang="scss">
-@import 'bootstrap';
 
 .battle-name {
   transition: color 0.4s;
@@ -226,7 +225,7 @@ export default defineComponent({
   }
   & > :first-child .btn {
     &:first-child {
-      border-top-left-radius: $border-radius;
+      border-top-left-radius: var(--bs-border-radius);
     }
     &:last-child {
       border-top-right-radius: 0.25rem;
@@ -234,7 +233,7 @@ export default defineComponent({
   }
   & > :last-child .btn {
     &:first-child {
-      border-bottom-left-radius: $border-radius;
+      border-bottom-left-radius: var(--bs-border-radius);
     }
     &:last-child {
       border-bottom-right-radius: 0.25rem;

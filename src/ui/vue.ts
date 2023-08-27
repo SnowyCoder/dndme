@@ -1,4 +1,4 @@
-import { Component as VComponent, customRef, DefineComponent, getCurrentInstance, inject, onUnmounted, proxyRefs, reactive, ShallowReactive, shallowRef, ShallowRef, toRef, triggerRef, watch, Ref } from "vue";
+import { Component as VComponent, customRef, DefineComponent, getCurrentInstance, inject, onUnmounted, proxyRefs, reactive, ShallowReactive, shallowRef, ShallowRef, toRef, triggerRef, watch, Ref, Directive } from "vue";
 import { Component, MultiComponent } from "../ecs/component";
 import { World } from "../ecs/World";
 import { arrayRemoveElem } from "../util/array";
@@ -11,6 +11,7 @@ import { ComponentForType, ComponentType, ResourceForType, ResourceType } from "
 import { getLogger } from "@/ecs/systems/back/log/Logger";
 import { executeAndLogCommand } from "@/ecs/systems/command/command";
 import { ResourceEditCommand } from "@/ecs/systems/command/resourceEditCommand";
+import { Tooltip } from "bootstrap";
 
 export type VueComponent = VComponent | DefineComponent;
 
@@ -268,4 +269,13 @@ export function useWorld(): World {
         throw new Error("World is undefined!");
     }
     return res.value;
+}
+
+export const vTooltip: Directive<HTMLElement, string> = {
+    mounted(el, binding) {
+        new Tooltip(el, {
+            placement: binding.arg as Tooltip.PopoverPlacement || 'top',
+            title: binding.value
+        });
+    }
 }
