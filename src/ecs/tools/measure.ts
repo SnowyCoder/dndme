@@ -14,7 +14,6 @@ export type MEASURE_TYPE = typeof MEASURE_TYPE;
 export class MeasureToolPart implements ToolPart {
     readonly name = MEASURE_TYPE;
     private readonly world: World;
-    private readonly keyboard: KeyboardResource;
 
     private startMeasure: IPoint = new Point();
     private lastMeasure: IPoint = new Point();
@@ -22,7 +21,6 @@ export class MeasureToolPart implements ToolPart {
 
     constructor(world: World) {
         this.world = world;
-        this.keyboard = world.getResource(KEYBOARD_TYPE)!;
     }
 
     pushRes() {

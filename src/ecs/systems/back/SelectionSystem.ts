@@ -12,6 +12,7 @@ import {Command, executeAndLogCommand} from "../command/command";
 import {EVENT_COMMAND_LOG, EVENT_COMMAND_PARTIAL_END} from "../command/commandSystem";
 import {WALL_TYPE} from "../wallSystem";
 import {SingleEcsStorage} from "../../Storage";
+import { ComponentForType, ComponentType } from "@/ecs/TypeRegistry";
 
 interface TypeData {
     entities: Set<Component>;
@@ -25,7 +26,7 @@ export class SelectionSystem implements System {
     readonly dependencies = [] as string[];
 
     selectedEntities = new Set<number>();
-    dataByType = new Map<string, TypeData>();
+    dataByType = new Map<ComponentType, TypeData>();
 
     private isTranslating: boolean = false;
     private translateDirty: boolean = false;
@@ -137,21 +138,20 @@ export class SelectionSystem implements System {
         this.removeEntities([entity]);
     }
 
-    clear(callListeners: boolean = true, update: boolean = true) {
-        if (callListeners) {
-            for (let id of this.selectedEntities) {
-                this.ecs.events.emit('selection_end', id);
-            }
-        }
+    clear(update: boolean = true) {
+        let ids = [...this.selectedEntities];
         this.selectedEntities.clear();
         this.dataByType.clear();
+        for (let id of ids) {
+            this.ecs.events.emit('selection_end', id);
+        }
         if (update) {
             this.update();
         }
     }
 
     setOnlyEntity(id: number): void {
-        this.clear(true, false);
+        this.clear(false);
         this.addEntities([id]);
     }
 
@@ -218,10 +218,10 @@ export class SelectionSystem implements System {
         if (update && count !== 0) this.update();
     }
 
-    getSelectedByType(type: string): Iterable<Component> {
+    getSelectedByType<T extends ComponentType>(type: T): Iterable<ComponentForType<T>> {
         let data = this.dataByType.get(type);
         if (data === undefined) return [];
-        return data.entities;
+        return data.entities as any;
     }
 
 
@@ -254,7 +254,7 @@ export class SelectionSystem implements System {
         else this.update();
     }
 
-    private getOrCreateData(type: string): TypeData {
+    private getOrCreateData(type: ComponentType): TypeData {
         let data = this.dataByType.get(type);
         if (data === undefined) {
             data = {
@@ -265,13 +265,13 @@ export class SelectionSystem implements System {
         return data;
     }
 
-    hasComponentType(type: string): boolean {
+    hasComponentType(type: ComponentType): boolean {
         let data = this.dataByType.get(type);
         if (data === undefined) return false;
         return data.entities.size > 0;
     }
 
-    hasEveryoneType(type: string): boolean {
+    hasEveryoneType(type: ComponentType): boolean {
         let data = this.dataByType.get(type);
         if (data === undefined) return false;
         return data.entities.size === this.selectedEntities.size;

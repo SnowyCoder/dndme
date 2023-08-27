@@ -334,7 +334,7 @@ export class ImageRenderer {
         let sx = trans?.scale || 1;
         let sy = trans?.scale || 1;
 
-        if (c.scale == ImageScaleMode.GRID) {
+        if (c.scaleMode == ImageScaleMode.GRID) {
             const gsize = this.requireGridSize(c);
             const grid = this.world.getResource(GRID_TYPE)!;
             sx = gsize.x * grid.size * sx;

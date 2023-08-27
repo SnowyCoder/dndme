@@ -176,7 +176,7 @@ export class CommandHistorySystem implements System {
     }
 
     logCommit(cmd: Command | undefined, partial: boolean): void {
-        console.log("LOG", JSON.stringify(cmd));
+        //console.log("LOG", JSON.stringify(cmd));
 
         let files = new Array<FileIndex>();
         if (this.registeredFiles !== undefined) {

@@ -1,12 +1,12 @@
 import {Aabb} from "../../geometry/aabb";
 import {World} from "../World";
-import {INTERACTION_TYPE, InteractionSystem, shapeAabb, shapeIntersect} from "../systems/back/InteractionSystem";
+import {INTERACTION_TYPE, shapeAabb, shapeIntersect} from "../systems/back/InteractionSystem";
 import {aabbSameOriginDifference} from "../../util/geometry";
 import {RECTANGULAR_SELECTION_TYPE, RectangularSelectionResource} from "../resource";
 import {SELECTION_TYPE, SelectionSystem} from "../systems/back/SelectionSystem";
 import {KEYBOARD_TYPE, KeyboardResource} from "../systems/back/KeyboardSystem";
 import { IPoint } from "@/geometry/point";
-import { Graphics, Point } from "pixi.js";
+import { Point } from "pixi.js";
 
 export class RectangularSelection {
     private readonly world: World;
@@ -22,12 +22,10 @@ export class RectangularSelection {
     entitiesSelected = new Set<number>();
     isMultiple: boolean = false;
 
-    display: Graphics;
 
     constructor(world: World) {
         this.world = world;
         this.keyboard = world.getResource(KEYBOARD_TYPE)!;
-        this.display = new Graphics();
 
         this.selectionSys = world.requireSystem(SELECTION_TYPE);
     }
@@ -119,6 +117,4 @@ export class RectangularSelection {
             this.onEntityLeave(c.entity);
         }
     }
-
-
 }

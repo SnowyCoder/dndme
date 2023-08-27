@@ -7,7 +7,7 @@ import { FileIndex } from "@/map/FileDb";
 import { emitCommand } from "../command/command";
 import { DeSpawnCommand } from "../command/despawnCommand";
 import { SpawnCommandKind } from "../command/spawnCommand";
-import { DeclarativeListenerSystem, DECLARATIVE_LISTENER_TYPE } from "./DeclarativeListenerSystem";
+import { DECLARATIVE_LISTENER_TYPE } from "./DeclarativeListenerSystem";
 import { BigStorageSystem, BIG_STORAGE_TYPE } from "./files/bigStorageSystem";
 import { ComponentType } from "@/ecs/TypeRegistry";
 

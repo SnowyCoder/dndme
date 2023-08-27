@@ -6,6 +6,7 @@ import { Component, NameComponent, NAME_TYPE } from "../../component";
 import { Resource } from "../../resource";
 import { LocalLightSettings, LOCAL_LIGHT_SETTINGS_TYPE } from "../lightSystem";
 import { IPoint } from "@/geometry/point";
+import { DECLARATIVE_LISTENER_TYPE } from "./DeclarativeListenerSystem";
 
 
 export interface NameAsLabelComponent extends Component {
@@ -17,7 +18,7 @@ export const NAME_AS_LABEL_TYPE = 'name_as_label';
 export type NAME_AS_LABEL_TYPE = typeof NAME_AS_LABEL_TYPE;
 export class NameAsLabelSystem implements System {
     readonly name = NAME_AS_LABEL_TYPE;
-    readonly dependencies = [GRAPHIC_TYPE];
+    readonly dependencies = [GRAPHIC_TYPE, DECLARATIVE_LISTENER_TYPE];
     readonly components?: [NameAsLabelComponent];
 
     private world: World;
@@ -30,54 +31,37 @@ export class NameAsLabelSystem implements System {
         this.world = world;
 
         world.addStorage(this.storage);
-        world.events.on('component_add', this.onComponentAdd, this);
-        world.events.on('component_edited', this.onComponentEdited, this);
-        world.events.on('component_removed', this.onComponentRemoved, this);
-        world.events.on('resource_edited', this.onResourceEdited, this);
-    }
+        const decl = world.requireSystem('declarative_listener');
 
-    private onComponentAdd(c: Component): void {
-        if (c.type === NAME_AS_LABEL_TYPE) {
-            this.updateElement(c as NameAsLabelComponent);
-        } else if (c.type === NAME_TYPE) {
-            const comp = this.storage.getComponent(c.entity);
-            if (comp !== undefined) this.updateElement(comp);
-        }
-    }
-
-    private onComponentEdited(c: Component): void {
-        if (c.type === NAME_AS_LABEL_TYPE) {
-            this.updateElement(c as NameAsLabelComponent);
-        } else if (c.type === NAME_TYPE) {
-            const comp = this.storage.getComponent(c.entity);
-            if (comp !== undefined) this.updateElement(comp);
-        }
-    }
-
-    private onComponentRemoved(c: Component): void {
-        if (c.type === NAME_AS_LABEL_TYPE) {
-            if (this.world.isDespawning.includes(c.entity)) return;
-            const g = this.world.getComponent(c.entity, GRAPHIC_TYPE);
-            if (g === undefined) return;
-            for (let elem of (g.display.children || [])) {
-                if (elem.tag !== 'name') continue;
-                if (g.display._childrenRemove === undefined) g.display._childrenRemove = [];
-                g.display._childrenRemove.push(elem);
-                break;
+        decl.onComponent(NAME_AS_LABEL_TYPE, '', (cold, cnew) => {
+            if (cnew != null) {
+                this.updateElement(cnew);
+            } else if (cold != null) {
+                if (this.world.isDespawning.includes(cold.entity)) return;
+                const g = this.world.getComponent(cold.entity, GRAPHIC_TYPE);
+                if (g === undefined) return;
+                for (let elem of (g.display.children || [])) {
+                    if (elem.tag !== 'name') continue;
+                    if (g.display._childrenRemove === undefined) g.display._childrenRemove = [];
+                    g.display._childrenRemove.push(elem);
+                    break;
+                }
             }
-        } else if (c.type === NAME_TYPE) {
-            const comp = this.storage.getComponent(c.entity);
-            if (comp !== undefined) this.updateElement(comp);
-        }
-    }
+        });
 
-    private onResourceEdited(res: Resource, edited: any) {
-        if (res.type === LOCAL_LIGHT_SETTINGS_TYPE && 'visionType' in edited) {
-            this.isMasterView = (res as LocalLightSettings).visionType !== 'rp';
+        decl.onComponent(NAME_TYPE, '', (cold, cnew) => {
+            const entity = cold?.entity ?? cnew?.entity;
+            if (entity === undefined) return;
+            const comp = this.storage.getComponent(entity);
+            if (comp !== undefined) this.updateElement(comp);
+        });
+
+        decl.onResource(LOCAL_LIGHT_SETTINGS_TYPE, 'visionType', (_old, newVisionType) => {
+            this.isMasterView = newVisionType !== 'rp';
             for (let c of this.storage.allComponents()) {
                 this.updateElement(c);
             }
-        }
+        })
     }
 
     updateElement(c: NameAsLabelComponent): void {
