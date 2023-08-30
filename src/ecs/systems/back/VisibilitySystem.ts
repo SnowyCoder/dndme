@@ -20,6 +20,7 @@ import {GRID_TYPE} from "../gridSystem";
 import {GridResource, Resource} from "../../resource";
 import { GameClockResource, GAME_CLOCK_TYPE, PixiBoardSystem, PIXI_BOARD_TYPE } from "./pixi/pixiBoardSystem";
 import { Graphics } from "pixi.js";
+import { overlapAabbVsLine, overlapLineVsPolygon } from "@/geometry/collision";
 
 // This system uses a reuqest-response pattern
 // Where there are multiple "requests" for visibility but a single answer, let's make an example.
@@ -31,11 +32,16 @@ import { Graphics } from "pixi.js";
 
 const DEBUG_PRINT_POLYGON = false;
 
+export enum VisibilityRequester {
+    LIGHT = 1,
+    PLAYER = 2,
+}
+
 export const VISIBILITY_TYPE = 'visibility';
 export type VISIBILITY_TYPE = typeof VISIBILITY_TYPE;
 export interface VisibilityComponent extends MultiComponent {
     type: VISIBILITY_TYPE;
-    requester: string;// light or player usually
+    requester: VisibilityRequester;
     range: number;// In grids (by default 1 grid = 128 pixels)
     trackWalls: boolean;
 }
@@ -45,6 +51,7 @@ export type VISIBILITY_DETAILS_TYPE = typeof VISIBILITY_DETAILS_TYPE;
 export interface VisibilityDetailsComponent extends Component {
     type: VISIBILITY_DETAILS_TYPE;
     range: number;
+    requester: number,
     trackWalls: boolean;
     // polygon is only computed on an Axis-Aligned Square where the length of the
     // side is at least as much as the diameter
@@ -57,10 +64,19 @@ export interface VisibilityDetailsComponent extends Component {
     _canSeeWalls?: {[id: number]: Array<number>};
 }
 
+export enum BlockDirection {
+    BOTH,
+    LEFT_TO_RIGHT,
+    RIGHT_TO_LEFT,
+    NONE
+}
+
 export const VISIBILITY_BLOCKER_TYPE = 'visibility_blocker';
 export type VISIBILITY_BLOCKER_TYPE = typeof VISIBILITY_BLOCKER_TYPE;
 export interface VisibilityBlocker extends Component {
     type: VISIBILITY_BLOCKER_TYPE;
+    player: BlockDirection,
+    light: BlockDirection,
 }
 
 
@@ -90,7 +106,7 @@ export class VisibilitySystem implements System {
 
     storage = new MultiEcsStorage<VisibilityComponent>(VISIBILITY_TYPE, false, false);
     detailsStorage = new SingleEcsStorage<VisibilityDetailsComponent>(VISIBILITY_DETAILS_TYPE, false, false);
-    blockerStorage = new FlagEcsStorage<VisibilityBlocker>(VISIBILITY_BLOCKER_TYPE, false, false);
+    blockerStorage = new SingleEcsStorage<VisibilityBlocker>(VISIBILITY_BLOCKER_TYPE, false, false);
 
     interactionSystem: InteractionSystem;
     gridSize: number;
@@ -123,6 +139,7 @@ export class VisibilitySystem implements System {
     updatePolygon(c: VisibilityDetailsComponent): void {
         let pos = this.world.getComponent(c.entity, POSITION_TYPE);
         if (pos === undefined) return;
+        const trackWalls = c.trackWalls === true;
 
         // We will recreate it later (if necessary)
         this.removeTreePolygon(c);
@@ -135,15 +152,60 @@ export class VisibilitySystem implements System {
             return;
         }
 
-        let range = c.range * this.gridSize;
+        const range = c.range * this.gridSize;
+        const requester = c.requester;
 
-        let viewport = new Aabb(pos.x - range, pos.y - range, pos.x + range, pos.y + range);
+        const viewport = new Aabb(pos.x - range, pos.y - range, pos.x + range, pos.y + range);
 
-        let lines = new Array<Line>();
-        let blockerIds = new Array<number>();
+        const lines = new Array<Line>();
+        const blockerIds = new Array<number>();
+        const fakeBlockers = trackWalls ? new Array<InteractionComponent>() : undefined;
 
-        let query = this.interactionSystem.query(shapeAabb(viewport), c => {
-            return this.blockerStorage.getComponent(c.entity) !== undefined;
+
+        // PROBLEM:
+        // When a system is BlockDirection.BOTH (or similar), it doesn't block light, but you still see it.
+        // We need a system to check if the "blockers" are still visible, and if they are, report them to the user.
+        // How?
+        // 1. Modify the VisibilityRequester Algorithm in some way
+        //    We'll need to add the walls in the sorting algorithm, and it's a mess
+        // 2. Store the unused fake-blockers and check them afterwards using a collision system.
+        // Let's try n.2
+
+        const query = this.interactionSystem.query(shapeAabb(viewport), c => {
+            const blocker = this.blockerStorage.getComponent(c.entity);
+            if (blocker === undefined) return false;
+            let leftToRight = false;
+
+            let blockDir = BlockDirection.BOTH;
+            if (requester >= VisibilityRequester.PLAYER) blockDir = blocker.player;
+            else if (requester >= VisibilityRequester.LIGHT) blockDir = blocker.light;
+
+            let block: boolean;
+            switch (blockDir) {
+                case BlockDirection.NONE:
+                    block = false;
+                    break;
+                case BlockDirection.BOTH:
+                    block = true;
+                    break;
+                case BlockDirection.LEFT_TO_RIGHT:
+                    leftToRight = true;
+                case BlockDirection.RIGHT_TO_LEFT:
+                    const s = c.shape;
+                    if (s.type !== ShapeType.LINE) return true;
+                    const line = (s as LineShape).data;
+                    const v1 = [line.toX - line.fromX, line.toY - line.fromY];
+                    const v2 = [line.toX - pos!.x, line.toY - pos!.y];
+                    const xp = v1[0]*v2[1] - v1[1]*v2[0];
+                    if (Math.abs(xp) < 0.001) return false;// On the same line
+                    const isLeft = xp < 0;
+                    block = isLeft == leftToRight;
+                    break;
+            }
+            if (!block) {
+                fakeBlockers?.push(c);
+            }
+            return block;
         });
 
         for (let entry of query) {
@@ -155,13 +217,8 @@ export class VisibilitySystem implements System {
             lines.push(lineData);
             blockerIds.push(entry.entity);
         }
-        let usedBlockers;
-        if (c.trackWalls === true) {
-            usedBlockers = new Array<number>();
-        } else {
-            usedBlockers = undefined;
-        }
-        let polygon = computeViewport(lines, viewport, pos, usedBlockers);
+        const usedBlockers = trackWalls ? new Array<number>() : undefined;
+        const polygon = computeViewport(lines, viewport, pos, usedBlockers);
 
         // Recycle the unused viewport object
         viewport.wrapPolygon(polygon);
@@ -169,6 +226,12 @@ export class VisibilitySystem implements System {
         if (usedBlockers !== undefined) {
             for (let i = 0; i < usedBlockers.length; i++) {
                 usedBlockers[i] = blockerIds[usedBlockers[i]];
+            }
+            for (let c of (fakeBlockers ?? [])) {
+                const line = (c.shape as LineShape).data;
+                if (!overlapAabbVsLine(viewport, line)) continue;
+                if (!overlapLineVsPolygon(line, polygon)) continue;
+                usedBlockers.push(c.entity);
             }
         }
 
@@ -204,6 +267,7 @@ export class VisibilitySystem implements System {
     private recomputeDetails(entity: number): boolean{
         let range = 0;
         let trackWalls = false;
+        let requester = 0;
 
         const isHidden = this.world.getComponent(entity, SHARED_TYPE) === undefined;
         let needsRemoval = !isHidden;
@@ -212,6 +276,9 @@ export class VisibilitySystem implements System {
                 needsRemoval = false;
                 if (el.range > range) {
                     range = el.range;
+                }
+                if (el.requester > requester) {
+                    requester = el.requester
                 }
                 trackWalls = trackWalls || el.trackWalls;
             }
@@ -223,7 +290,7 @@ export class VisibilitySystem implements System {
             if (oldDetails !== undefined) {
                 details = oldDetails;
                 this.world.editComponent(entity, oldDetails.type, {
-                    range, trackWalls,
+                    range, trackWalls, requester,
                 }, undefined, false);
             } else {
                 let dbgPrint = undefined;
@@ -235,6 +302,7 @@ export class VisibilitySystem implements System {
                     entity,
                     type: VISIBILITY_DETAILS_TYPE,
                     range, trackWalls,
+                    requester,
                     _debugPrint: dbgPrint,
                     _canSee: {},
                 } as VisibilityDetailsComponent;

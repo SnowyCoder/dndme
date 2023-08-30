@@ -4,7 +4,7 @@ import {World} from "../World";
 import {CUSTOM_BLEND_MODES, DESTROY_ALL} from "../../util/pixi";
 import {SingleEcsStorage} from "../Storage";
 import {GridResource, Resource} from "../resource";
-import {VISIBILITY_TYPE, VisibilityComponent, VISIBILITY_DETAILS_TYPE, VisibilityDetailsComponent} from "./back/VisibilitySystem";
+import {VISIBILITY_TYPE, VisibilityComponent, VISIBILITY_DETAILS_TYPE, VisibilityDetailsComponent, VisibilityRequester} from "./back/VisibilitySystem";
 import {PLAYER_TYPE, PlayerComponent} from "./playerSystem";
 import {BLEND_MODES, Container, Sprite, utils} from "pixi.js";
 import {PixiBoardSystem, PIXI_BOARD_TYPE} from "./back/pixi/pixiBoardSystem";
@@ -233,7 +233,7 @@ export class LightSystem implements System {
                 type: VISIBILITY_TYPE,
                 range: light.range,
                 trackWalls: true,
-                requester: LIGHT_TYPE,
+                requester: VisibilityRequester.LIGHT,
             } as VisibilityComponent;
             this.world.addComponent(comp.entity, vis);
             light._visIndex = vis.multiId;

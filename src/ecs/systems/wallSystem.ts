@@ -9,7 +9,7 @@ import {Aabb} from "../../geometry/aabb";
 import {Line} from "../../geometry/line";
 import {intersectSegmentVsSegment, lineSameSlope, SegmentVsSegmentRes} from "../../geometry/collision";
 import {INTERACTION_TYPE, InteractionSystem, LineShape, shapeAabb, shapeLine} from "./back/InteractionSystem";
-import {VISIBILITY_BLOCKER_TYPE, VisibilityBlocker} from "./back/VisibilitySystem";
+import {BlockDirection, VISIBILITY_BLOCKER_TYPE, VisibilityBlocker} from "./back/VisibilitySystem";
 import {ElementType, GRAPHIC_TYPE, GraphicComponent, LineElement, VisibilityType} from "../../graphics";
 import {TOOL_TYPE, ToolPart} from "./back/ToolSystem";
 import {
@@ -46,12 +46,16 @@ export interface WallComponent extends Component {
     type: WALL_TYPE;
     vec: RPoint;
     thickness?: number;
+    blockLight?: BlockDirection,
+    blockPlayer?: BlockDirection,
     _dontMerge: number;
 }
 
 export interface WallCreationResource extends Resource {
     type: 'wall_creation';
     thickness: number;
+    blockLight: BlockDirection,
+    blockPlayer: BlockDirection,
 
     _save: true,
     _sync: false,
@@ -94,6 +98,8 @@ export class WallSystem implements System {
             world.addResource({
                 type: 'wall_creation',
                 thickness: DEFAULT_THICKNESS,
+                blockLight: BlockDirection.BOTH,
+                blockPlayer: BlockDirection.BOTH,
             } as WallCreationResource);
         }
         world.events.on('populate', () => {
@@ -141,12 +147,15 @@ export class WallSystem implements System {
             } as LineElement,
             interactive: true,
             isWall: true,
-        } as GraphicComponent);
+        } satisfies GraphicComponent as GraphicComponent);
 
-        this.world.addComponent(component.entity, {
+        const comp = {
             type: VISIBILITY_BLOCKER_TYPE,
-            entity: -1
-        } as VisibilityBlocker);
+            entity: -1,
+            light: wall.blockLight ?? BlockDirection.BOTH,
+            player: wall.blockPlayer ?? BlockDirection.BOTH,
+        } satisfies VisibilityBlocker;
+        this.world.addComponent(component.entity, comp);
     }
 
     fixWallPreTranslation(walls: WallComponent[]) {
@@ -283,7 +292,9 @@ export class WallSystem implements System {
         for (let wall of walls) {
             this.world.addComponent(wall.entity, {
                 type: "visibility_blocker",
-                entity: -1
+                entity: -1,
+                light: wall.blockLight,
+                player: wall.blockPlayer,
             } as VisibilityBlocker);
         }
     }
@@ -310,6 +321,12 @@ export class WallSystem implements System {
 
         if (comp.type === WALL_TYPE && ('vec' in changed || 'thickness' in changed)) {
             this.redrawWall(wall);
+        }
+        if (comp.type === WALL_TYPE && ('blockPlayer' in changed || 'blockLight' in changed)) {
+            this.world.editComponent(comp.entity, 'visibility_blocker', {
+                light: wall.blockLight ?? BlockDirection.BOTH,
+                player: wall.blockPlayer ?? BlockDirection.BOTH,
+            });
         }
     }
 
@@ -419,7 +436,7 @@ export class WallSystem implements System {
         return end;
     }
 
-    createWall(minX: number, minY: number, maxX: number, maxY: number, thickness?: number): SpawnCommand {
+    createWall(minX: number, minY: number, maxX: number, maxY: number, thickness?: number, blockLight?: BlockDirection, blockPlayer?: BlockDirection): SpawnCommand {
         let components = [
             {
                 type: SHARED_TYPE,
@@ -436,7 +453,9 @@ export class WallSystem implements System {
             {
                 type: WALL_TYPE,
                 vec: [maxX - minX, maxY - minY],
-                thickness: thickness,
+                thickness,
+                blockLight,
+                blockPlayer,
             } as WallComponent,
         ];
         return SpawnCommandKind.from(this.world, components);
@@ -485,9 +504,7 @@ export class CreateWallToolPart implements ToolPart {
                 if (arrayRemoveElem(this.createdIds, oldc.entity)) {
                     this.recomputeCreatedLastPos();
                 }
-
             }
-
         });
     }
 
@@ -549,7 +566,9 @@ export class CreateWallToolPart implements ToolPart {
                 let cmd = this.sys.createWall(
                     points[i - 2], points[i - 1],
                     points[i    ], points[i + 1],
-                    opts?.thickness ?? DEFAULT_THICKNESS
+                    opts?.thickness ?? DEFAULT_THICKNESS,
+                    opts?.blockLight ?? BlockDirection.BOTH,
+                    opts?.blockPlayer ?? BlockDirection.BOTH,
                 );
                 executeAndLogCommand(this.sys.world, cmd);
                 this.sys.selectionSys.clear();

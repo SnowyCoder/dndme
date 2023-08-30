@@ -1,13 +1,22 @@
 <script setup lang="ts">
-import EditableRange from "@/ui/util/EditableRange.vue";
-import { ResourceUpdateHistory, useResourcePiece } from "@/ui/vue";
+import WallSettings from "../settings/WallSettings.vue";
+import { ResourceUpdateHistory, useResourceReactive, useWorld } from "@/ui/vue";
+import { BlockDirection } from "@/ecs/systems/back/VisibilitySystem";
 
-const thickness = useResourcePiece('wall_creation', 'thickness', 5, ResourceUpdateHistory.REGISTER_COMMAND_IN_HISTORY);
+const world = useWorld();
+const res = useResourceReactive(world, 'wall_creation', {
+  'thickness': 5,
+  'blockLight': BlockDirection.BOTH,
+  'blockPlayer': BlockDirection.BOTH,
+}, ResourceUpdateHistory.REGISTER_COMMAND_IN_HISTORY);
+
 </script>
 
 <template>
-  <div style="display: flex; align-items: center;">
-    Thickness
-    <editable-range v-model="thickness" :min="1" :max=50 :step="1"/>
+  <div style="px-5">
+    <WallSettings :is-master="true"
+        v-model:thickness="res.thickness"
+        v-model:block-light="res.blockLight"
+        v-model:block-player="res.blockPlayer" />
   </div>
 </template>

@@ -150,13 +150,13 @@ export function overlapObbVsPolygon(obb: Obb, poly: number[]): boolean {
 }
 
 export function overlapLineVsPolygon(line: Line, poly: number[]) {
-    let totLines = poly.length - 2;
+    const totLines = poly.length - 2;
     for (let i = 0; i < totLines; i += 2) {
-        let polLine = new Line(poly[i], poly[i+1], poly[i+2], poly[i+3]);
+        const polLine = new Line(poly[i], poly[i+1], poly[i+2], poly[i+3]);
         if (intersectSegmentVsSegment(line, polLine) == SegmentVsSegmentRes.INTERN) return true;
     }
-    let polLine = new Line(poly[0], poly[1], poly[poly.length-2], poly[poly.length-1]);
-    return intersectSegmentVsSegment(line, polLine) == SegmentVsSegmentRes.INTERN;
+    const polLine = new Line(poly[0], poly[1], poly[poly.length-2], poly[poly.length-1]);
+    return intersectSegmentVsSegment(line, polLine) == SegmentVsSegmentRes.INTERN || polygonPointIntersect({ x: line.fromX, y: line.fromY }, poly);
 }
 
 export function rotatePointByOrig(o: IPoint, rot: number, p: IPoint): IPoint {

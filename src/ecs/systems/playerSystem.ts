@@ -2,7 +2,7 @@ import {System} from "../System";
 import {World} from "../World";
 import {MultiEcsStorage, SingleEcsStorage} from "../Storage";
 import {Component, POSITION_TYPE, PositionComponent, SHARED_TYPE} from "../component";
-import {VISIBILITY_TYPE, VisibilityComponent, VisibilitySystem, VISIBILITY_DETAILS_TYPE, VisibilityDetailsComponent} from "./back/VisibilitySystem";
+import {VISIBILITY_TYPE, VisibilityComponent, VisibilitySystem, VISIBILITY_DETAILS_TYPE, VisibilityDetailsComponent, VisibilityRequester} from "./back/VisibilitySystem";
 import {DESTROY_ALL} from "../../util/pixi";
 import {
     newVisibilityAwareComponent,
@@ -111,7 +111,7 @@ export class PlayerSystem implements System {
     }
 
     private onPlayerVisibleCountersUpdate(t: PlayerVisibleComponent) {
-        //console.log(`${t.entity} ${t._lightCount} ${t._playerCount} ${t._playerNightVisionCount}`);
+        // console.log(`${t.entity} ${t._lightCount} ${t._playerCount} ${t._playerNightVisionCount}`);
         if (t._playerCount < 0 || t._lightCount < 0) {
             console.error("Bug found, visibility counters are below 0");
         }
@@ -136,12 +136,12 @@ export class PlayerSystem implements System {
         for (let [entity, multiId] of added) {
             const vis = visSto.getComponent(entity, multiId);
             if (vis === undefined) continue;
-            if (vis.requester === PLAYER_TYPE) {
+            if (vis.requester === VisibilityRequester.PLAYER) {
                 const player = this.storage.getComponent(entity);
                 if (player === undefined) continue;
                 playerVisible._playerCount += 1;
                 if (player.nightVision) playerVisible._playerNightVisionCount += 1;
-            } else if (vis.requester === LIGHT_TYPE) {
+            } else if (vis.requester === VisibilityRequester.LIGHT) {
                 const light = this.world.getComponent(entity, LIGHT_TYPE);
                 if (light === undefined) continue;
                 playerVisible._lightCount += 1;
@@ -151,12 +151,12 @@ export class PlayerSystem implements System {
         for (let [entity, multiId] of removed) {
             const vis = visSto.getComponent(entity, multiId);
             if (vis === undefined) continue;
-            if (vis.requester === PLAYER_TYPE) {
+            if (vis.requester === VisibilityRequester.PLAYER) {
                 const player = this.storage.getComponent(entity);
                 if (player === undefined) continue;
                 playerVisible._playerCount -= 1;
                 if (player.nightVision) playerVisible._playerNightVisionCount -= 1;
-            } else if (vis.requester === LIGHT_TYPE) {
+            } else if (vis.requester === VisibilityRequester.LIGHT) {
                 const light = this.world.getComponent(entity, LIGHT_TYPE);
                 if (light === undefined) continue;
                 playerVisible._lightCount -= 1;
@@ -171,7 +171,7 @@ export class PlayerSystem implements System {
         let visSto = this.world.getStorage(VISIBILITY_TYPE) as MultiEcsStorage<VisibilityComponent>;
         let mid = -1;
         for (let x of visSto.getComponents(player.entity)) {
-            if (x.requester === PLAYER_TYPE) {
+            if (x.requester === VisibilityRequester.PLAYER) {
                 mid = x.multiId;
                 break;
             }
@@ -214,7 +214,7 @@ export class PlayerSystem implements System {
                 type: VISIBILITY_TYPE,
                 range: player.range,
                 trackWalls: true,
-                requester: PLAYER_TYPE,
+                requester: VisibilityRequester.PLAYER,
             } as VisibilityComponent;
             this.world.addComponent(comp.entity, vis);
             player._visIndex = vis.multiId;

@@ -1,4 +1,7 @@
-import { Component as VComponent, customRef, DefineComponent, getCurrentInstance, inject, onUnmounted, proxyRefs, reactive, ShallowReactive, shallowRef, ShallowRef, toRef, triggerRef, watch, Ref, Directive } from "vue";
+import { Component as VComponent, customRef, DefineComponent, getCurrentInstance, inject, onUnmounted, proxyRefs, reactive, ShallowReactive, shallowRef, ShallowRef, toRef, triggerRef, watch, Ref, Directive, ShallowUnwrapRef, isProxy } from "vue";
+import { def } from '@vue/shared';
+import { ReactiveFlags } from '@vue/reactivity';
+
 import { Component, MultiComponent } from "../ecs/component";
 import { World } from "../ecs/World";
 import { arrayRemoveElem } from "../util/array";
@@ -76,7 +79,7 @@ type WithDefaults<T, D extends Partial<Record<keyof T, any>>> = {
       : never
 }
 
-export function useResourceReactive<R extends ResourceType, P extends Partial<Record<keyof ResourceForType<R>, any>>>(world: World, resName: R, properties: P, updateHistory: ResourceUpdateHistory): ShallowReactive<WithDefaults<ResourceForType<R>, P> & {[isNull]: boolean}> {
+export function useResourceReactive<R extends ResourceType, P extends Partial<Record<keyof ResourceForType<R>, any>>>(world: World, resName: R, properties: P, updateHistory: ResourceUpdateHistory): ShallowUnwrapRef<WithDefaults<ResourceForType<R>, P> & {[isNull]: boolean}> {
     // This, my friends, is how we create abstraction.
     // This is how we teach stones to think, processors to have multiple programs and javascript to do useful shit
     // Ok, enough with that, how does this work?
@@ -137,7 +140,7 @@ export function useResourceReactive<R extends ResourceType, P extends Partial<Re
         }
     })
     const reactiveRes = proxyRefs(obj);
-
+    // ERROR does not work with toRefs, TODO
     // TODO: migrate to DeclarativeListener?
 
     useEvent(world, 'resource_add', (r: ResourceForType<R>) => {
@@ -211,7 +214,7 @@ export function useComponentReactive<T>(component: ShallowRef<Component>,  prope
     return proxyRefs(obj) as ShallowReactive<T>;
 }
 
-export function useComponentPiece<C extends Component, N extends keyof C>(component: ShallowRef<C>, name: N, defValue: C[N]):  ShallowRef<C[N]> {
+export function useComponentPiece<C extends Component, N extends keyof C, V=NonNullable<C[N]>>(component: ShallowRef<C>, name: N, defValue: V):  ShallowRef<V> {
     const { emit } = getCurrentInstance()!;
 
     return customRef((track, trigger) => {
@@ -222,7 +225,7 @@ export function useComponentPiece<C extends Component, N extends keyof C>(compon
                 const rawVal = (component.value as any)[name];
                 return rawVal ?? defValue;
             },
-            set(newVal: C[N]) {
+            set(newVal: V) {
                 emit('ecs-property-change', component.value.type, name, newVal, (component.value as any as MultiComponent).multiId);
             },
         };
@@ -276,6 +279,16 @@ export const vTooltip: Directive<HTMLElement, string> = {
         new Tooltip(el, {
             placement: binding.arg as Tooltip.PopoverPlacement || 'top',
             title: binding.value
+        });
+    }
+}
+
+export const vTooltipSlow: Directive<HTMLElement, string> = {
+    mounted(el, binding) {
+        new Tooltip(el, {
+            placement: binding.arg as Tooltip.PopoverPlacement || 'top',
+            title: binding.value,
+            delay: 1000,
         });
     }
 }

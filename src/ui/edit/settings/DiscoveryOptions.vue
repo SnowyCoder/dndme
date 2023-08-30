@@ -69,7 +69,7 @@ function onClick() {
 </script>
 
 <template>
-  <div>
+  <div class="px-3">
     <div style="display: flex; align-items: center;">
       Room name:
       <EditableText v-model="roomName" :readonly="isLoading" @enter="onClick()" placeholder="Automatic"/>

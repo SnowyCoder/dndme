@@ -440,7 +440,6 @@ export class PixiBoardSystem implements System {
             this.world.events.emit(PointerEvents.POINTER_MOVE, pme);
             this.mouseLastX = pos.x;
             this.mouseLastY = pos.y;
-            console.log(pme.cursorStyle);
             this.renderer.view.style!.cursor = pme.cursorStyle;
         }
 

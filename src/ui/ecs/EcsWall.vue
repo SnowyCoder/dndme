@@ -6,48 +6,47 @@
     <div class="d-flex align-items-center">
       H: <editable-number :readonly="!isMaster" v-model="h"/>
     </div>
-    <div class="d-flex align-items-center">
-      Thick: <editable-number :readonly="!isMaster" v-model="thick"/>
-    </div>
+
+    <wall-settings :is-master="isMaster"
+        v-model:thickness="thick"
+        v-model:block-light="blockLight"
+        v-model:block-player="blockPlayer"  />
   </div>
 </template>
 
-<script lang="ts">
-import { computed, defineComponent, inject, PropType, toRefs, triggerRef } from "vue";
+<script setup lang="ts">
+import { computed, inject, toRefs, triggerRef } from "vue";
 import { WallComponent } from "../../ecs/systems/wallSystem";
 import EditableNumber from "../util/EditableNumber.vue";
 import { useComponentPiece } from "../vue";
+import WallSettings from "../edit/settings/WallSettings.vue";
+import { BlockDirection } from "@/ecs/systems/back/VisibilitySystem";
 
-export default defineComponent({
-  components: { EditableNumber },
-  props: {
-    component: { type: Object as PropType<WallComponent>, required: true },
-    isAdmin: { type: Boolean, default: false },
-  },
-  setup(props) {
-    const { component } = toRefs(props);
+export interface Props {
+  component: WallComponent,
+}
 
-    const vec = useComponentPiece(component, 'vec', [0, 0]);
-    const thick = useComponentPiece(component, 'thickness', 5);
+const props = defineProps<Props>();
 
-    const defineElement = (index: number) => computed({
-      get: () => vec.value[index],
-      set: (x: number) => {
-        vec.value[index] = x;
-        triggerRef(vec);
-      }
-    });
+const { component } = toRefs(props);
 
-    const isMaster = inject<boolean>('isMaster')!;
+const vec = useComponentPiece(component, 'vec', [0, 0]);
+const thick = useComponentPiece(component, 'thickness', 5);
+const blockLight = useComponentPiece(component, 'blockLight', BlockDirection.BOTH);
+const blockPlayer = useComponentPiece(component, 'blockPlayer', BlockDirection.BOTH);
 
-    return {
-      isMaster,
-      w: defineElement(0),
-      h: defineElement(1),
-      thick,
-    }
+const defineElement = (index: number) => computed({
+  get: () => vec.value[index],
+  set: (x: number) => {
+    vec.value[index] = x;
+    triggerRef(vec);
   }
 });
+
+const isMaster = inject<boolean>('isMaster')!;
+
+const w = defineElement(0);
+const h = defineElement(0);
 </script>
 
 <style>

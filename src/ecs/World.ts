@@ -248,7 +248,7 @@ export class World {
         return true;
     }
 
-    addComponent(entity: number, cmp: Omit<RegisteredComponent, 'entity'>): void {
+    addComponent(entity: number, cmp: Omit<RegisteredComponent, 'entity'> & {entity?: number}): void {
         if (!this.entities.has(entity)) {
             console.error("Entity not present " + entity);
             return;

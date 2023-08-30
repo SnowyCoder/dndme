@@ -230,7 +230,6 @@ export class ImageRenderer {
         } else if (el.scaleMode === ImageScaleMode.CONSTRAINED) {
             sx = this.sys.gridSize * el.scale / dim.texture.width;
             sy = this.sys.gridSize * el.scale / dim.texture.height;
-            console.log('SCALE: ', sx, sy);
         }
         dim.rotation = trans?.rotation || 0;
         dim.scale.set(sx, sy);

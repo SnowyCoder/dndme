@@ -10,35 +10,42 @@
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent } from "vue";
+<script setup lang="ts">
+import { computed } from "vue";
 import EditableNumber from "./EditableNumber.vue";
 
 
-export default defineComponent({
-  components: { EditableNumber },
-  props: {
-    modelValue: { type: Number, required: true },
-    modelModifiers: { type: Object, default: () => {} },
-    readonly: { type: Boolean, default: false },
-    min: { type: Number, required: true },
-    max: { type: Number, required: true },
-    step: { type: Number, default: 1 },
+export interface Props {
+  modelValue: number,
+  modelModifiers?: {
+    lazy?: boolean,
   },
-  methods: {
-    onEvent(ev: string, event: InputEvent) {
-      const et = event.target as any;
-      if (ev === 'input' == !!this.modelModifiers?.lazy) {
-        return;
-      }
-      this.$emit('update:modelValue', parseFloat(et.value));
-    }
-  },
-  computed: {
-    maxDigits() {
-      return Math.max(String(this.max).length, String(this.max - this.step).length) - 1
-    }
+  readonly?: boolean,
+  min: number,
+  max: number,
+  step?: number,
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  readonly: false,
+  step: 1,
+  modelModifiers: () => ({})
+});
+
+const emit = defineEmits<{
+  'update:modelValue': [value: number],
+}>();
+
+function onEvent(ev: string, event: InputEvent) {
+  const et = event.target as any;
+  if (ev === 'input' == !!props.modelModifiers.lazy) {
+    return;
   }
+  emit('update:modelValue', parseFloat(et.value));
+}
+
+const maxDigits = computed(() => {
+  return Math.max(String(props.max).length, String(props.max - props.step).length) - 1
 });
 
 </script>

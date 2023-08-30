@@ -241,7 +241,6 @@ export class TransformToolPart implements ToolPart {
 
     private end() {
         if (this.entity == null) return;
-        console.log('END', this.entity);
 
         this.entity = undefined;
         this.entityShape = undefined;
@@ -252,7 +251,6 @@ export class TransformToolPart implements ToolPart {
     }
 
     private begin(entity: number) {
-        console.log('BEGIN', entity);
         this.entity = entity;
         this.updateShape();
 
