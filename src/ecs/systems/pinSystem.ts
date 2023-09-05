@@ -89,14 +89,16 @@ export class PinSystem implements System {
                     priority: StandardToolbarOrder.CREATE_PIN,
                 },
             });
-
-            world.addResource({
-                type: PIN_TYPE,
-                defaultSize: DEFAULT_SIZE,
-                _save: true,
-                _sync: true,
-            } as PinResource, 'ignore');
         }
+
+        // EVERYONE should have this, both master and clients!
+        world.addResource({
+            type: PIN_TYPE,
+            defaultSize: DEFAULT_SIZE,
+            _save: true,
+            _sync: true,
+        } as PinResource, 'ignore');
+
         world.events.on('populate', () => {
             this.world.spawnEntity({
                 type: COMPONENT_INFO_PANEL_TYPE,
@@ -117,6 +119,9 @@ export class PinSystem implements System {
         world.events.on('component_add', this.onComponentAdd, this);
         world.events.on('component_edited', this.onComponentEdited, this);
         world.events.on('resource_edited', this.onResourceEdited, this);
+
+
+        this.world.events.emit('register_image', PIN_TYPE, 'imageId');
     }
 
     private onComponentAdd(c: Component): void {
