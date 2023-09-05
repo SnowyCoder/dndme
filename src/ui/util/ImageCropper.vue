@@ -102,7 +102,6 @@ function onCrop(): void {
 
   canvas.toBlob(blob => {
     if (blob) {
-        console.error('Cannot crop image');
         emit('crop', blob);
     }
   }, 'image/webp', 0.8);

@@ -121,6 +121,7 @@ export class PixiGraphicSystem implements System {
 
     masterVisibility: boolean = false;
     gridSize: number = STANDARD_GRID_OPTIONS.size;
+    gridProportion: number = 1;
 
 
     constructor(world: World) {
@@ -303,16 +304,15 @@ export class PixiGraphicSystem implements System {
             let posSto = this.world.storages.get(POSITION_TYPE) as SingleEcsStorage<PositionComponent>;
             let tranSto = this.world.storages.get(TRANSFORM_TYPE) as SingleEcsStorage<TransformComponent>;
             this.gridSize = (res as GridResource).size;
+            this.gridProportion = this.gridSize / STANDARD_GRID_OPTIONS.size;
 
             for (let c of this.storage.allComponents()) {
                 this.forEachEl(c, c.display,e => {
-                    if ((e.type === ElementType.IMAGE && (e as ImageElement).scale === ImageScaleMode.GRID) || e.type === ElementType.TEXT) {
-                        let pos = posSto.getComponent(c.entity)!;
-                        let tran = tranSto.getComponent(c.entity)!;
-                        this.updateElement(c, e, pos, tran, false);
-                        if (e.type !== ElementType.TEXT) {
-                            this.world.editComponent(c.entity, INTERACTION_TYPE, { shape: this.createShape(e, pos, tran)});
-                        }
+                    const pos = posSto.getComponent(c.entity)!;
+                    const tran = tranSto.getComponent(c.entity)!;
+                    this.updateElement(c, e, pos, tran, false);
+                    if (e.type !== ElementType.TEXT) {
+                        this.world.editComponent(c.entity, INTERACTION_TYPE, { shape: this.createShape(e, pos, tran)});
                     }
                 });
             }
@@ -740,7 +740,7 @@ export class PixiGraphicSystem implements System {
                 g.clear();
                 g.beginFill(color, el.alpha);
                 g.lineStyle(0);
-                g.drawCircle(0, 0, el.scale * POINT_RADIUS);
+                g.drawCircle(0, 0, el.scale * POINT_RADIUS * this.gridProportion);
                 g.endFill();
                 break;
             }
@@ -749,7 +749,10 @@ export class PixiGraphicSystem implements System {
                 let g = (d as Text);
                 g.text = el.text;
                 g.anchor.copyFrom(el.anchor);
-                g.style.fontSize = Math.round(26 * this.gridSize / STANDARD_GRID_OPTIONS.size);
+                g.style.fontSize = Math.round(26 * this.gridProportion);
+                const scale = el.scale ?? 1;
+                g.resolution = 2 * scale;
+                g.scale.set(scale);
                 g.style.fill = el.color;
                 g.style.align = el.lineAlign;
                 break;
@@ -768,6 +771,7 @@ export class PixiGraphicSystem implements System {
         this.playerSystem = this.world.requireSystem(PLAYER_TYPE);
         this.masterVisibility = this.world.requireSystem(LIGHT_TYPE).localLightSettings.visionType === 'dm';
         this.gridSize = this.world.getResource(GRID_TYPE)!.size;
+        this.gridProportion = this.gridSize / STANDARD_GRID_OPTIONS.size;
     }
 
     destroy(): void {

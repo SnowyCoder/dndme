@@ -9,16 +9,15 @@ import { FileIndex } from "@/map/FileDb";
 import { arrayRemoveElem } from "@/util/array";
 import { BitSet } from "@/util/bitSet";
 import { DESTROY_ALL, DESTROY_MIN, loadTexture } from "@/util/pixi";
-import { BaseTexture, BitmapText, BLEND_MODES, BufferResource, Container, FORMATS, ImageBitmapResource, Matrix, RenderTexture, Sprite, Texture } from "pixi.js";
+import { BaseTexture, BLEND_MODES, BufferResource, Container, FORMATS, ImageBitmapResource, Matrix, RenderTexture, Sprite, Texture } from "pixi.js";
 import { GRID_TYPE } from "../../gridSystem";
 import { EVENT_VISIBILITY_SPREAD, VisibilitySpreadData } from "../../playerSystem";
 import { BigStorageSystem, BIG_STORAGE_TYPE } from "../files/bigStorageSystem";
 import { INTERACTION_TYPE, Shape, shapeAabb, shapeObb, shapeToAabb } from "../InteractionSystem";
 import { Logger, LogLevel } from "../log/Logger";
 import { getLogger } from "../log/LogSystem";
-import { PixiDisplayElement, PixiGraphicComponent, PixiGraphicSystem } from "./pixiGraphicSystem";
+import { POINT_RADIUS, PixiDisplayElement, PixiGraphicComponent, PixiGraphicSystem } from "./pixiGraphicSystem";
 import { DepthFunc } from "./visibility/VisibilityPolygonElement";
-import { ShallowRef, shallowRef } from "vue";
 
 interface TextureEntry {
     elements: PixiImageElement[];
@@ -228,8 +227,9 @@ export class ImageRenderer {
             sx = gsize.x * this.sys.gridSize * sx;
             sy = gsize.y * this.sys.gridSize * sy;
         } else if (el.scaleMode === ImageScaleMode.CONSTRAINED) {
-            sx = this.sys.gridSize * el.scale / dim.texture.width;
-            sy = this.sys.gridSize * el.scale / dim.texture.height;
+            const prop = POINT_RADIUS * this.sys.gridProportion * 2 * el.scale;
+            sx = prop / dim.texture.width;
+            sy = prop / dim.texture.height;
         }
         dim.rotation = trans?.rotation || 0;
         dim.scale.set(sx, sy);

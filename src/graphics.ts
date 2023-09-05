@@ -47,6 +47,10 @@ export interface AnchorableElement {
     anchor: IPoint;
 }
 
+export interface ScaleableElement {
+    scale: number;
+}
+
 export interface ColorableElement {
     color: number;
     alpha?: number;
@@ -85,10 +89,9 @@ export enum ImageScaleMode {
 }
 
 // TODO: create a shared resources resource and put textures in them (then put backgrounds in it!).
-export interface ImageElement extends DisplayElement, AnchorableElement {
+export interface ImageElement extends DisplayElement, AnchorableElement, ScaleableElement {
     type: ElementType.IMAGE;
     scaleMode: ImageScaleMode;
-    scale: number,
     texture: {// external
         type: 'external';
         value: FileIndex;
@@ -115,12 +118,11 @@ export interface LineElement extends DisplayElement, ColorableElement {
     thickness?: number,
 }
 
-export interface PointElement extends DisplayElement, ColorableElement {
+export interface PointElement extends DisplayElement, ColorableElement, ScaleableElement {
     type: ElementType.POINT;
-    scale: number;
 }
 
-export interface TextElement extends DisplayElement, AnchorableElement, ColorableElement {
+export interface TextElement extends DisplayElement, AnchorableElement, ColorableElement, ScaleableElement {
     type: ElementType.TEXT;
     text: string;
     lineAlign?: 'left' | 'center' | 'right';

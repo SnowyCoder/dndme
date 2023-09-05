@@ -18,7 +18,6 @@ import { TOOL_TYPE } from "./ToolSystem";
 import { ToolType } from "@/ecs/tools/toolType";
 import { StandardToolbarOrder } from "@/phase/editMap/standardToolbarOrder";
 import DiscoveryOptions from "@/ui/edit/settings/DiscoveryOptions.vue";
-import { VueComponent } from "@/ui/vue";
 
 export const NETWORK_TYPE = 'network';
 export type NETWORK_TYPE = typeof NETWORK_TYPE;

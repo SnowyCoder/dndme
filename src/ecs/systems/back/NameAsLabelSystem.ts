@@ -3,15 +3,17 @@ import {World} from "../../World";
 import {MultiEcsStorage, SingleEcsStorage} from "../../Storage";
 import {ElementType, GRAPHIC_TYPE, GraphicComponent, PointElement, TextElement, VisibilityType, DisplayElement} from "../../../graphics";
 import { Component, NameComponent, NAME_TYPE } from "../../component";
-import { Resource } from "../../resource";
-import { LocalLightSettings, LOCAL_LIGHT_SETTINGS_TYPE } from "../lightSystem";
+import { LOCAL_LIGHT_SETTINGS_TYPE } from "../lightSystem";
 import { IPoint } from "@/geometry/point";
 import { DECLARATIVE_LISTENER_TYPE } from "./DeclarativeListenerSystem";
+import { STANDARD_GRID_OPTIONS } from "@/game/grid";
 
 
 export interface NameAsLabelComponent extends Component {
     type: NAME_AS_LABEL_TYPE;
     initialOffset: IPoint;
+    scaleMode: 'grid' | 'raw';
+    scale?: number;
 }
 
 export const NAME_AS_LABEL_TYPE = 'name_as_label';
@@ -26,6 +28,7 @@ export class NameAsLabelSystem implements System {
     readonly storage = new SingleEcsStorage<NameAsLabelComponent>(NAME_AS_LABEL_TYPE, false, false);
 
     private isMasterView: boolean = true;
+    private gridProp: number = 1;
 
     constructor(world: World) {
         this.world = world;
@@ -61,7 +64,17 @@ export class NameAsLabelSystem implements System {
             for (let c of this.storage.allComponents()) {
                 this.updateElement(c);
             }
-        })
+        });
+
+        decl.onResource('grid', 'size', (_old, x) => {
+            if (x == null) return;
+            this.gridProp = x / STANDARD_GRID_OPTIONS.size;
+            for (const el of this.storage.allComponents()) {
+                if (el.scaleMode == 'grid') {
+                    this.updateElement(el);
+                }
+            }
+        });
     }
 
     updateElement(c: NameAsLabelComponent): void {
@@ -119,7 +132,15 @@ export class NameAsLabelSystem implements System {
             if (display._childrenAdd === undefined) display._childrenAdd = [];
             display._childrenAdd.push(elem);
         }
-        elem.offset = e.initialOffset;
+        elem.offset = { x: e.initialOffset.x, y: e.initialOffset.y };
+        const scale = e.scale ?? 1;
+        elem.offset.x *= scale;
+        elem.offset.y *= scale;
+        elem.scale = scale;
+        if (e.scaleMode == 'grid') {
+            elem.offset.x *= this.gridProp;
+            elem.offset.y *= this.gridProp;
+        }
 
         elem.text = names;
         this.world.editComponent(graphic.entity, graphic.type, { display: graphic.display }, undefined, false);

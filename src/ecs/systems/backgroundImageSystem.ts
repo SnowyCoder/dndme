@@ -14,7 +14,7 @@ import {
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {BIG_STORAGE_TYPE, BigStorageSystem} from "./back/files/bigStorageSystem";
 import { NameAsLabelComponent, NAME_AS_LABEL_TYPE } from "./back/NameAsLabelSystem";
-import { InteractionComponent, INTERACTION_TYPE, ObbShape } from "./back/InteractionSystem";
+import { INTERACTION_TYPE, ObbShape } from "./back/InteractionSystem";
 import { Aabb } from "../../geometry/aabb";
 import { FileIndex } from "../../map/FileDb";
 
@@ -83,8 +83,10 @@ export class BackgroundImageSystem implements System {
 
         this.world.addComponent(c.entity, {
             type: NAME_AS_LABEL_TYPE,
+            entity: -1,
             initialOffset: { x: 0, y: this.computeLabelHeightOffset(c.entity) },
-        } as NameAsLabelComponent);
+            scaleMode: 'raw',
+        } satisfies NameAsLabelComponent as NameAsLabelComponent);
     }
 
     private async onComponentEdited(comp: Component): Promise<void> {

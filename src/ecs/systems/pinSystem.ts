@@ -26,9 +26,7 @@ import {executeAndLogCommand} from "./command/command";
 import {findForeground, PARENT_LAYER_TYPE, ParentLayerComponent} from "./back/LayerSystem";
 import { NameAsLabelComponent, NAME_AS_LABEL_TYPE } from "./back/NameAsLabelSystem";
 import SafeEventEmitter from "../../util/safeEventEmitter";
-import { CREATION_INFO_TYPE, GridResource, Resource } from "../resource";
-import { GRID_TYPE } from "./gridSystem";
-import { STANDARD_GRID_OPTIONS } from "../../game/grid";
+import { CREATION_INFO_TYPE, Resource } from "../resource";
 
 import { StandardToolbarOrder } from "@/phase/editMap/standardToolbarOrder";
 import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE, SELECTION_UI_TYPE } from "./back/SelectionUiSystem";
@@ -71,7 +69,6 @@ export class PinSystem implements System {
     readonly storage = new SingleEcsStorage<PinComponent>(PIN_TYPE, true, true);
 
     res: PinResource;
-    gridSize = 1;
 
     constructor(world: World) {
         this.world = world;
@@ -111,7 +108,6 @@ export class PinSystem implements System {
             } as ComponentInfoPanel);
         });
 
-        this.gridSize = (this.world.getResource(GRID_TYPE) ?? STANDARD_GRID_OPTIONS).size / STANDARD_GRID_OPTIONS.size;
 
         this.res = world.getResource(PIN_TYPE)!;
 
@@ -143,8 +139,10 @@ export class PinSystem implements System {
 
         this.world.addComponent(c.entity, {
             type: NAME_AS_LABEL_TYPE,
+            entity: -1,
             initialOffset: {x: 0, y: -POINT_RADIUS},
-        } as NameAsLabelComponent);
+            scaleMode:'grid',
+        } satisfies NameAsLabelComponent as NameAsLabelComponent);
 
         this.redrawComponent(pin);
 
@@ -183,12 +181,6 @@ export class PinSystem implements System {
         if (res.type === PIN_TYPE) {
             for (let c of this.storage.getComponents()) {
                 if (c.size !== undefined && c.size !== 0) continue;
-                this.redrawComponent(c);
-            }
-        } else if (res.type === GRID_TYPE) {
-            let grid = res as GridResource;
-            this.gridSize = grid.size / STANDARD_GRID_OPTIONS.size;
-            for (let c of this.storage.getComponents()) {
                 this.redrawComponent(c);
             }
         }
@@ -230,14 +222,13 @@ export class PinSystem implements System {
 
     private redrawComponent(pin: PinComponent): void {
         const gc = this.world.getComponent(pin.entity, GRAPHIC_TYPE)!;
-        const scale = (pin.size || this.res.defaultSize) * this.gridSize;
-        const display = gc.display as ContainerElement;
+        const scale = pin.size || this.res.defaultSize;
 
         const point = gc.display.children![0] as PointElement;
         point.color = pin.color;
         point.scale = scale;
         const image = gc.display.children![1] as ImageElement;
-        image.scale = scale * 0.6;
+        image.scale = scale * 0.8;
         if (pin.imageId !== undefined) {
             image.visib = VisibilityType.NORMAL;
             image.texture = {
@@ -256,7 +247,7 @@ export class PinSystem implements System {
         this.world.editComponent(pin.entity, GRAPHIC_TYPE, { display: gc.display }, undefined, false);
 
         this.world.editComponent(pin.entity, NAME_AS_LABEL_TYPE, {
-            initialOffset: {x: 0, y: -POINT_RADIUS * scale},
+            scale: scale,
         } as NameAsLabelComponent);
     }
 
@@ -287,7 +278,7 @@ export class CreatePinToolPart implements ToolPart {
         const point = display.children![0] as PointElement;
         point.color = color;
         point.visib = VisibilityType.ALWAYS_VISIBLE;
-        point.scale = this.sys.res.defaultSize * this.sys.gridSize;
+        point.scale = this.sys.res.defaultSize;
 
         this.createPin = this.sys.world.spawnEntity(
             {
@@ -376,7 +367,7 @@ export class CreatePinToolPart implements ToolPart {
     onResourceEdited(res: Resource) {
         if (res.type == PIN_TYPE && this.createPin !== -1) {
             const comp = this.sys.world.getComponent(this.createPin, GRAPHIC_TYPE)!;
-            (comp.display as PointElement).scale = (res as PinResource).defaultSize;
+            (comp.display.children![0] as PointElement).scale = (res as PinResource).defaultSize;
             this.sys.world.editComponent(this.createPin, GRAPHIC_TYPE, { display: comp.display }, undefined, false);
         }
     }
