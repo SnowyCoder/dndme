@@ -88,6 +88,11 @@ export enum ImageScaleMode {
     CONSTRAINED,
 }
 
+export enum ImageWhileLoading {
+    WHITE,
+    HIDE,
+}
+
 // TODO: create a shared resources resource and put textures in them (then put backgrounds in it!).
 export interface ImageElement extends DisplayElement, AnchorableElement, ScaleableElement {
     type: ElementType.IMAGE;
@@ -100,6 +105,7 @@ export interface ImageElement extends DisplayElement, AnchorableElement, Scaleab
         type: 'raw';
         value: Texture;
     };
+    whileLoading: ImageWhileLoading,
     tint: number;
     // Output of the visible image, only available if visib=REMEMBER_BIT_BY_BIT and it's an image
     // updated when the entity is serialized, when it is EVENT_REMEMBER_BIT_BY_BIY_MASK_UPDATE is fired with a list

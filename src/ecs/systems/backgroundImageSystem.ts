@@ -9,6 +9,7 @@ import {
     GraphicComponent,
     ImageElement,
     ImageScaleMode,
+    ImageWhileLoading,
     VisibilityType
 } from "../../graphics";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
@@ -76,9 +77,10 @@ export class BackgroundImageSystem implements System {
                     value: bkgImg.image,
                     priority: 10,
                 },
+                whileLoading: ImageWhileLoading.WHITE,
                 anchor: { x: 0.5, y: 0.5 },
                 tint: 0xFFFFFF,
-            } as ImageElement,
+            } satisfies ImageElement as ImageElement,
         } as GraphicComponent);
 
         this.world.addComponent(c.entity, {

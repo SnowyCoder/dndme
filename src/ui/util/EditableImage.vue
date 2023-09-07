@@ -1,5 +1,5 @@
 <template>
-  <canvas ref="previewCanvas" class="util_eimage" width="128" height="128" style="width: 7rem"
+  <canvas v-if="!readonly" ref="previewCanvas" class="util_eimage master" width="128" height="128" style="width: 7rem"
         @click="onClick" @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop"
         v-tooltip.right="'Upload image'"
         :class="{
@@ -7,7 +7,10 @@
         }">
     Canvas error
   </canvas>
-  <button class="btn btn-outline-danger ms-2" @click="removeImage">Remove</button>
+  <canvas v-else ref="previewCanvas" class="util_eimage" width="128" height="128" style="width: 7rem">
+    Canvas error
+  </canvas>
+  <button class="btn btn-outline-danger ms-2" v-if="!readonly" @click="removeImage">Remove</button>
 
 
   <ImageCropper :show="imgBlob != null" :blob="imgBlob" is-round
@@ -36,7 +39,7 @@ const props = withDefaults(defineProps<Props>(), {
   readonly: false,
   border: () => ({
     color: 'white',
-    width: 0,
+    width: 1,
   })
 });
 
@@ -62,7 +65,7 @@ watchEffect(() => {
   });
   if (ctx == null) return;
 
-  const margin = props.border.width;
+  const margin = (1 - props.border.width) * 128 / 2;
   ctx.clearRect(0, 0, 128, 128);
   ctx.moveTo(64, 64);
   ctx.fillStyle = props.border.color;
@@ -215,12 +218,15 @@ function removeImage() {
   padding: 0.125rem;
   margin-left: 0.5em;
 
-  transition: 0.1s filter linear, 0.1s -webkit-filter linear;
+  &.master {
+    transition: 0.1s filter linear, 0.1s -webkit-filter linear;
 
-  &:hover {
-    filter: blur(5px) brightness(50%);
+    &:hover {
+      filter: blur(5px) brightness(50%);
+    }
   }
 }
+
 
 .util_eimage_drag {
   filter: blur(5px) brightness(50%);

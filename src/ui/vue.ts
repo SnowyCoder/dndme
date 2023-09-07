@@ -1,6 +1,4 @@
 import { Component as VComponent, customRef, DefineComponent, getCurrentInstance, inject, onUnmounted, proxyRefs, reactive, ShallowReactive, shallowRef, ShallowRef, toRef, triggerRef, watch, Ref, Directive, ShallowUnwrapRef, isProxy } from "vue";
-import { def } from '@vue/shared';
-import { ReactiveFlags } from '@vue/reactivity';
 
 import { Component, MultiComponent } from "../ecs/component";
 import { World } from "../ecs/World";

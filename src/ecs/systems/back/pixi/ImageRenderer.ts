@@ -4,7 +4,7 @@ import { STANDARD_GRID_OPTIONS } from "@/game/grid";
 import { Aabb } from "@/geometry/aabb";
 import { Obb } from "@/geometry/obb";
 import { IPoint } from "@/geometry/point";
-import { ElementType, EVENT_REMEMBER_BIT_BY_BIY_MASK_UPDATE, GRAPHIC_TYPE, ImageElement, ImageMeta, ImageScaleMode, VisibilityType } from "@/graphics";
+import { ElementType, EVENT_REMEMBER_BIT_BY_BIY_MASK_UPDATE, GRAPHIC_TYPE, ImageElement, ImageMeta, ImageScaleMode, ImageWhileLoading, VisibilityType } from "@/graphics";
 import { FileIndex } from "@/map/FileDb";
 import { arrayRemoveElem } from "@/util/array";
 import { BitSet } from "@/util/bitSet";
@@ -122,7 +122,11 @@ export class ImageRenderer {
             this.updateVisibility(el);
             return;
         }
-        el._pixi!.texture = Texture.WHITE;
+        let tmpTex: Texture = Texture.WHITE;
+        if (el.whileLoading == ImageWhileLoading.HIDE) {
+            tmpTex = Texture.EMPTY;
+        }
+        el._pixi!.texture = tmpTex;
         const dims = this.getDimensions(el);
         el._pixi!.scale.set(dims[0], dims[1]);
 

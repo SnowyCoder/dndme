@@ -15,7 +15,7 @@ import {
     SerializedFlag,
 TRANSFORM_TYPE
 } from "../component";
-import {ElementType, GRAPHIC_TYPE, GraphicComponent, PointElement, VisibilityType, ImageElement, ContainerElement, ImageScaleMode} from "../../graphics";
+import {ElementType, GRAPHIC_TYPE, GraphicComponent, PointElement, VisibilityType, ImageElement, ContainerElement, ImageScaleMode, ImageWhileLoading} from "../../graphics";
 import {POINT_RADIUS} from "./back/pixi/pixiGraphicSystem";
 import {DisplayPrecedence} from "../../phase/editMap/displayPrecedence";
 import {TOOL_TYPE, ToolPart} from "./back/ToolSystem";
@@ -45,7 +45,7 @@ export interface PinComponent extends Component {
     color: number;
     size?: number;
     imageId?: FileIndex;
-    imageContours?: number;
+    hideColor?: boolean;
 }
 
 export const DEFAULT_SIZE: number = 1;
@@ -207,6 +207,7 @@ export class PinSystem implements System {
                         type: 'raw',
                         value: Texture.WHITE,
                     },
+                    whileLoading: ImageWhileLoading.HIDE,
                     priority: DisplayPrecedence.PINS,
                     visib: VisibilityType.INVISIBLE,
                     ignore: false,
@@ -227,6 +228,10 @@ export class PinSystem implements System {
         const point = gc.display.children![0] as PointElement;
         point.color = pin.color;
         point.scale = scale;
+        // If we enable this when the image will not yet be loaded the pin wil be invisible
+        // TODO: optimize by hiding circle ONLY when image is loaded
+        //point.visib = pin.hideColour ? VisibilityType.INVISIBLE : VisibilityType.NORMAL;
+
         const image = gc.display.children![1] as ImageElement;
         image.scale = scale * 0.8;
         if (pin.imageId !== undefined) {
@@ -236,6 +241,7 @@ export class PinSystem implements System {
                 value: pin.imageId!,
                 priority: 100,
             };
+            image.scale = pin.hideColor ? 1 : 0.8;
         } else {
             image.visib = VisibilityType.INVISIBLE;
             image.texture = {
