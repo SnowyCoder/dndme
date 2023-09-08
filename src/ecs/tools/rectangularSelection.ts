@@ -6,7 +6,7 @@ import {RECTANGULAR_SELECTION_TYPE, RectangularSelectionResource} from "../resou
 import {SELECTION_TYPE, SelectionSystem} from "../systems/back/SelectionSystem";
 import {KEYBOARD_TYPE, KeyboardResource} from "../systems/back/KeyboardSystem";
 import { IPoint } from "@/geometry/point";
-import { Point } from "pixi.js";
+import { Point } from "@/pixi";
 
 export class RectangularSelection {
     private readonly world: World;

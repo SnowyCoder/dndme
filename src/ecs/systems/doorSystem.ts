@@ -1,10 +1,10 @@
 import {System} from "../System";
 import {World} from "../World";
-import {FlagEcsStorage, SingleEcsStorage} from "../Storage";
-import {Component, HideableComponent, POSITION_TYPE, PositionComponent} from "../component";
+import {SingleEcsStorage} from "../Storage";
+import {Component, HideableComponent, POSITION_TYPE} from "../component";
 import {DESTROY_ALL} from "../../util/pixi";
 import {Line} from "../../geometry/line";
-import {WALL_TYPE, WallComponent, WallSystem} from "./wallSystem";
+import {WALL_TYPE, WallSystem} from "./wallSystem";
 import {rotatePointByOrig} from "../../geometry/collision";
 import {REMEMBER_TYPE} from "./back/pixi/pixiGraphicSystem";
 import {LOCAL_LIGHT_SETTINGS_TYPE, LocalLightSettings} from "./lightSystem";
@@ -13,13 +13,12 @@ import {Resource} from "../resource";
 import {ComponentEditCommand, singleEditCommand} from "./command/componentEdit";
 import {emitCommand, executeAndLogCommand} from "./command/command";
 import {LayerOrder} from "../../phase/editMap/layerOrder";
-import { Group, Layer } from "@pixi/layers";
+import { Container, Graphics, Group, Layer } from "@/pixi";
 import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE } from "./back/SelectionUiSystem";
 
 import EcsDoor from "@/ui/ecs/EcsDoor.vue";
-import { EVENT_INTERACTION_COLLIDER_UPDATE, InteractionComponent, InteractionSystem, INTERACTION_TYPE, QueryMetadata, QUERY_META_COLLIDING_ENTITY, Shape, shapeLine, shapeToAabb, ShapeType } from "./back/InteractionSystem";
-import { GraphicComponent, GRAPHIC_TYPE, LineElement } from "@/graphics";
-import { Container, Graphics } from "pixi.js";
+import { EVENT_INTERACTION_COLLIDER_UPDATE, InteractionComponent, INTERACTION_TYPE, QueryMetadata, QUERY_META_COLLIDING_ENTITY, Shape, shapeLine, shapeToAabb, ShapeType } from "./back/InteractionSystem";
+import { GRAPHIC_TYPE, LineElement } from "@/graphics";
 
 
 export enum DoorType {
@@ -383,12 +382,9 @@ export class DoorSystem implements System {
 
 
     enable(): void {
-        this.layer.interactive = false;
         this.pixiBoardSys.root.addChild(this.layer);
 
         this.displayContainer.parentLayer = this.layer;
-        this.displayContainer.interactive = false;
-        this.displayContainer.interactiveChildren = false;
         this.pixiBoardSys.board.addChild(this.displayContainer);
 
         this.isMasterView = this.world.getResource(LOCAL_LIGHT_SETTINGS_TYPE)?.visionType !== 'rp';

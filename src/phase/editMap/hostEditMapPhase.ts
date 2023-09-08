@@ -7,7 +7,7 @@ import {PIXI_BOARD_TYPE} from "../../ecs/systems/back/pixi/pixiBoardSystem";
 import {SpawnCommandKind} from "../../ecs/systems/command/spawnCommand";
 import {executeAndLogCommand} from "../../ecs/systems/command/command";
 import { ImageRenderer } from "@/ecs/systems/back/pixi/ImageRenderer";
-import { Point } from "pixi.js";
+import { Point } from "@/pixi";
 
 export class HostEditMapPhase extends EditMapPhase {
     map: GameMap;

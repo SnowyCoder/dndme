@@ -1,5 +1,5 @@
 import { Buffer } from "buffer";
-import { BaseTexture, IRenderingContext, ImageBitmapResource, StateSystem, Texture } from "pixi.js";
+import { BaseTexture, IRenderingContext, ImageBitmapResource, StateSystem, Texture } from "@/pixi";
 
 export const DESTROY_ALL = {
     children: true,

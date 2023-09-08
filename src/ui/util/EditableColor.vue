@@ -5,10 +5,8 @@
 </template>
 
 <script lang="ts">
-import { utils } from "pixi.js";
 import { defineComponent } from "vue";
-import string2hex = utils.string2hex;
-import hex2string = utils.hex2string;
+import { uhex2str, ustr2hex } from "../vue";
 
 export default defineComponent({
   props: {
@@ -23,12 +21,12 @@ export default defineComponent({
       if ((name === 'input') == !!this.modelModifiers?.lazy) {
         return;
       }
-      this.$emit('update:modelValue', string2hex((event.target as HTMLInputElement).value));
+      this.$emit('update:modelValue', ustr2hex((event.target as HTMLInputElement).value));
     }
   },
   computed: {
     value() {
-      return hex2string(this.modelValue);
+      return uhex2str(this.modelValue);
     }
   }
 });

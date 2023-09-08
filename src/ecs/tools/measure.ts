@@ -6,7 +6,7 @@ import {MeasureResource} from "../resource";
 import SafeEventEmitter from "../../util/safeEventEmitter";
 import { snapPoint } from "./utils";
 import { IPoint } from "@/geometry/point";
-import { Point } from "pixi.js";
+import { Point } from "@/pixi";
 
 
 export const MEASURE_TYPE = "measure";

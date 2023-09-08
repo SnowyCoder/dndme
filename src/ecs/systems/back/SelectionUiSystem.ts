@@ -5,7 +5,7 @@ import { System } from "../../System";
 import { World } from "../../World";
 import { SelectionSystem, SELECTION_TYPE } from "./SelectionSystem";
 import { Resource } from "../../resource";
-import { PixiBoardSystem, PIXI_BOARD_TYPE } from "./pixi/pixiBoardSystem";
+import { PIXI_BOARD_TYPE } from "./pixi/pixiBoardSystem";
 import { componentEditCommand, ComponentEditCommand } from "../command/componentEdit";
 import { DeSpawnCommand } from "../command/despawnCommand";
 import { emitCommand } from "../command/command";
@@ -18,7 +18,8 @@ import EcsNote from "@/ui/ecs/EcsNote.vue";
 import EcsPosition from "@/ui/ecs/EcsPosition.vue";
 import EcsTransform from "@/ui/ecs/EcsTransform.vue";
 import { arrayFilterInPlace } from "../../../util/array";
-import { UPDATE_PRIORITY } from "pixi.js";
+import { UPDATE_PRIORITY } from "@/pixi";
+import { ComponentType } from "@/ecs/TypeRegistry";
 
 export const COMPONENT_INFO_PANEL_TYPE = 'component_info_panel';
 export type COMPONENT_INFO_PANEL_TYPE = typeof COMPONENT_INFO_PANEL_TYPE;
@@ -42,9 +43,9 @@ export interface ComponentInfoPanel extends Component {
     // If this field is not present there will not be an add entry (ex. you can't add a position component, but you can always add a note)
     addEntry?: {
         // Every entity in the selection must have this component
-        whitelist?: string[];
+        whitelist?: ComponentType[];
         // No entity in the selection must have this component
-        blacklist?: string[];
+        blacklist?: ComponentType[];
         // Custom condition!
         when?: (sys: SelectionSystem) => boolean;
         component: (x: number) => Component[];

@@ -6,7 +6,6 @@ import {SingleEcsStorage} from "../Storage";
 import {GridResource, Resource} from "../resource";
 import {VISIBILITY_TYPE, VisibilityComponent, VISIBILITY_DETAILS_TYPE, VisibilityDetailsComponent, VisibilityRequester} from "./back/VisibilitySystem";
 import {PLAYER_TYPE, PlayerComponent} from "./playerSystem";
-import {BLEND_MODES, Container, Sprite, utils} from "pixi.js";
 import {PixiBoardSystem, PIXI_BOARD_TYPE} from "./back/pixi/pixiBoardSystem";
 import {TOOL_TYPE} from "./back/ToolSystem";
 import {ToolType} from "../tools/toolType";
@@ -14,7 +13,6 @@ import {GRID_TYPE} from "./gridSystem";
 import {STANDARD_GRID_OPTIONS} from "../../game/grid";
 import {LayerOrder} from "../../phase/editMap/layerOrder";
 
-import { Group, Layer } from "@pixi/layers";
 import { StandardToolbarOrder } from "@/phase/editMap/standardToolbarOrder";
 import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE } from "./back/SelectionUiSystem";
 
@@ -22,6 +20,7 @@ import LightSettingsEditComponent from "@/ui/edit/settings/LightSettingsEdit.vue
 import EcsLight from "@/ui/ecs/EcsLight.vue";
 import { PIN_TYPE } from "./pinSystem";
 import { VisibilityPolygonElement } from "./back/pixi/visibility/VisibilityPolygonElement";
+import { BLEND_MODES, Color, Container, Sprite, ALPHA_MODES, Group, Layer } from "@/pixi";
 
 
 export const DEFAULT_BACKGROUND = 0x6e472c;
@@ -260,6 +259,7 @@ export class LightSystem implements System {
                 if (visDet.polygon !== undefined) {
                     c._lightDisplay!.radius = vis.range * this.gridSize;
                 }
+                this.updateLightVisPolygon(c);
             }
         } else if (comp.type === VISIBILITY_DETAILS_TYPE) {
             let vis = comp as VisibilityDetailsComponent;
@@ -284,10 +284,11 @@ export class LightSystem implements System {
 
             // We don't really care, the visibility polygons will change on their own
         } else if (comp.type === LIGHT_SETTINGS_TYPE || comp.type === LOCAL_LIGHT_SETTINGS_TYPE) {
-            let arr = [0.0, 0.0, 0.0, 0.0];
-            if (this.localLightSettings.visionType === 'dm') arr[3] = 1.0;
-            utils.hex2rgb(this.lightSettings.ambientLight, arr);
-            this.lightLayer.clearColor = arr;
+            const color = new Color(this.lightSettings.ambientLight);
+            color.setAlpha(this.localLightSettings.visionType === 'dm' ? 1.0 : 0.0);
+            this.lightLayer.clearColor = color.toArray();
+            // By default this would be premultiplied!
+            this.lightLayer.getRenderTexture().baseTexture.alphaMode = ALPHA_MODES.NO_PREMULTIPLIED_ALPHA;
 
             this.playerContainer.visible = this.localLightSettings.visionType !== 'dm';
 
@@ -318,23 +319,14 @@ export class LightSystem implements System {
 
     enable() {
         this.lightLayer.useRenderTexture = true;
-        this.lightLayer.interactive = false;
-        this.lightLayer.interactiveChildren = false;
 
-        this.playerContainer.interactive = false;
-        this.playerContainer.interactiveChildren = false;
         this.playerContainer.parentLayer = this.lightLayer;
-
-        this.lightContainer.interactive = false;
-        this.lightContainer.interactiveChildren = false;
         this.lightContainer.parentLayer = this.lightLayer;
 
         this.onResourceEdited(this.lightSettings, {});// Update the clearColor
 
         let lightingSprite = new Sprite(this.lightLayer.getRenderTexture());
         lightingSprite.zIndex = LayerOrder.LIGHT;
-        lightingSprite.interactive = false;
-        lightingSprite.interactiveChildren = false;
         lightingSprite.blendMode = CUSTOM_BLEND_MODES.MULTIPLY_COLOR_ONLY as any;
 
         let board = this.world.requireSystem(PIXI_BOARD_TYPE);

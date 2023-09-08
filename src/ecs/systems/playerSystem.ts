@@ -8,7 +8,6 @@ import {
     newVisibilityAwareComponent,
     VISIBILITY_AWARE_TYPE,
     VisibilityAwareComponent,
-    VisibilityAwareSystem
 } from "./back/VisibilityAwareSystem";
 import {LIGHT_SETTINGS_TYPE, LIGHT_TYPE, LightComponent, LightSettings} from "./lightSystem";
 import {Aabb} from "../../geometry/aabb";

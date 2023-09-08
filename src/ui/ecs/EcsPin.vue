@@ -3,7 +3,7 @@
     <div class="d-flex align-items-center">
       <!-- Image -->
       <editable-image :readonly="!isMaster" v-model="imageId" :border="{
-        color: utils.hex2string(color),
+        color: new Color(color).toHex(),
         width: hideColor ? 1 : 0.8,
       }" />
     </div>
@@ -40,7 +40,7 @@ import { computed, inject, ShallowRef, toRefs, watch } from "vue";
 import { useComponentPiece } from "../vue";
 import EditableImage from "../util/EditableImage.vue";
 
-import { utils } from "pixi.js";
+import { Color } from "@/pixi";
 
 const props = defineProps<{
   component: PinComponent

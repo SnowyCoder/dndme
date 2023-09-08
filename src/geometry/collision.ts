@@ -4,7 +4,7 @@ import {Line} from "./line";
 import {EPSILON} from "./visibilityPolygon";
 import {distSquared2d, polygonPointIntersect} from "../util/geometry";
 import {Obb} from "./obb";
-import { Point } from "pixi.js";
+import { Point } from "@/pixi";
 
 
 export function overlapAabbVsAabb(a: Aabb, b: Aabb): boolean {

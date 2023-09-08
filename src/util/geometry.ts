@@ -1,6 +1,6 @@
 import {IPoint} from "../geometry/point";
 import {Aabb} from "../geometry/aabb";
-import { Point } from "pixi.js";
+import { Point } from "@/pixi";
 
 export type RPoint = [number, number];
 

@@ -1,4 +1,4 @@
-import { Point, Rectangle } from "pixi.js";
+import { Point, Rectangle } from "@/pixi";
 import {IPoint} from "./point";
 
 export class Aabb {

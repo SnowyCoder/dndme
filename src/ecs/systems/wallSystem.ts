@@ -36,7 +36,7 @@ import WallIcon from "@/ui/icons/WallIcon.vue";
 import EcsWall from "@/ui/ecs/EcsWall.vue";
 import WallCreationOptions from "@/ui/edit/creation/WallCreationOptions.vue";
 
-import { Graphics, Point } from "pixi.js";
+import { Graphics, Point } from "@/pixi";
 import { RegisteredComponent } from "../TypeRegistry";
 import { Resource } from "../resource";
 
@@ -648,8 +648,6 @@ export class CreateWallToolPart implements ToolPart {
     }
 
     initialize(events: SafeEventEmitter): void {
-        this.createLastLineDisplay.interactive = false;
-        this.createLastLineDisplay.interactiveChildren = false;
         this.createLastLineDisplay.parentGroup = this.pixiBoardSys.toolForegroundGroup;
         this.pixiBoardSys.board.addChild(this.createLastLineDisplay);
         this.pixiBoardSys.board.sortChildren();

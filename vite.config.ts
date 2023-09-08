@@ -1,6 +1,6 @@
 import { fileURLToPath, URL } from 'url';
 
-import { defineConfig } from 'vite';
+import { defineConfig, PluginOption } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -13,7 +13,7 @@ const commitHash = execSync('git describe --always').toString();
 export default defineConfig({
   plugins: [
     vue(),
-    visualizer(),
+    visualizer() as PluginOption,
     VitePWA({
       registerType: 'prompt',
       strategies: 'injectManifest',

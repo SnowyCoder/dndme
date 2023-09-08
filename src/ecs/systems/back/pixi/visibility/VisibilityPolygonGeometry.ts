@@ -1,4 +1,4 @@
-import { Geometry, Buffer, TYPES } from "pixi.js";
+import { Geometry, Buffer, TYPES } from "@/pixi";
 
 export class VisibilityPolygonGeometry extends Geometry {
     _buffer: Buffer;

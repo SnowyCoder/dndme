@@ -1,4 +1,4 @@
-import { BLEND_MODES, Container, Renderer, Texture } from "pixi.js";
+import { BLEND_MODES, Container, Renderer, Texture } from "@/pixi";
 import { VISIBILITY_POLYGON } from "./VisibilityPolygonRenderer";
 import { LightProgramType } from "./VisibilityPrograms";
 

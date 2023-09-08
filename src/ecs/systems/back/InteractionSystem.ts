@@ -29,10 +29,10 @@ import {Line} from "../../../geometry/line";
 import {GeomertyQueryType, QueryHitEvent} from "../../interaction";
 import {PlayerVisibleComponent} from "../playerSystem";
 import {PointDB} from "../../../game/pointDB";
-import {GRID_TYPE, GridSystem} from "../gridSystem";
+import {GRID_TYPE} from "../gridSystem";
 import {SELECTION_TYPE, SelectionSystem} from "./SelectionSystem";
 import { IPoint } from "@/geometry/point";
-import { Point } from "pixi.js";
+import { Point } from "@/pixi";
 import { arrayRemoveElem } from "@/util/array";
 
 export enum ShapeType {

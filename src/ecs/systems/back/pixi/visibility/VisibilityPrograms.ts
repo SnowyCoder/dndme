@@ -1,4 +1,4 @@
-import { Program } from "pixi.js";
+import { Program } from "@/pixi";
 
 export const MAX_BATCH_COUNT = 1024;// < 2**16 - 1 if using mediump int
 

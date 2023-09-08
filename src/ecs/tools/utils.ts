@@ -3,7 +3,7 @@ import {World} from "../World";
 import {INTERACTION_TYPE} from "../systems/back/InteractionSystem";
 import {WALL_TYPE} from "../systems/wallSystem";
 import { IPoint } from "@/geometry/point";
-import { Point } from "pixi.js";
+import { Point } from "@/pixi";
 
 export function findEntitiesAt(world: World, point: Point, multi: boolean): number[] {
     let event = QueryHitEvent.queryPoint(point, multi);

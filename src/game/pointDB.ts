@@ -1,7 +1,7 @@
 import {K2dTree} from "../util/k2dTree";
 import {distSquared2d, RPoint} from "../util/geometry";
 import {GridSystem} from "../ecs/systems/gridSystem";
-import { Point } from "pixi.js";
+import { Point } from "@/pixi";
 
 
 export class PointDB {

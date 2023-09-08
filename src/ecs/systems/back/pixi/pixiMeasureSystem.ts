@@ -5,7 +5,7 @@ import {GridResource, MEASURE_TYPE, MeasureResource, Resource} from "@/ecs/resou
 import {distSquared2d} from "@/util/geometry";
 import {STANDARD_GRID_OPTIONS} from "@/game/grid";
 import {GRID_TYPE} from "@/ecs/systems/gridSystem";
-import { Graphics, Text } from "pixi.js";
+import { Graphics, Text } from "@/pixi";
 
 
 export const PIXI_MEASURE_TYPE = "pixi_measure";

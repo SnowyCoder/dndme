@@ -1,7 +1,7 @@
 // Common info about the graphical systems, this should be a semi-abstraction.
 // NONE OF THIS SHOULD BE SERIALIZED! THIS IS ALL RUNTIME DEPENDANT! DETAILS WILL CHANGE BETWEEN MINOR VERSIONS!
 
-import { Texture } from "pixi.js";
+import { Texture } from "@/pixi";
 import {Component} from "./ecs/component";
 import { IPoint } from "./geometry/point";
 import { FileIndex } from "./map/FileDb";

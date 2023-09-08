@@ -7,7 +7,7 @@ import { ListenerFn } from "../util/safeEventEmitter";
 
 import { objectClone, randombytes } from "../util/jsobj";
 import { EcsStorage } from "../ecs/Storage";
-import { utils } from "pixi.js";
+import { Color, utils } from "@/pixi";
 import { ComponentForType, ComponentType, ResourceForType, ResourceType } from "@/ecs/TypeRegistry";
 import { getLogger } from "@/ecs/systems/back/log/Logger";
 import { executeAndLogCommand } from "@/ecs/systems/command/command";
@@ -230,8 +230,12 @@ export function useComponentPiece<C extends Component, N extends keyof C, V=NonN
     });
 }
 
-export function uhex2str(hex: number | undefined) {
-    return hex === undefined ? '' : utils.hex2string(hex);
+export function uhex2str(hex: number | undefined): string {
+    return hex === undefined ? '' : new Color(hex).toHex();
+}
+
+export function ustr2hex(color: string | undefined): number | undefined {
+    return color === undefined ? undefined : new Color(color).toNumber();
 }
 
 export function useComponentsOfType<T extends ComponentType>(type: T): ShallowRef<ComponentForType<T>[]> {

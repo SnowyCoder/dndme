@@ -35,7 +35,7 @@ import { ComponentInfoPanel, COMPONENT_INFO_PANEL_TYPE, SELECTION_UI_TYPE } from
 import PinCreationOptions from "@/ui/edit/creation/PinCreationOptions.vue";
 import EcsPin from "@/ui/ecs/EcsPin.vue";
 import { FileIndex } from "@/map/FileDb";
-import { Texture } from "pixi.js";
+import { Texture } from "@/pixi";
 
 export const PIN_TYPE = 'pin';
 export type PIN_TYPE = typeof PIN_TYPE;

@@ -12,9 +12,8 @@ import {LayerOrder} from "../../phase/editMap/layerOrder";
 
 import GridEditComponent from "@/ui/edit/settings/GridEdit.vue";
 import { VueComponent } from "@/ui/vue";
-import { Group, Layer } from "@pixi/layers";
 import { StandardToolbarOrder } from "@/phase/editMap/standardToolbarOrder";
-import { BaseTexture, FORMATS, Point, RenderTexture, Texture, TilingSprite } from "pixi.js";
+import { BaseTexture, FORMATS, Point, RenderTexture, Texture, TilingSprite, Group, Layer } from "@/pixi";
 
 
 const SQRT3 = Math.sqrt(3);

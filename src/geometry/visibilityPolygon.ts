@@ -4,7 +4,7 @@ import {intersectSegmentVsSegment, SegmentVsSegmentRes, triangleContainsPoint} f
 import {distSquared2d, intersectLineVsLine} from "../util/geometry";
 import {BinaryHeap} from "../util/binaryHeap";
 import {Aabb} from "./aabb";
-import { Point } from "pixi.js";
+import { Point } from "@/pixi";
 
 export const EPSILON = 0.0000001;
 

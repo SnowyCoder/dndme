@@ -9,7 +9,7 @@ import { FileIndex } from "@/map/FileDb";
 import { arrayRemoveElem } from "@/util/array";
 import { BitSet } from "@/util/bitSet";
 import { DESTROY_ALL, DESTROY_MIN, loadTexture } from "@/util/pixi";
-import { BaseTexture, BLEND_MODES, BufferResource, Container, FORMATS, ImageBitmapResource, Matrix, RenderTexture, Sprite, Texture } from "pixi.js";
+import { BaseTexture, BLEND_MODES, BufferResource, Container, FORMATS, ImageBitmapResource, Matrix, RenderTexture, Sprite, Texture } from "@/pixi";
 import { GRID_TYPE } from "../../gridSystem";
 import { EVENT_VISIBILITY_SPREAD, VisibilitySpreadData } from "../../playerSystem";
 import { BigStorageSystem, BIG_STORAGE_TYPE } from "../files/bigStorageSystem";

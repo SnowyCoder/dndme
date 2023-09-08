@@ -1,6 +1,6 @@
 import {Component, POSITION_TYPE, PositionComponent, MultiComponent, SHARED_TYPE} from "../../component";
 import {Aabb} from "../../../geometry/aabb";
-import {FlagEcsStorage, MultiEcsStorage, SingleEcsStorage} from "../../Storage";
+import {MultiEcsStorage, SingleEcsStorage} from "../../Storage";
 import {DynamicTree} from "../../../geometry/dynamicTree";
 import {World} from "../../World";
 import {Line} from "../../../geometry/line";
@@ -18,8 +18,8 @@ import {
 import {STANDARD_GRID_OPTIONS} from "../../../game/grid";
 import {GRID_TYPE} from "../gridSystem";
 import {GridResource, Resource} from "../../resource";
-import { GameClockResource, GAME_CLOCK_TYPE, PixiBoardSystem, PIXI_BOARD_TYPE } from "./pixi/pixiBoardSystem";
-import { Graphics } from "pixi.js";
+import { GameClockResource, GAME_CLOCK_TYPE, PIXI_BOARD_TYPE } from "./pixi/pixiBoardSystem";
+import { Graphics } from "@/pixi";
 import { overlapAabbVsLine, overlapLineVsPolygon } from "@/geometry/collision";
 
 // This system uses a reuqest-response pattern

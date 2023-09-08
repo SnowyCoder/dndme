@@ -14,8 +14,6 @@ import {
     ElementType,
     GRAPHIC_TYPE,
     GraphicComponent,
-    ImageElement,
-    ImageScaleMode,
     LineElement,
     PointElement,
     TextElement,
@@ -30,7 +28,7 @@ import {
     PlayerSystem,
     PlayerVisibleComponent,
 } from "../../playerSystem";
-import {LIGHT_TYPE, LightSystem, LocalLightSettings} from "../../lightSystem";
+import {LIGHT_TYPE, LocalLightSettings} from "../../lightSystem";
 import {
     INTERACTION_TYPE,
     InteractionComponent,
@@ -46,10 +44,9 @@ import {GRID_TYPE} from "../../gridSystem";
 import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
 import {TEXT_TYPE, TextSystem} from "../TextSystem";
 import { VISIBILITY_AWARE_TYPE } from "../VisibilityAwareSystem";
-import { Group } from "@pixi/layers";
 import { IPoint } from "@/geometry/point";
 import { ImageRenderer, PixiImageElement } from "./ImageRenderer";
-import { Container, DisplayObject, Graphics, ImageBitmapResource, Point, Sprite, Text, TextStyle, Texture } from "pixi.js";
+import { Container, DisplayObject, Graphics, ImageBitmapResource, Point, Sprite, Text, TextStyle, Texture, Group } from "@/pixi";
 import { FileIndex } from "@/map/FileDb";
 
 export interface PixiGraphicComponent extends GraphicComponent {
@@ -559,8 +556,6 @@ export class PixiGraphicSystem implements System {
         if (defLayer && cmp._layer !== undefined) {
             res.parentGroup = cmp._layer;
         }
-        res.interactive = false;
-        res.interactiveChildren = false;
         res.zIndex = desc.priority;
         desc._pixi = res;
         desc._oldType = desc.type;
@@ -754,7 +749,7 @@ export class PixiGraphicSystem implements System {
                 g.resolution = 2 * scale;
                 g.scale.set(scale);
                 g.style.fill = el.color;
-                g.style.align = el.lineAlign;
+                g.style.align = el.lineAlign ?? 'center';
                 break;
             }
         }

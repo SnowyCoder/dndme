@@ -4,7 +4,7 @@ import {SingleEcsStorage} from "../Storage";
 import {Component} from "../component";
 import { Resource } from "../resource";
 import { VueComponent } from "@/ui/vue";
-import { isMobile } from "pixi.js";
+import { isMobile } from "@/pixi";
 
 
 export const TOOLBAR_ITEM_TYPE = 'toolbar_item';

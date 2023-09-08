@@ -1,4 +1,4 @@
-import { Assets, Spritesheet, Texture } from "pixi.js";
+import { Assets, Spritesheet, Texture } from "@/pixi";
 
 import PropsImage from "./assets/spritesheets/props.png";
 import PropsSpritesheet from "./assets/spritesheets/props.json";

@@ -15,7 +15,7 @@ import {Component} from "@/ecs/component";
 import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixiBoardSystem";
 import {Resource} from "@/ecs/resource";
 import {ElementType, GRAPHIC_TYPE} from "@/graphics";
-import { Group, Layer as PixiLayer } from "@pixi/layers";
+import { Group, Layer as PixiLayer } from "@/pixi";
 import { RegisteredComponent } from "@/ecs/TypeRegistry";
 
 export type CustomLayer = Layer & {

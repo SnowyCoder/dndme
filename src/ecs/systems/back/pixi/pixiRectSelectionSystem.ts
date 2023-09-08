@@ -3,7 +3,7 @@ import {PIXI_BOARD_TYPE} from "./pixiBoardSystem";
 import {System} from "@/ecs/System";
 import {RECTANGULAR_SELECTION_TYPE, RectangularSelectionResource, Resource} from "@/ecs/resource";
 import {Aabb} from "@/geometry/aabb";
-import { Graphics } from "pixi.js";
+import { Graphics } from "@/pixi";
 
 
 export const PIXI_RECTANGULAR_SELECTION_TYPE = "pixi_rect_selection";

@@ -16,7 +16,7 @@ import {
     SerializedFlag
 } from "../component";
 import {INTERACTION_TYPE, InteractionComponent, InteractionSystem, shapePoint} from "./back/InteractionSystem";
-import {Assets, Spritesheet, Texture} from "pixi.js";
+import {Assets, Spritesheet, Texture} from "@/pixi";
 import {PIN_TYPE, PinComponent} from "./pinSystem";
 import {
     ElementType,

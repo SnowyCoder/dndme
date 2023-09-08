@@ -1,7 +1,7 @@
 
 // A version highly inspired by plank.js (https://github.com/shakiba/planck.js/blob/f5777884f537db97608d8016bda960d251d42d4d/lib/collision/DynamicTree.js)
 
-import { IPoint } from "pixi.js";
+import { IPoint } from "@/pixi";
 import {Aabb} from "./aabb";
 import {containsAabbVsAabb, overlapAabbVsAabb} from "./collision";
 

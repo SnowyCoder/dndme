@@ -1,4 +1,4 @@
-import { ExtensionMetadata, extensions, ExtensionType, Buffer, ObjectRenderer, Renderer, Shader, State, Texture, UniformGroup, utils, BufferSystem } from "pixi.js";
+import { ObjectRenderer, Shader, State, Texture, ExtensionMetadata, ExtensionType, UniformGroup, utils, extensions, BufferSystem, Renderer, Buffer, Color } from "@/pixi";
 import { DepthFunc, VisibilityPolygonElement } from "./VisibilityPolygonElement";
 import { VisibilityPolygonGeometry } from "./VisibilityPolygonGeometry";
 import { compilePrograms, LightProgramType, MAX_BATCH_COUNT } from "./VisibilityPrograms";
@@ -188,7 +188,7 @@ export class VisibilityPolygonRenderer extends ObjectRenderer {
         u[4 * modelId + 3] = element.radius * Math.sqrt(wt.a*wt.a + wt.b*wt.b);
 
         const alpha = Math.min(element.worldAlpha, 1.0);
-        let argb = utils.premultiplyTint(element.tint, alpha);
+        let argb = Color.shared.setValue(element.tint).toPremultiplied(alpha);
         argb = (argb & 0xFF00FF00) | ((argb & 0x00FF0000) >> 16) | ((argb & 0x000000FF) << 16);
 
 

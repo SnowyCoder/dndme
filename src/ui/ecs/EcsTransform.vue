@@ -10,7 +10,7 @@
 </template>
 
 <script setup lang="ts">
-import { DEG_TO_RAD, RAD_TO_DEG } from "pixi.js";
+import { DEG_TO_RAD, RAD_TO_DEG } from "@/pixi";
 
 import { TransformComponent } from "../../ecs/component";
 import EditableNumber from "../util/EditableNumber.vue";

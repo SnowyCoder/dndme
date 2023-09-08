@@ -29,12 +29,11 @@ import {Resource} from "../resource";
 import * as P from "../../protocol/game";
 import SafeEventEmitter from "../../util/safeEventEmitter";
 import { PacketInfo } from "../../network/Channel";
-import { Group, Layer } from "@pixi/layers";
 
 import MouseTrailIcon from "@/ui/icons/MouseTrailIcon.vue";
 import { StandardToolbarOrder } from "@/phase/editMap/standardToolbarOrder";
 import { arrayRemoveElem } from "@/util/array";
-import { BLEND_MODES, Container, Point, RopeGeometry, SimpleRope, Texture, UPDATE_PRIORITY } from "pixi.js";
+import { BLEND_MODES, Container, Point, RopeGeometry, SimpleRope, Texture, UPDATE_PRIORITY, Group, Layer } from "@/pixi";
 
 export const MOUSE_TRAIL_TYPE = 'mouse_trail';
 export type MOUSE_TRAIL_TYPE = typeof MOUSE_TRAIL_TYPE;
@@ -350,14 +349,10 @@ export class MouseTrailSystem implements System {
     }
 
     enable(): void {
-        this.layer.interactive = false;
-        this.layer.interactiveChildren = false;
         this.pixiBoardSys.root.addChild(this.layer);
 
         this.pixiBoardSys.board.addChild(this.container);
 
-        this.container.interactive = false;
-        this.container.interactiveChildren = false;
         this.container.parentLayer = this.layer;
 
         this.networkStatusResource = this.world.getResource(NETWORK_STATUS_TYPE);

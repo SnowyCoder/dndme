@@ -1,5 +1,5 @@
 import { System } from "@/ecs/System";
-import { Container, Point, Renderer, settings, Ticker, UPDATE_PRIORITY } from "pixi.js";
+import { Container, Point, Renderer, settings, Ticker, UPDATE_PRIORITY, Group, Layer, Stage } from "@/pixi";
 import { World } from "@/ecs/World";
 import { Resource } from "@/ecs/resource";
 import { FOLLOW_MOUSE_TYPE, POSITION_TYPE } from "@/ecs/component";
@@ -7,7 +7,6 @@ import { findEntitiesAt, snapPoint } from "@/ecs/tools/utils";
 import { KEYBOARD_KEY_DOWN, KEYBOARD_TYPE } from "../KeyboardSystem";
 import { DEFAULT_BACKGROUND } from "@/ecs/systems/lightSystem";
 import { LayerOrder } from "@/phase/editMap/layerOrder";
-import { Group, Layer, Stage } from "@pixi/layers";
 import { IPoint } from "@/geometry/point";
 
 interface PointerData {
@@ -181,12 +180,9 @@ export class PixiBoardSystem implements System {
         this.renderer.runners.contextChange.add(this);
 
         this.root = new Stage();
-        this.root.interactive = false;
-        this.root.interactiveChildren = false;
         this.root.sortableChildren = true;
         this.root.group.enableSort = true;
 
-        this.root.interactive = false;
 
         this.ticker.add(() => {
             this.world.editResource(GAME_CLOCK_TYPE, {
@@ -202,15 +198,11 @@ export class PixiBoardSystem implements System {
         //       and the other for the GUI (or other things that do not depend on camera position, as the GridSystem(?)).
         //       to create a custom game loop: https://github.com/pixijs/pixi.js/wiki/v5-Custom-Application-GameLoop
         this.board = new Container();
-        this.board.interactive = false;
-        this.board.interactiveChildren = false;
         this.board.position.set(0, 0);
         this.board.sortableChildren = true;
 
         this.toolForegroundGroup = new Group(LayerOrder.TOOLS, false);
         const toolLayer = new Layer(this.toolForegroundGroup);
-        toolLayer.interactive = false;
-        toolLayer.interactiveChildren = false;
         this.root.addChild(toolLayer);
 
         this.root.addChild(this.board);

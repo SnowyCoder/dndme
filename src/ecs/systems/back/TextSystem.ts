@@ -1,9 +1,9 @@
 import {System} from "../../System";
 import {DESTROY_ALL} from "../../../util/pixi";
-import {PIXI_BOARD_TYPE, PixiBoardSystem} from "./pixi/pixiBoardSystem";
+import {PIXI_BOARD_TYPE} from "./pixi/pixiBoardSystem";
 import {World} from "../../World";
 import {LayerOrder} from "../../../phase/editMap/layerOrder";
-import { Layer } from "@pixi/layers";
+import { Layer } from "@/pixi";
 
 export const TEXT_TYPE = 'text';
 export type TEXT_TYPE = typeof TEXT_TYPE;
@@ -21,8 +21,6 @@ export class TextSystem implements System {
 
     enable() {
         this.textLayer.zIndex = LayerOrder.TEXT;
-        this.textLayer.interactive = false;
-        this.textLayer.interactiveChildren = false;
 
         let boardSys = this.world.requireSystem(PIXI_BOARD_TYPE);
         boardSys.root.addChild(this.textLayer);

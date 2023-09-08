@@ -6,7 +6,7 @@ import {RectangularSelection} from "./rectangularSelection";
 import {LAYER_TYPE, LayerSystem} from "../systems/back/LayerSystem";
 import {KEYBOARD_TYPE, KeyboardResource} from "../systems/back/KeyboardSystem";
 import SafeEventEmitter from "../../util/safeEventEmitter";
-import { Point } from "pixi.js";
+import { Point } from "@/pixi";
 
 export class FilteredPanPart implements ToolPart {
     readonly name;

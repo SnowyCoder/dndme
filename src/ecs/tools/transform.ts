@@ -5,7 +5,7 @@ import {aabbSameOriginDifference, distSquared2d, projectPointOnLine,} from "../.
 import {SELECTION_TYPE, SelectionSystem} from "../systems/back/SelectionSystem";
 import {KEYBOARD_TYPE, KeyboardResource} from "../systems/back/KeyboardSystem";
 import { IPoint } from "@/geometry/point";
-import { Graphics, Point, UPDATE_PRIORITY } from "pixi.js";
+import { Graphics, Point, UPDATE_PRIORITY } from "@/pixi";
 import { ToolPart } from "../systems/back/ToolSystem";
 import SafeEventEmitter from "@/util/safeEventEmitter";
 import { BoardTransformResource, GAME_CLOCK_TYPE, PIXI_BOARD_TYPE, PointerClickEvent, PointerDownEvent, PointerEvents, PointerMoveEvent, PointerUpEvent } from "../systems/back/pixi/pixiBoardSystem";
