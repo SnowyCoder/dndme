@@ -115,7 +115,7 @@ export class WTChannel {
 
     connections = new Map<number, PeerData>();
     private nextId: number = -1;
-    myId: number = -1;
+    myId: number = 0;
     private peers = new Map<string, PeerData>();
 
     private extraChannels: {[key: symbol]: ExtraChannel} = {};
