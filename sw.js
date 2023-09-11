@@ -1221,7 +1221,7 @@ function ce() {
 function ie() {
   self.skipWaiting();
 }
-const v = [{"revision":null,"url":"assets/fa-brands-400-8ea87917.woff2"},{"revision":null,"url":"assets/fa-brands-400-a3b98177.svg"},{"revision":null,"url":"assets/fa-regular-400-be0a0849.svg"},{"revision":null,"url":"assets/fa-regular-400-e42a8844.woff2"},{"revision":null,"url":"assets/fa-solid-900-9674eb1b.svg"},{"revision":null,"url":"assets/fa-solid-900-9834b82a.woff2"},{"revision":null,"url":"assets/index-50359188.css"},{"revision":null,"url":"assets/index-8aa8c6ae.js"},{"revision":null,"url":"assets/merienda-be62e6a9.woff2"},{"revision":null,"url":"assets/secondPhase-c00e6084.css"},{"revision":null,"url":"assets/secondPhase-ea35dc1b.js"},{"revision":null,"url":"assets/workbox-window.prod.es5-86428182.js"},{"revision":"48e7c1775305ad7b964085a76d5526a3","url":"favicon.ico"},{"revision":"a9719da9dc6dd963c190951aee0023dc","url":"index.html"},{"revision":"86ea18ace1f9c6086a55e060f9a1c137","url":"manifest.webmanifest"}];
+const v = [{"revision":null,"url":"assets/fa-brands-400-8ea87917.woff2"},{"revision":null,"url":"assets/fa-brands-400-a3b98177.svg"},{"revision":null,"url":"assets/fa-regular-400-be0a0849.svg"},{"revision":null,"url":"assets/fa-regular-400-e42a8844.woff2"},{"revision":null,"url":"assets/fa-solid-900-9674eb1b.svg"},{"revision":null,"url":"assets/fa-solid-900-9834b82a.woff2"},{"revision":null,"url":"assets/index-da532d8a.css"},{"revision":null,"url":"assets/index-dd7189e0.js"},{"revision":null,"url":"assets/merienda-be62e6a9.woff2"},{"revision":null,"url":"assets/secondPhase-02a3ce78.js"},{"revision":null,"url":"assets/secondPhase-16c75237.css"},{"revision":null,"url":"assets/workbox-window.prod.es5-86428182.js"},{"revision":"48e7c1775305ad7b964085a76d5526a3","url":"favicon.ico"},{"revision":"287098c78a86a209a2442f774ff632e7","url":"index.html"},{"revision":"86ea18ace1f9c6086a55e060f9a1c137","url":"manifest.webmanifest"}];
 console.log("UPDATED!");
 console.log(v);
 function N(n) {
@@ -1252,7 +1252,7 @@ J([{
   }
 }]);
 re(v);
-x("version", async (n) => new Response(`v1.6
+x("version", async (n) => new Response(`v1.6.1
 `, {
   status: 200,
   headers: N(new Headers())
