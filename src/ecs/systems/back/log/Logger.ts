@@ -11,8 +11,11 @@ export enum LogLevel {
     TRACE = 1,
 }
 
+export type DirectiveCommand = [path: string, level: LogLevel];
+export type LogDirective = Array<DirectiveCommand>;
+
 export const MAX_LOG_LEVEL: LogLevel = parseLogLevel(import.meta.env.VITE_MAX_LOG_LEVEL, 'warn', LogLevel.INFO);
-export const DEFAULT_LOG_LEVEL: LogLevel = parseLogLevel(import.meta.env.VITE_DEFAULT_LOG_LEVEL, 'warn', LogLevel.INFO);
+export const LOG_DIRECTIVE: LogDirective = parseLogDirective(import.meta.env.VITE_LOG_DIRECTIVE);
 
 declare global {
     interface Window {
@@ -61,10 +64,11 @@ export class Logger {
     }
 
     private setLoggerLevel(target: Array<[LogReceiver, LogLevel]>, recv: LogReceiver, level: LogLevel): boolean {
-        for (let e of target) {
+        for (let i = 0; i < target.length; i++) {
+            let e = target[i];
             if (e[0] == recv) {
                 if (e[1] == level) return false;
-                e[1] = level;
+                target[i] = [e[0], level]
                 return true;
             }
         }
@@ -93,13 +97,13 @@ export class Logger {
         } else {
             if (this.parent === undefined) {
                 this.computedRules = [];
-                newLevel = LogLevel.OFF;
             } else {
                 this.computedRules = [...this.parent.computedRules];
-                newLevel = this.parent.logLevel;
             }
             for (let [logger, level] of this.rules) {
                 this.setLoggerLevel(this.computedRules, logger, level);
+            }
+            for (let [_logger, level] of this.computedRules) {
                 if (level < newLevel) newLevel = level;
             }
             this.sortRules(this.computedRules);
@@ -249,6 +253,37 @@ export function parseLogLevel(name: string, rejectAction: 'ignore' | 'fail' | 'w
         console.warn("Invalid LogLevel " + name);
     }
     return def;
+}
+
+export function parseLogDirective(data: string): LogDirective {
+    const parseCommand = (cmd: string) => {
+        // parse: A=B
+        const regex = /([\w.]+)\s*=\s*(\w+)/;
+        const match = cmd.trim().match(regex);
+        if (match == null) {
+            // General log-levels without paths are also supported (ex: INFO,some.subsystem=DEBUG)
+            try {
+                const level = parseLogLevel(cmd);
+                return ['', level] as DirectiveCommand;
+            } catch(e) {
+            }
+            console.warn('Unrecognized command', cmd);
+            return null;
+        }
+        let level;
+        try {
+            level = parseLogLevel(match[2]);
+        } catch(e) {
+            console.warn('Invalid level', match[2]);
+            return null;
+        }
+        return [match[1], level] as DirectiveCommand
+    };
+
+    // https://stackoverflow.com/questions/43118692/typescript-filter-out-nulls-from-an-array
+    return data.split(',')
+            .map(parseCommand)
+            .filter((x): x is DirectiveCommand => x != null);
 }
 
 export function getLogger(path: string): Logger {

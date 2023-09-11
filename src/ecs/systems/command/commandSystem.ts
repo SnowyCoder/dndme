@@ -8,6 +8,9 @@ import {ResourceEditCommandKind} from "./resourceEditCommand";
 import {EventCommandKind} from "./eventCommand";
 import {NoneCommandKind} from "./noneCommand";
 import {NETWORK_TYPE, NetworkSystem} from "../back/NetworkSystem";
+import { LogLevel, Logger } from "../back/log/Logger";
+import { getLogger } from "../back/log/LogSystem";
+import { objectClone } from "@/util/jsobj";
 
 export interface CommandResult {
     inverted: Command | undefined;
@@ -35,6 +38,8 @@ export class CommandSystem implements System {
     readonly dependencies = [];
     readonly optionalDependencies = [NETWORK_TYPE]
 
+    private readonly logger: Logger;
+
     private commands = new Map<string, CommandKind>();
     private networkSys: NetworkSystem | undefined;
 
@@ -43,6 +48,7 @@ export class CommandSystem implements System {
 
     public constructor(world: World) {
         this.world = world;
+        this.logger = getLogger(world, "command");
         this.registerDefaultCommands();
         this.world.events.on(EVENT_COMMAND_EMIT, (cmd, res, share) => this.onEmit(cmd, res, share));
         this.world.events.on(EVENT_COMMAND_LOG, this.onLog, this);
@@ -52,6 +58,7 @@ export class CommandSystem implements System {
     }
 
     registerCommandKind(kind: CommandKind) {
+        this.logger.debug('register', kind.kind);
         this.commands.set(kind.kind, kind);
     }
 
@@ -90,7 +97,9 @@ export class CommandSystem implements System {
     }
 
     private emit(command: Command, share: boolean=false, isLogging: boolean=false): CommandResult {
-        // console.log("EMIT", JSON.stringify(command), isLogging);
+        if (this.logger.isEnabled(LogLevel.DEBUG)) {
+            this.logger.debug('emit', objectClone(command), 'share: ', share, 'log: ', isLogging);
+        }
 
         let kind = this.commands.get(command.kind);
         if (kind === undefined) {

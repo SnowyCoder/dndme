@@ -5,6 +5,9 @@ import {Command} from "./command";
 import {COMMAND_TYPE, CommandResult, CommandSystem, EVENT_COMMAND_EMIT, EVENT_COMMAND_HISTORY_LOG} from "./commandSystem";
 import { BigStorageSystem, BIG_STORAGE_TYPE } from "../back/files/bigStorageSystem";
 import { FileIndex } from "@/map/FileDb";
+import { LogLevel, Logger } from "../back/log/Logger";
+import { getLogger } from "../back/log/LogSystem";
+import { objectClone } from "@/util/jsobj";
 
 const HISTORY_LIMIT = 128;
 
@@ -21,6 +24,8 @@ export class CommandHistorySystem implements System {
     readonly name = COMMAND_HISTORY_TYPE;
     readonly dependencies = [COMMAND_TYPE, BIG_STORAGE_TYPE];
 
+    private readonly logger: Logger;
+
     commandSys: CommandSystem;
     fileSys: BigStorageSystem;
 
@@ -34,6 +39,7 @@ export class CommandHistorySystem implements System {
 
     constructor(world: World) {
         this.world = world;
+        this.logger = getLogger(world, 'command.history');
 
         this.history = new Array<HistoryEntry>();
 
@@ -53,8 +59,9 @@ export class CommandHistorySystem implements System {
     }
 
     private onCommandPreExecute(isLogging: boolean): void {
+        //this.logger.error('pre-execute', isLogging, this.forceFileLogging);
         if (this.registeredFiles !== undefined) {
-            console.error("unfinished command! please if logging is enabled call onLog after onCommit");
+            this.logger.error("unfinished command! please if logging is enabled call onLog after onCommit");
             debugger;
         }
         this.registeredFiles = (isLogging || this.forceFileLogging) ? [] : undefined;
@@ -77,6 +84,7 @@ export class CommandHistorySystem implements System {
     }
 
     private trimHistory(): void {
+        this.logger.debug('trim', this.history.length, this.index);
         for (let i = this.index; i < this.history.length; i++) {
             this.destroyEntry(this.history[i]);
         }
@@ -84,14 +92,13 @@ export class CommandHistorySystem implements System {
     }
 
     private historyPush(cmd: HistoryEntry) {
-        this.trimHistory();
-
         if (this.history.length !== 0) {
             const lastCmd = this.history[this.history.length - 1];
             if (this.tryMerge(lastCmd, cmd)) {
                 return;
             }
         }
+        this.trimHistory();
 
         this.history.push(cmd);
         this.index++;
@@ -184,6 +191,9 @@ export class CommandHistorySystem implements System {
             files = this.registeredFiles;
             this.registeredFiles = undefined;
         }
+        if (this.logger.isEnabled(LogLevel.DEBUG)) {
+            this.logger.debug('log', objectClone(cmd), 'partial:', partial, 'files:', files);
+        }
 
         if (cmd === undefined) {
             if (!partial) {
@@ -206,19 +216,26 @@ export class CommandHistorySystem implements System {
         this.notifyHistoryChange();
     }
 
-    private executeEmit(cmd: Command, logFiles: boolean): Command {
+    private executeEmit(cmd: Command, logFiles: boolean): [Command, string[]] {
         let res = {} as CommandResult;
         if (logFiles) {
             if (this.forceFileLogging) console.warn("Reentrant command emit!");
             this.forceFileLogging = true;
         }
-        this.world.events.emit(EVENT_COMMAND_EMIT, cmd, (r: CommandResult) => res = r, true);
+        let files = new Array<string>();
+        this.world.events.emit(EVENT_COMMAND_EMIT, cmd, (r: CommandResult) => {
+            res = r
+            files = this.registeredFiles ?? [];
+            this.registeredFiles = undefined;
+        }, true);
         this.forceFileLogging = false;
-        return res.inverted || { kind: 'none' };
+        const invertedCmd = res.inverted || { kind: 'none' };
+        return [invertedCmd, files];
     }
 
     private onUndo() {
         let cmd = this.historyPeekPrev();
+        this.logger.debug('undo', cmd);
 
         if (cmd === undefined) {
             console.log("Nothing to undo");
@@ -227,10 +244,12 @@ export class CommandHistorySystem implements System {
         const initialTs = cmd.timestamp;
 
         while (true) {
+            const [inverted, files] = this.executeEmit(cmd.cmd, true);
+
             this.historyUndo({
-                cmd: this.executeEmit(cmd.cmd, true),
+                cmd: inverted,
                 timestamp: cmd.timestamp,
-                files: this.registeredFiles ?? [],
+                files,
             });
             this.registeredFiles = undefined;
             this.notifyHistoryChange();
@@ -241,6 +260,7 @@ export class CommandHistorySystem implements System {
 
     private onRedo() {
         let cmd = this.historyPeekNext();
+        this.logger.debug('redo', cmd);
         if (cmd === undefined) {
             console.log("Nothing to redo");
             return;
@@ -248,10 +268,12 @@ export class CommandHistorySystem implements System {
         const initialTs = cmd.timestamp;
 
         while (true) {
+            const [inverted, files] = this.executeEmit(cmd.cmd, true);
+
             this.historyRedo({
-                cmd: this.executeEmit(cmd.cmd, true),
+                cmd: inverted,
                 timestamp: cmd.timestamp,
-                files: this.registeredFiles ?? [],
+                files,
             });
             this.registeredFiles = undefined;
             this.notifyHistoryChange();

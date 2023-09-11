@@ -557,8 +557,8 @@ class BitByBitSpreader {
         let lights = [];
 
         let lightsNeeded = !this.playerSys.ambientIlluminated;
-        let lightStorage = this.world.storages.get(LIGHT_TYPE) as SingleEcsStorage<LightComponent>;
-        let posStorage = this.world.storages.get(POSITION_TYPE) as SingleEcsStorage<PositionComponent>;
+        let lightStorage = this.world.getStorage(LIGHT_TYPE);
+        let posStorage = this.world.getStorage(POSITION_TYPE);
 
         for (let c of this.visibilitySystem.aabbTree.query(aabb)) {
             let vis = c.tag!;
@@ -570,8 +570,6 @@ class BitByBitSpreader {
 
                 if (player.nightVision || !lightsNeeded) nightVisPlayers.push(mesh);
                 else players.push(mesh);
-
-                continue;
             }
             if (lightsNeeded) {
                 let light = lightStorage.getComponent(vis.entity);

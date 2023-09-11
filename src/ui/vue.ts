@@ -215,16 +215,21 @@ export function useComponentReactive<T>(component: ShallowRef<Component>,  prope
 export function useComponentPiece<C extends Component, N extends keyof C, V=NonNullable<C[N]>>(component: ShallowRef<C>, name: N, defValue: V):  ShallowRef<V> {
     const { emit } = getCurrentInstance()!;
 
+    let lastVal: V = defValue;
+
     return customRef((track, trigger) => {
         watch(component, trigger);
         return {
             get() {
                 track();
                 const rawVal = (component.value as any)[name];
-                return rawVal ?? defValue;
+                lastVal = rawVal ?? defValue
+                return lastVal;
             },
             set(newVal: V) {
-                emit('ecs-property-change', component.value.type, name, newVal, (component.value as any as MultiComponent).multiId);
+                if (newVal !== lastVal || typeof newVal === 'object') {
+                    emit('ecs-property-change', component.value.type, name, newVal, (component.value as any as MultiComponent).multiId);
+                }
             },
         };
     });

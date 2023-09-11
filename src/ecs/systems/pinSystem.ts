@@ -234,14 +234,14 @@ export class PinSystem implements System {
 
         const image = gc.display.children![1] as ImageElement;
         image.scale = scale * 0.8;
-        if (pin.imageId !== undefined) {
+        if (pin.imageId != null) {
             image.visib = VisibilityType.NORMAL;
             image.texture = {
                 type: 'external',
                 value: pin.imageId!,
                 priority: 100,
             };
-            image.scale = pin.hideColor ? 1 : 0.8;
+            image.scale = (pin.hideColor ? 1 : 0.8) * scale;
         } else {
             image.visib = VisibilityType.INVISIBLE;
             image.texture = {

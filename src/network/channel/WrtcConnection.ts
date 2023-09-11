@@ -62,7 +62,7 @@ export class WrtcConnection {
 
     constructor(config: RTCConfiguration, signaler: Signaler) {
         this.events = new SafeEventEmitter();
-        this.logger = getLogger('connection.wrtc');
+        this.logger = getLogger('network.connection.wrtc');
 
         const rtcConfig = Object.assign({}, BASE_RTC_CONFIG, config);
         this.handle = new RTCPeerConnection(rtcConfig);

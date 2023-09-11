@@ -1,4 +1,4 @@
-import {SerializedEntities, SerializedWorld, World} from "../../World";
+import {DeserializeOptions, SerializedEntities, SerializedWorld, World} from "../../World";
 import {Component, SHARED_TYPE} from "../../component";
 import {Command, CommandKind} from "./command";
 import {DeSpawnCommand} from "./despawnCommand";
@@ -11,6 +11,8 @@ export interface SpawnCommand extends Command {
     kind: 'spawn';
     data: SerializedEntities;
     addShare?: boolean;
+    remap?: number[];
+    thenSelect?: boolean;
 }
 
 export class SpawnCommandKind implements CommandKind {
@@ -22,13 +24,23 @@ export class SpawnCommandKind implements CommandKind {
     }
 
     applyInvert(cmd: SpawnCommand): DeSpawnCommand {
-        this.world.deserialize(cmd.data, {
+        const options: Partial<DeserializeOptions> = {
             addShare: cmd.addShare,
-        });
+            thenSelect: cmd.thenSelect,
+        };
+        let entityIds: number[];
+        if (cmd.remap != null) {
+            options.remap = true;
+            options.manualRemap = cmd.remap;
+            entityIds = cmd.remap;
+        } else {
+            entityIds = cmd.data.entities;
+        }
+        this.world.deserialize(cmd.data, options);
 
         return {
             kind: 'despawn',
-            entities: cmd.data.entities,
+            entities: entityIds
         } as DeSpawnCommand;
     }
 
@@ -37,16 +49,30 @@ export class SpawnCommandKind implements CommandKind {
     }
 
     stripClient(command: SpawnCommand): Command[] {
-        const shared = command.data.storages[SHARED_TYPE] as FlagEcsStorageSerialzed;
+        const shared = command.data.storages[SHARED_TYPE] as FlagEcsStorageSerialzed | undefined;
 
         const entityFilter = (x: number) => shared !== undefined && shared.includes(x);
-        let newEntities = command.data.entities.filter(entityFilter);
+        // let newEntities = command.data.entities.filter(entityFilter);
+        const newEntities = [];
+        const newRemap = command.remap === undefined ? undefined : new Array<number>();
+
+        if (shared !== undefined) {
+            for (let i = 0; i < command.data.entities.length; i++) {
+                const entity = command.data.entities[i];
+                if (shared.includes(entity)) {
+                    newEntities.push(entity);
+                    if (newRemap !== undefined) {
+                        newRemap.push(command.remap![i]);
+                    }
+                }
+            }
+        }
 
         if (newEntities.length === 0) {
             return [];
         }
 
-        let newStorages = objectClone(command.data.storages);
+        const newStorages = objectClone(command.data.storages);
 
         objectFilterInplace(newStorages, (storName: string, data: any) => {
             const storage = this.world.getStorage(storName as any);
@@ -61,12 +87,22 @@ export class SpawnCommandKind implements CommandKind {
             data: {
                 entities: newEntities,
                 storages: newStorages,
-            }
-        } as SpawnCommand];
+            },
+            remap: newRemap,
+        } satisfies SpawnCommand as SpawnCommand];
     }
 
     merge(to: SpawnCommand, from: SpawnCommand, strict: boolean): boolean {
         if (strict) return false;
+        if (to.thenSelect != from.thenSelect) return false;
+        if (to.remap !== undefined || from.remap !== undefined) {
+            if (to.remap === undefined) {
+                to.remap = new Array(...to.data.entities);
+            }
+            const fromEntities = from.remap ?? from.data.entities;
+            to.remap.push(...fromEntities);
+        }
+
         to.data.entities.push(...from.data.entities);
         for (let storageName in from.data.storages) {
             const name = storageName as ComponentType;

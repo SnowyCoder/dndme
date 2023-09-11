@@ -5,6 +5,8 @@ import { World } from "../../../World";
 import { NetworkSystem, NETWORK_TYPE } from "../NetworkSystem";
 import { FileDb, FileIndex } from "../../../../map/FileDb";
 import { BigStorageNetworkClient, BigStorageNetworkServer } from "./bigStorageNetwork";
+import { LOG_TYPE, getLogger } from "../log/LogSystem";
+import { Logger } from "../log/Logger";
 
 export const FILE_REQUSEST_CANCELED = Symbol();
 
@@ -21,11 +23,13 @@ export type BIG_STORAGE_TYPE = typeof BIG_STORAGE_TYPE;
 export class BigStorageSystem implements System {
     readonly name = BIG_STORAGE_TYPE;
     readonly dependencies = [];
-    readonly optionalDependencies = [NETWORK_TYPE];
+    readonly optionalDependencies = [NETWORK_TYPE, LOG_TYPE];
     readonly components?: [BigEntryRefComponent];
 
     readonly world: World;
     readonly netSys?: NetworkSystem;
+    private readonly logger: Logger;
+
     private adapter: Adapter;
     files: FileDb = new FileDb();
     refStorage = new SingleEcsStorage<BigEntryRefComponent>(BIG_ENTRY_REF_TYPE, false, false);
@@ -34,6 +38,7 @@ export class BigStorageSystem implements System {
 
     constructor(world: World) {
         this.world = world;
+        this.logger = getLogger(world, 'storage');
 
         world.addStorage(this.refStorage);
         world.events.on('hook_files', (fdb: FileDb) => {
@@ -104,7 +109,7 @@ export class BigStorageSystem implements System {
         } else {
             entSto.refs[id] += 1;
         }
-        //console.log("++++++++ Use: ", owner, id, entSto.totRefs, entSto.refs[id]);
+        this.logger.debug("use: ", owner, id, entSto.totRefs, entSto.refs[id]);
         this._createRef(id, 1);
         this.world.events.emit('file_usage_inc', owner, id);
     }
@@ -112,17 +117,17 @@ export class BigStorageSystem implements System {
     dropUse(owner: number, id: FileIndex): void {
         let entSto = this.refStorage.getComponent(owner);
         if (entSto === undefined) {
-            console.error("Unpaired file drop");
+            this.logger.error("Unpaired file drop");
             return;
         }
         entSto.totRefs--;
         if (id in entSto.refs && entSto.refs[id] > 0) {
             entSto.refs[id] -= 1;
         } else {
-            console.error("Unpaired file drop");
+            this.logger.error("Unpaired file drop");
             return;
         }
-        //console.log("-------- Use: ", owner, id, entSto.totRefs, entSto.refs[id]);
+        this.logger.debug("drop: ", owner, id, entSto.totRefs, entSto.refs[id]);
         if (entSto.refs[id] <= 0) {
             delete entSto.refs[id];
         }

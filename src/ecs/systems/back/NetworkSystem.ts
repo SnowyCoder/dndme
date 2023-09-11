@@ -530,6 +530,7 @@ export class ClientNetworkSystem {
     private onEcsBootstrap(packet: P.EcsBootrstrap, info: PacketInfo): void {
         if (info.senderId !== 0) return; // Only admin
 
+        this.logger.debug('bootstrap', packet);
         this.world.clear();
         this.world.deserialize(packet.payload, {
             addShare: true,

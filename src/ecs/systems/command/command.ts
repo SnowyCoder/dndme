@@ -20,12 +20,22 @@ export interface CommandKind {
     applyInvert(command: Command): Command;
 
     /**
-    * Applies the command without inversion (used in non-master worlds where the command does not need history log)
-    */
+     * Applies the command without inversion (used in non-master worlds where the command does not need history log)
+     */
     apply(command: Command): void;
 
     stripClient(command: Command): Command[];
 
+    /**
+     * Merges two commands together if possible, consuming the second one if the process succeded
+     * When strict=true the command will provide extra care to check that no information is lost in the merging process.
+     * Ex: when two edit commands will be merged with strict=true, the kind will only merge them if they edit the same fields.
+     * The system will use strict=false for PARTIAL changes, and strict=true for commands that happen at close time intervals (but they might not be related!)
+     * 
+     * @param to The command to merge into
+     * @param from The command to be merged, will be consumed if the operation returns true
+     * @param strict If true the commands should be merged only if no information is lost.
+     */
     merge(to: Command, from: Command, strict: boolean): boolean;
 
     isNull(command: Command): boolean;

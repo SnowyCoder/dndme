@@ -10,6 +10,8 @@ import { SingleEcsStorageSerialzed } from "../Storage";
 import { Aabb } from "../../geometry/aabb";
 import { BOARD_SIZE_TYPE, BOARD_TRANSFORM_TYPE } from "./back/pixi/pixiBoardSystem";
 import { EVENT_COMMAND_HISTORY_LOG } from "./command/commandSystem";
+import { SpawnCommand } from "./command/spawnCommand";
+import { parse } from "path";
 
 const CLIPBOARD_DATA = 'dndme-clip';
 
@@ -88,17 +90,13 @@ export class CopyPasteSystem implements System {
                 (boardSize.height * randY / 2 - transform.posY) / transform.scaleY
             );
         }
-
-        let entities = [] as number[];
-        this.world.deserialize(parsed.data, {
-            remap: true,
-            remapListener: e => { entities = e; },
+        const cmd: SpawnCommand = {
+            kind: 'spawn',
+            data: parsed.data,
+            remap: this.world.allocateIds(parsed.data.entities.length),
             thenSelect: true,
-        });
-        this.world.events.emit(EVENT_COMMAND_HISTORY_LOG, {
-            kind: 'despawn',
-            entities,
-        } as DeSpawnCommand, false);
+        };
+        executeAndLogCommand(this.world, cmd);
     }
 
     copyOrCut(del: boolean): string {

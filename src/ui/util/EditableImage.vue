@@ -141,7 +141,6 @@ const imgBlob = ref<Blob | null>(null);
 
 async function onDrop(event: DragEvent) {
   isDragging.value = false;
-  console.log('DRAG OVER', event.dataTransfer);
   if (event.dataTransfer == null) return;
 
   event.stopPropagation();

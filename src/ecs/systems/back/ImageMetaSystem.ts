@@ -10,6 +10,8 @@ import { SpawnCommandKind } from "../command/spawnCommand";
 import { DECLARATIVE_LISTENER_TYPE } from "./DeclarativeListenerSystem";
 import { BigStorageSystem, BIG_STORAGE_TYPE } from "./files/bigStorageSystem";
 import { ComponentType } from "@/ecs/TypeRegistry";
+import { Logger } from "./log/Logger";
+import { LOG_TYPE, getLogger } from "./log/LogSystem";
 
 
 export const IMAGE_META_TYPE = 'image_meta';
@@ -25,10 +27,11 @@ export const IMAGE_META_SYNC_TYPE = 'image_meta_sync';
 export type IMAGE_META_SYNC_TYPE = typeof IMAGE_META_SYNC_TYPE;
 export class ImageMetaSyncSystem implements System {
     readonly name = IMAGE_META_SYNC_TYPE;
-    readonly dependencies = [DECLARATIVE_LISTENER_TYPE, BIG_STORAGE_TYPE];
+    readonly dependencies = [DECLARATIVE_LISTENER_TYPE, BIG_STORAGE_TYPE, LOG_TYPE];
     readonly components?: [ImageMetaComponent];
 
     readonly world: World;
+    private readonly logger: Logger;
     readonly storage = new SingleEcsStorage<ImageMetaComponent>(IMAGE_META_TYPE, true, false);
     private readonly fileSys: BigStorageSystem;
 
@@ -36,6 +39,7 @@ export class ImageMetaSyncSystem implements System {
 
     constructor(world: World) {
         this.world = world;
+        this.logger = getLogger(world, 'image.meta');
         world.addStorage(this.storage);
 
         this.fileSys =  world.requireSystem(BIG_STORAGE_TYPE);
@@ -58,7 +62,9 @@ export class ImageMetaSyncSystem implements System {
             const oldEntity = this.metaMap.get(oldImg);
             if (oldEntity !== undefined) {
                 const data = this.storage.getComponent(oldEntity)!;
-                if (--data._ref <= 0) {
+                data._ref--;
+                this.logger.debug('Decrease', data._ref, oldImg);
+                if (data._ref <= 0) {
                     const cmd = {
                         kind: 'despawn',
                         entities: [oldEntity],
@@ -66,15 +72,19 @@ export class ImageMetaSyncSystem implements System {
                     emitCommand(this.world, cmd, true);
                     this.metaMap.delete(oldImg);
                 }
+            } else {
+                this.logger.debug('Delete with no image!', oldImg);
             }
         }
         if (newImg !== undefined) {
             const newEntity = this.metaMap.get(newImg);
             if (newEntity === undefined) {
                 this.spawnMeta(newImg);
+                this.logger.debug('Spawn', newImg);
             } else {
                 const data = this.storage.getComponent(newEntity);
                 data!._ref++;
+                this.logger.debug('Increase', newImg, data?._ref);
             }
         }
     }
@@ -87,7 +97,7 @@ export class ImageMetaSyncSystem implements System {
                 type: IMAGE_META_TYPE,
                 image: img,
                 meta,
-                _ref: 1,
+                _ref: 0,
             } as ImageMetaComponent,
             {
                 type: SHARED_TYPE

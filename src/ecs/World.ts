@@ -90,6 +90,7 @@ const DEFAULT_SERIALIZE_OPTIONS = {
 
 export interface DeserializeOptions {
     remap: boolean,
+    manualRemap?: number[],
     remapListener: (entities: number[]) => void,
     thenSelect: boolean,
     addShare: boolean,
@@ -474,21 +475,29 @@ export class World {
         return res;
     }
 
+    allocateIds(len: number): number[] {
+        let remapsUndup = new Set<number>();
+        let remaps = new Array<number>();
+        for (let i = 0; i < len; i++) {
+            let id = this.allocateId();
+            if (remapsUndup.has(id)) {
+                i--;
+                continue;
+            }
+            remapsUndup.add(id);
+            remaps.push(id);
+        }
+        return remaps;
+    }
+
     deserialize(data: SerializedWorld, options: Partial<DeserializeOptions>) {
         const opts = Object.assign({}, DEFAULT_DESERIALIZE_OPTIONS, options) as DeserializeOptions;
 
         let mapping = (x: number) => x;
         if (opts.remap) {
-            let remapsUndup = new Set<number>();
-            let remaps = new Array<number>();
-            for (let i = 0; i < data.entities.length; i++) {
-                let id = this.allocateId();
-                if (remapsUndup.has(id)) {
-                    i--;
-                    continue;
-                }
-                remapsUndup.add(id);
-                remaps.push(id);
+            const remaps = options.manualRemap ?? this.allocateIds(data.entities.length);
+            if (remaps.length !== data.entities.length) {
+                throw new Error('Invalid manual remap provided!');
             }
             opts.remapListener(remaps);
             mapping = (x: number) => remaps[x - 1];
@@ -513,6 +522,10 @@ export class World {
 
         for (let entity of data.entities) {
             let  realEnt = mapping(entity);
+            if (this.entities.has(realEnt)) {
+                console.warn('Deserialized entity already exists!', realEnt, data);
+                debugger;
+            }
             this.entities.add(realEnt);
 
             this.events.emit('entity_spawn', realEnt);

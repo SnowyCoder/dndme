@@ -6,6 +6,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "vite",
+    "dev-pub": "vite --host '0.0.0.0' --base '/pc/' --port 8080",
     "pwapreview": "vite build && python3 -m http.server -d dist",
     "check": "vue-tsc --noEmit",
     "predeploy": "vite build --base=/dndme/",

@@ -355,11 +355,9 @@ export class ImageRenderer {
         if (im._renTex !== undefined) {
             im._renTex.destroy(true);
         }
-        if (im.texture.value !== im._oldTex) {
-            console.warn("Removing non-updated image");
-        }
-        if (im.texture.type === 'external') {
-            this.dropTexUsage(owner, im, im.texture.value);
+        if (im._oldTex !== undefined && typeof im._oldTex === 'string') {
+            this.dropTexUsage(owner, im, im._oldTex);
+            im._oldTex = undefined;
         }
         if (im.visMap !== undefined) {
             this.fileSys.dropUse(owner, im.visMap);

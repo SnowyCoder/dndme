@@ -3,7 +3,7 @@ import { System } from "@/ecs/System";
 import { World } from "@/ecs/World";
 import { TICK_EVENT, WEBGL_CONTEXT_CHANGE_EVENT } from "../pixi/pixiBoardSystem";
 import { createConsoleLogger, unregisterConsoleLogger } from "./ConsoleLogReceiver";
-import { DEFAULT_LOG_LEVEL, Logger, LogLevel, LogReceiver } from "./Logger";
+import { LOG_DIRECTIVE, Logger, LogLevel, LogReceiver } from "./Logger";
 import { WebGlProfiler } from "./Profiler";
 
 export const LOG_TYPE = "log";
@@ -32,9 +32,21 @@ export class LogSystem implements System {
         this.glProfiler = new WebGlProfiler(undefined);
         this.root = new Logger(undefined, "", this.glProfiler);
         this.consoleLogger = createConsoleLogger(this.root, true);
-        this.consoleLogger.setRule('', DEFAULT_LOG_LEVEL);
 
-        this.root.log("Enabling Logger, console default level: " + LogLevel[DEFAULT_LOG_LEVEL] + " dndme version: " + __COMMIT_HASH__);
+        let dirString = '';
+        for (let [path, level] of LOG_DIRECTIVE) {
+            this.consoleLogger.setRule(path, level);
+            if (dirString != '') dirString += ',';
+            if (path.length > 0) dirString += `${path}=`;
+            dirString += `${LogLevel[level]}`;
+        }
+
+        const style = 'color: yellow; background-color: purple; padding:2px;'
+        this.root.log("---------------------------------");
+        this.root.log("Dndme enabling logger!");
+        this.root.log("Console directive: " + dirString);
+        this.root.log("Dndme version: " + __COMMIT_HASH__);
+        this.root.log("---------------------------------");
 
         this.world.addResource({
             type: LOG_TYPE,

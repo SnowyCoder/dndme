@@ -73,6 +73,7 @@ export class VisibilityPolygonRenderer extends ObjectRenderer {
     }
 
     contextChange(): void {
+        //console.log(this.renderer.gl);
         let programs = compilePrograms();
 
         this.shaders = {} as any;

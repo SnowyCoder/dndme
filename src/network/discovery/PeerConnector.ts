@@ -35,7 +35,7 @@ export class PeerConnector {
 
     constructor(signaler: ServerSignaler, wrtcConfig: RTCConfiguration) {
         this.signaler = signaler;
-        this.logger = getLogger('connection.discovery');
+        this.logger = getLogger('network.connection.discovery');
         this.wrtcConfig = wrtcConfig;
 
         this.signaler.events.on('room_left', this.severeConnections.bind(this));
