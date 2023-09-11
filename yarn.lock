@@ -1391,13 +1391,6 @@
   dependencies:
     "@popperjs/core" "^2.9.2"
 
-"@types/cropperjs@^1.3.0":
-  version "1.3.0"
-  resolved "https://registry.yarnpkg.com/@types/cropperjs/-/cropperjs-1.3.0.tgz#44b804ec991e5fb8b878917ac51067f76c92a377"
-  integrity sha512-U3a/z302duKpXUHfMneFjrWDDoq5n+nsJ/YeJHoTI9LXSBtSsqMUyxEJPIMAzfDawF5nuG5c9FN2gY//ZGl5PA==
-  dependencies:
-    cropperjs "*"
-
 "@types/css-font-loading-module@^0.0.7":
   version "0.0.7"
   resolved "https://registry.yarnpkg.com/@types/css-font-loading-module/-/css-font-loading-module-0.0.7.tgz#2f98ede46acc0975de85c0b7b0ebe06041d24601"
@@ -2049,7 +2042,7 @@ core-util-is@~1.0.0:
   resolved "https://registry.yarnpkg.com/core-util-is/-/core-util-is-1.0.3.tgz#a6042d3634c2b27e9328f837b965fac83808db85"
   integrity sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ==
 
-cropperjs@*, cropperjs@^1.5.13:
+cropperjs@^1.5.13:
   version "1.6.0"
   resolved "https://registry.yarnpkg.com/cropperjs/-/cropperjs-1.6.0.tgz#de9f23b7e397a53fd0dc10cc0d6fe31fe1e2019a"
   integrity sha512-BzLU/ecrfsbflwxgu+o7sQTrTlo52pVRZkTVrugEK5uyj6n8qKwAHP4s6+DWHqlXLqQ5B9+cM2MKeXiNfAsF6Q==

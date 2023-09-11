@@ -3,7 +3,7 @@
     <div class="d-flex align-items-center">
       <!-- Image -->
       <editable-image :readonly="!isMaster" v-model="imageId" :border="{
-        color: new Color(color).toHex(),
+        color: colorToHex(color),
         width: hideColor ? 1 : 0.8,
       }" />
     </div>
@@ -41,6 +41,8 @@ import { useComponentPiece } from "../vue";
 import EditableImage from "../util/EditableImage.vue";
 
 import { Color } from "@/pixi";
+
+const colorToHex = (x: number) => new Color(x).toHex();
 
 const props = defineProps<{
   component: PinComponent
