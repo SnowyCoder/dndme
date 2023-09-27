@@ -14,7 +14,9 @@ Peer-to-peer multiplayer virtual tabletop for roleplaying games
 
 ## Screenshots
 
-> [!WARNING]: Missing screenshots.
+> [!WARNING]
+>
+> Missing screenshots.
 
 <!--
 <details>
@@ -72,7 +74,9 @@ Client deployment is performed automatically via [GitHub Pages] on every commit 
 
 ### Signaling server
 
-> [!WARNING]: Missing documentation.
+> [!WARNING]
+> 
+> Missing documentation.
 
 ## Development
 
@@ -92,7 +96,9 @@ To run a live-reloading version of the client:
 
 ### Signaling server
 
-> [!WARNING]: Missing documentation.
+> [!WARNING]
+> 
+> Missing documentation.
 
 
 [Node.JS]: https://nodejs.org/
